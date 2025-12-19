@@ -4,6 +4,7 @@ import { CameraModal } from './src/components/CameraModal';
 import { SyncPrompt } from './src/components/SyncPrompt';
 import { LoginPage } from './src/components/LoginPage';
 import { UpdateNotification } from './src/components/UpdateNotification';
+import { AvatarUpload } from './src/components/AvatarUpload';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
@@ -241,6 +242,7 @@ export default function App() {
   
   // 用户信息
   const [userName, setUserName] = useState(localStorage.getItem('userName') || '用户');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(localStorage.getItem('reminderEnabled') === 'true');
   const [syncEnabled, setSyncEnabled] = useState(localStorage.getItem('syncEnabled') === 'true');
   
@@ -349,7 +351,11 @@ export default function App() {
     // 加载用户设置
     getUserSettings().then(settings => {
       console.log('📋 用户设置已加载:', settings);
-      // 这里可以应用用户设置到应用状态
+      // 应用用户设置到应用状态
+      if (settings.avatar_url) {
+        setAvatarUrl(settings.avatar_url);
+        console.log('👤 用户头像已加载');
+      }
     }).catch(console.error);
     
     // 初始化 Realtime 同步
@@ -939,7 +945,7 @@ export default function App() {
       {/* 个人信息编辑 */}
       {showProfileEdit && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-black italic tracking-tighter">个人信息</h3>
               <button
@@ -950,7 +956,20 @@ export default function App() {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* 头像上传 */}
+              <div className="py-4">
+                <AvatarUpload 
+                  currentAvatarUrl={avatarUrl || undefined}
+                  onAvatarUpdated={(url) => {
+                    setAvatarUrl(url);
+                    console.log('✅ 头像已更新:', url);
+                  }}
+                  size={120}
+                />
+              </div>
+
+              {/* 用户名 */}
               <div>
                 <label className="block text-sm font-bold text-gray-600 mb-2">用户名</label>
                 <input

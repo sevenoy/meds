@@ -63,7 +63,7 @@ export async function getUserSettings(): Promise<UserSettings> {
 }
 
 /**
- * 保存用户设置
+ * 保存用户设置（带冲突检测 - LWW策略）
  */
 export async function saveUserSettings(settings: UserSettings): Promise<void> {
   // 先保存到本地
@@ -83,25 +83,92 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
 
     console.log('☁️ 同步用户设置到云端...');
 
-    // 保存到Supabase（upsert: 存在则更新，不存在则插入）
+    // Step 1: 获取云端最新数据（LWW冲突检测）
+    const { data: cloudData } = await supabase!
+      .from('user_settings')
+      .select('settings, updated_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const lastSyncTimestamp = parseInt(localStorage.getItem(LAST_SYNC_KEY) || '0');
+    
+    // Step 2: 检测云端是否有更新
+    if (cloudData) {
+      const cloudTimestamp = new Date(cloudData.updated_at).getTime();
+      
+      // 比较数据内容（标准化比较）
+      const cloudSettings = JSON.stringify(normalizeSettings(cloudData.settings));
+      const localSettings = JSON.stringify(normalizeSettings(settings));
+      
+      // 如果内容相同，只更新时间戳
+      if (cloudSettings === localSettings) {
+        if (cloudTimestamp > lastSyncTimestamp) {
+          console.log('📊 设置内容相同，更新本地时间戳');
+          localStorage.setItem(LAST_SYNC_KEY, cloudTimestamp.toString());
+        } else {
+          console.log('✅ 设置已同步，无需操作');
+        }
+        return;
+      }
+      
+      // Step 3: 检测冲突（云端数据更新）
+      if (cloudTimestamp > lastSyncTimestamp) {
+        console.warn('⚠️ 检测到云端设置更新，本地修改被覆盖');
+        // 应用云端设置（LWW策略）
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(cloudData.settings));
+        localStorage.setItem(LAST_SYNC_KEY, cloudTimestamp.toString());
+        
+        // 触发全局事件通知应用刷新
+        window.dispatchEvent(new CustomEvent('settings-conflict-resolved', {
+          detail: { settings: cloudData.settings, source: 'cloud' }
+        }));
+        
+        console.log('✅ 已应用云端最新设置（Last Write Wins）');
+        return;
+      }
+    }
+
+    // Step 4: 本地数据更新，保存到云端
+    const newTimestamp = new Date().toISOString();
     const { error } = await supabase!
       .from('user_settings')
       .upsert({
         user_id: userId,
         settings: settings,
-        updated_at: new Date().toISOString()
+        updated_at: newTimestamp
       }, {
         onConflict: 'user_id'
       });
 
     if (error) throw error;
 
-    localStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
-    console.log('✅ 用户设置已同步到云端');
+    // 更新本地时间戳
+    localStorage.setItem(LAST_SYNC_KEY, new Date(newTimestamp).getTime().toString());
+    console.log('✅ 用户设置已同步到云端（LWW策略）');
   } catch (error) {
     console.error('❌ 同步用户设置失败:', error);
     // 不抛出错误，确保本地保存成功
   }
+}
+
+/**
+ * 标准化设置对象（用于比较）
+ */
+function normalizeSettings(settings: any): any {
+  if (!settings) return {};
+  
+  // 深拷贝并排序键，确保比较一致性
+  const normalized: any = {};
+  Object.keys(settings).sort().forEach(key => {
+    const value = settings[key];
+    if (typeof value === 'object' && value !== null) {
+      normalized[key] = normalizeSettings(value);
+    } else {
+      normalized[key] = value;
+    }
+  });
+  
+  return normalized;
 }
 
 /**
