@@ -148,7 +148,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       
       // 通知父组件更新
       onAvatarUpdated?.(publicUrl);
-      
+
       // 显示成功提示
       const notification = document.createElement('div');
       notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
@@ -203,7 +203,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       
       // 通知父组件更新
       onAvatarUpdated?.(null);
-      
+
       // 显示成功提示
       const notification = document.createElement('div');
       notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';

@@ -423,12 +423,29 @@ export default function App() {
         }, 3000);
       }
       
-      // 对于其他设置变更，询问用户是否应用
-      if (Object.keys(settings).some(key => key !== 'avatar_url' && settings[key] !== undefined)) {
-        const shouldApply = confirm('其他设备更新了设置，是否立即应用？');
-        if (shouldApply) {
+      // 自动应用其他设置变更（用户名等）
+      const hasOtherChanges = Object.keys(settings).some(
+        key => key !== 'avatar_url' && settings[key] !== undefined
+      );
+      
+      if (hasOtherChanges) {
+        console.log('⚙️ 检测到其他设置更新，自动应用...');
+        
+        // 显示友好提示
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 z-50 bg-blue-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+        notification.textContent = '✅ 设置已从其他设备同步';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.classList.add('animate-fade-out');
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
+        
+        // 自动刷新页面应用所有设置
+        setTimeout(() => {
           window.location.reload();
-        }
+        }, 1000);
       }
     });
     
