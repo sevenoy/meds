@@ -36,10 +36,14 @@ export async function getCurrentUserId(): Promise<string | null> {
  */
 export async function signIn(email: string, password: string) {
   if (isMockMode) {
-    return { user: { id: await getCurrentUserId() }, error: null };
+    console.log('🔧 Mock模式：自动登录成功');
+    return { data: { user: { id: await getCurrentUserId() } }, error: null };
   }
   
-  return await supabase!.auth.signInWithPassword({ email, password });
+  console.log('🌐 Supabase模式：调用登录API');
+  const result = await supabase!.auth.signInWithPassword({ email, password });
+  console.log('📡 Supabase登录响应:', result);
+  return result;
 }
 
 /**

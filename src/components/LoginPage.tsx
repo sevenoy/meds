@@ -28,23 +28,29 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     try {
       // 将用户名转换为邮箱格式
       const email = `${username}@gmail.com`;
+      console.log('🔐 尝试登录:', email);
       
       // 调用 Supabase 登录
-      const { error: loginError } = await signIn(email, password);
+      const { data, error: loginError } = await signIn(email, password);
+      
+      console.log('📋 登录结果:', { data, error: loginError });
       
       if (loginError) {
-        setError('登录失败：用户名或密码错误');
+        console.error('❌ 登录失败:', loginError);
+        setError(`登录失败：${loginError.message || '用户名或密码错误'}`);
+        setLoading(false);
         return;
       }
 
       // 登录成功
+      console.log('✅ 登录成功');
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('username', username);
+      setLoading(false);
       onLoginSuccess();
     } catch (err) {
-      setError('登录失败，请重试');
-      console.error('Login error:', err);
-    } finally {
+      console.error('❌ 登录异常:', err);
+      setError(`登录失败：${err instanceof Error ? err.message : '请重试'}`);
       setLoading(false);
     }
   };
@@ -89,7 +95,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="sevenoy"
+                placeholder="请输入用户名"
                 className="w-full pl-12 pr-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none font-medium transition-all"
                 disabled={loading}
               />
