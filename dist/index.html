@@ -24,6 +24,53 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="药盒助手">
     
+    <!-- 版本号配置 -->
+    <script>
+      const APP_VERSION = 'V251219.1';
+      console.log('📦 当前版本:', APP_VERSION);
+    </script>
+    
+    <!-- Service Worker 注册 -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          const swUrl = '/sw.js?v=' + APP_VERSION + '&t=' + Date.now();
+          navigator.serviceWorker.register(swUrl, {
+            scope: '/',
+            updateViaCache: 'none'
+          }).then((registration) => {
+            console.log('✅ Service Worker 注册成功');
+            
+            // 立即检查更新
+            registration.update();
+            
+            // 监听新版本
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              console.log('🔄 发现新版本');
+              
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('✨ 新版本已准备就绪');
+                  // 通知 React 应用有新版本
+                  window.dispatchEvent(new CustomEvent('sw-update-available', {
+                    detail: { registration }
+                  }));
+                }
+              });
+            });
+          }).catch((error) => {
+            console.warn('⚠️ Service Worker 注册失败:', error);
+          });
+        });
+        
+        // 监听 Service Worker 控制权变化
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('🔄 Service Worker 控制权已更新');
+        });
+      }
+    </script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,7 +90,7 @@
         .bg-mint { background-color: #BFEFFF; }
         .rounded-pill { border-radius: 40px; }
     </style>
-  <script type="module" crossorigin src="/meds/assets/index-Du_0gPNa.js"></script>
+  <script type="module" crossorigin src="/meds/assets/index-BvPwtgUL.js"></script>
 </head>
 <body>
     <div id="root"></div>

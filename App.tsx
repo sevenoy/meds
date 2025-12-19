@@ -3,6 +3,7 @@ import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw
 import { CameraModal } from './src/components/CameraModal';
 import { SyncPrompt } from './src/components/SyncPrompt';
 import { LoginPage } from './src/components/LoginPage';
+import { UpdateNotification } from './src/components/UpdateNotification';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
@@ -1360,6 +1361,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* 版本更新提示 */}
+      <UpdateNotification />
     </div>
   );
 }
