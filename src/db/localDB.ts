@@ -34,6 +34,15 @@ export async function upsertMedication(med: Medication): Promise<void> {
 }
 
 /**
+ * 删除药物
+ */
+export async function deleteMedication(medicationId: string): Promise<void> {
+  await db.medications.delete(medicationId);
+  // 同时删除相关的服药记录
+  await db.medicationLogs.where('medication_id').equals(medicationId).delete();
+}
+
+/**
  * 获取药物的所有记录
  */
 export async function getMedicationLogs(medicationId?: string): Promise<MedicationLog[]> {

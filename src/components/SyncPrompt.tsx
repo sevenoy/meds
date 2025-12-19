@@ -80,14 +80,6 @@ export const SyncPrompt: React.FC<SyncPromptProps> = ({ log, onAccept, onDismiss
             </div>
           </div>
 
-          {log.status === 'suspect' && (
-            <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-xl border border-red-100">
-              <AlertCircle className="w-4 h-4" />
-              <p className="text-[10px] font-bold uppercase tracking-widest">
-                需要审核：证据提供时间 &gt; 6小时
-              </p>
-            </div>
-          )}
         </div>
 
         <div className="flex gap-4">

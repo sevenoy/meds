@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2 } from 'lucide-react';
+import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2 } from 'lucide-react';
 import { CameraModal } from './src/components/CameraModal';
 import { SyncPrompt } from './src/components/SyncPrompt';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
-import { getMedicationLogs, upsertMedication } from './src/db/localDB';
+import { getMedicationLogs, upsertMedication, deleteMedication } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges } from './src/services/sync';
 import type { Medication, MedicationLog } from './src/types';
 
@@ -192,17 +192,6 @@ const TimelineItem: React.FC<{ log: MedicationLog; medication: Medication }> = (
               </div>
             </div>
           </div>
-          
-          {isDelayed && (
-            <div className="mt-4 flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-xl border border-red-100">
-              <AlertCircle className="w-4 h-4" />
-              <p className="text-[10px] font-bold tracking-widest">
-                {log.status === 'suspect' 
-                  ? '需要审核：证据提供时间超过 6 小时'
-                  : '延迟验证：证据提供时间超过 1 小时'}
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -224,11 +213,18 @@ export default function App() {
   const [showReminderSettings, setShowReminderSettings] = useState(false);
   const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showMedicationManage, setShowMedicationManage] = useState(false);
   
   // 用户信息
   const [userName, setUserName] = useState(localStorage.getItem('userName') || '用户');
   const [reminderEnabled, setReminderEnabled] = useState(localStorage.getItem('reminderEnabled') === 'true');
   const [syncEnabled, setSyncEnabled] = useState(localStorage.getItem('syncEnabled') === 'true');
+  
+  // 药品管理
+  const [newMedName, setNewMedName] = useState('');
+  const [newMedDosage, setNewMedDosage] = useState('');
+  const [newMedTime, setNewMedTime] = useState('');
+  const [newMedAccent, setNewMedAccent] = useState<'berry' | 'lime' | 'mint'>('lime');
 
   // 加载数据
   const loadData = async () => {
@@ -510,6 +506,22 @@ export default function App() {
                   <div>
                     <p className="font-black italic tracking-tighter">个人信息</p>
                     <p className="text-xs text-gray-400 font-bold">管理你的个人资料</p>
+                  </div>
+                </div>
+                <span className="text-gray-400">›</span>
+              </div>
+
+              <div 
+                onClick={() => setShowMedicationManage(true)}
+                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center">
+                    <Pill className="w-5 h-5 text-pink-600" />
+                  </div>
+                  <div>
+                    <p className="font-black italic tracking-tighter">药品管理</p>
+                    <p className="text-xs text-gray-400 font-bold">添加或删除药品</p>
                   </div>
                 </div>
                 <span className="text-gray-400">›</span>
@@ -836,6 +848,194 @@ export default function App() {
                 关闭
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 药品管理 */}
+      {showMedicationManage && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] p-8 max-w-2xl w-full shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black italic tracking-tighter">药品管理</h3>
+              <button
+                onClick={() => {
+                  setShowMedicationManage(false);
+                  setNewMedName('');
+                  setNewMedDosage('');
+                  setNewMedTime('');
+                }}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 添加新药品 */}
+            <div className="mb-6 p-6 bg-gradient-to-br from-pink-50 to-purple-50 rounded-3xl border-2 border-pink-100">
+              <h4 className="text-lg font-black italic tracking-tighter mb-4 flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                添加新药品
+              </h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">药品名称</label>
+                  <input
+                    type="text"
+                    value={newMedName}
+                    onChange={(e) => setNewMedName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                    placeholder="例如：降压药"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">剂量</label>
+                  <input
+                    type="text"
+                    value={newMedDosage}
+                    onChange={(e) => setNewMedDosage(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                    placeholder="例如：1片"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">服用时间</label>
+                  <input
+                    type="time"
+                    value={newMedTime}
+                    onChange={(e) => setNewMedTime(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setNewMedAccent('lime')}
+                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                        newMedAccent === 'lime' 
+                          ? 'bg-lime border-2 border-green-600 scale-105' 
+                          : 'bg-lime/50 border-2 border-transparent'
+                      }`}
+                    >
+                      柠檬绿
+                    </button>
+                    <button
+                      onClick={() => setNewMedAccent('mint')}
+                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                        newMedAccent === 'mint' 
+                          ? 'bg-mint border-2 border-blue-600 scale-105' 
+                          : 'bg-mint/50 border-2 border-transparent'
+                      }`}
+                    >
+                      薄荷蓝
+                    </button>
+                    <button
+                      onClick={() => setNewMedAccent('berry')}
+                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                        newMedAccent === 'berry' 
+                          ? 'bg-berry border-2 border-pink-600 scale-105' 
+                          : 'bg-berry/50 border-2 border-transparent'
+                      }`}
+                    >
+                      莓果粉
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (!newMedName || !newMedDosage || !newMedTime) {
+                      alert('请填写完整信息');
+                      return;
+                    }
+
+                    const newMed: Medication = {
+                      id: `med_${Date.now()}`,
+                      name: newMedName,
+                      dosage: newMedDosage,
+                      scheduled_time: newMedTime,
+                      accent: newMedAccent
+                    };
+
+                    await upsertMedication(newMed);
+                    await loadData();
+                    
+                    setNewMedName('');
+                    setNewMedDosage('');
+                    setNewMedTime('');
+                    setNewMedAccent('lime');
+                  }}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  添加药品
+                </button>
+              </div>
+            </div>
+
+            {/* 现有药品列表 */}
+            <div>
+              <h4 className="text-lg font-black italic tracking-tighter mb-4">当前药品列表</h4>
+              
+              {medications.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Pill className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="font-bold">暂无药品</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {medications.map((med) => (
+                    <div
+                      key={med.id}
+                      className={`p-5 rounded-2xl border-2 flex items-center justify-between ${
+                        med.accent === 'lime' ? 'bg-lime/20 border-lime' :
+                        med.accent === 'mint' ? 'bg-mint/20 border-mint' :
+                        'bg-berry/20 border-berry'
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <h5 className="font-black italic tracking-tighter text-lg">{med.name}</h5>
+                        <div className="flex items-center gap-4 mt-1">
+                          <span className="text-sm font-bold text-gray-600">{med.dosage}</span>
+                          <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">
+                            {med.scheduled_time}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={async () => {
+                          if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                            await deleteMedication(med.id);
+                            await loadData();
+                          }
+                        }}
+                        className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all ml-4"
+                      >
+                        <Trash2 className="w-5 h-5 text-red-600" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                setShowMedicationManage(false);
+                setNewMedName('');
+                setNewMedDosage('');
+                setNewMedTime('');
+              }}
+              className="w-full mt-6 px-6 py-4 bg-black text-white font-black italic rounded-full tracking-tighter hover:bg-gray-800 transition-all"
+            >
+              完成
+            </button>
           </div>
         </div>
       )}
