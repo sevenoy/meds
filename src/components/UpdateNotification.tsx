@@ -36,10 +36,15 @@ export const UpdateNotification: React.FC = () => {
       
       setRegistration(event.detail.registration);
       
-      // 获取更新日志
+      // 获取更新日志（使用强缓存控制）
       try {
-        const response = await fetch(`/update-log.json?v=${currentVersion}&t=${Date.now()}`, {
-          cache: 'no-store'
+        const cacheBuster = Date.now() + Math.random();
+        const response = await fetch(`/update-log.json?v=${currentVersion}&t=${cacheBuster}&nocache=${Math.random()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
         });
         const updateLog: UpdateLog = await response.json();
         
@@ -91,21 +96,33 @@ export const UpdateNotification: React.FC = () => {
     // 记录已显示
     localStorage.setItem('update_notification_shown', currentVersion);
     
+    // 设置刷新标志
+    sessionStorage.setItem('sw_manual_refresh', 'true');
+    sessionStorage.setItem('sw_refreshing', 'true');
+    sessionStorage.setItem('sw_refresh_time', Date.now().toString());
+    
     // 清除所有缓存
     if ('caches' in window) {
-      const cacheNames = await caches.keys();
-      await Promise.all(cacheNames.map(name => caches.delete(name)));
-      console.log('🗑️ 已清除所有缓存');
+      try {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+        console.log('🗑️ 已清除所有缓存:', cacheNames.length);
+      } catch (err) {
+        console.warn('清除缓存失败:', err);
+      }
     }
     
     // 通知 Service Worker 跳过等待
     if (registration && registration.waiting) {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      console.log('📤 已通知 Service Worker 跳过等待');
     }
     
-    // 刷新页面
-    console.log('🔄 正在刷新页面...');
-    window.location.reload();
+    // 延迟一小段时间确保标志已设置，然后刷新
+    setTimeout(() => {
+      console.log('🔄 正在刷新页面...');
+      window.location.reload();
+    }, 50);
   };
 
   const handleDismiss = () => {

@@ -26,7 +26,7 @@
     
     <!-- 版本号配置 -->
     <script>
-      const APP_VERSION = 'V251219.8';
+      const APP_VERSION = 'V251219.9';
       window.APP_VERSION = APP_VERSION; // 暴露到全局window对象
       console.log('📦 当前版本:', APP_VERSION);
       
@@ -85,56 +85,230 @@
       }
     </script>
     
-    <!-- Service Worker 注册 -->
+    <!-- Service Worker 注册（增强版本检测）-->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          // 先注销旧的 Service Worker
-          navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            for (let registration of registrations) {
-              registration.unregister().then(function(success) {
-                if (success) {
-                  console.log('🗑️ 已注销旧的 Service Worker');
-                }
-              });
-            }
-          }).then(function() {
-            // 注册新的 Service Worker
-            const swUrl = '/sw.js?v=' + APP_VERSION + '&t=' + Date.now();
-            return navigator.serviceWorker.register(swUrl, {
+        let registration = null;
+        let refreshing = false;
+        let pendingUpdate = false;
+        
+        window.addEventListener('load', async () => {
+          try {
+            // 注册 Service Worker（使用多个缓存破坏参数）
+            const swUrl = '/sw.js?v=' + APP_VERSION + '&t=' + Date.now() + 
+                          '&nocache=' + Math.random() + '&force=' + Math.random();
+            
+            registration = await navigator.serviceWorker.register(swUrl, {
               scope: '/',
-              updateViaCache: 'none'
+              updateViaCache: 'none' // 禁用 Service Worker 脚本的 HTTP 缓存
             });
-          }).then((registration) => {
-            console.log('✅ Service Worker 注册成功');
+            
+            console.log('✅ Service Worker 注册成功，版本:', APP_VERSION);
             
             // 立即检查更新
-            registration.update();
+            checkForUpdate(registration);
             
-            // 监听新版本
+            // 监听 Service Worker 更新
             registration.addEventListener('updatefound', () => {
               const newWorker = registration.installing;
-              console.log('🔄 发现新版本');
+              if (!newWorker) return;
+              
+              console.log('🔄 发现新的 Service Worker 正在安装');
               
               newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.log('✨ 新版本已准备就绪');
-                  // 通知 React 应用有新版本
-                  window.dispatchEvent(new CustomEvent('sw-update-available', {
-                    detail: { registration }
-                  }));
+                console.log('Service Worker 状态变化:', newWorker.state);
+                if (newWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    // 有新版本已安装，提示更新
+                    console.log('✨ 新版本已安装，等待激活');
+                    showUpdateNotification();
+                  } else {
+                    console.log('首次安装 Service Worker');
+                  }
                 }
               });
             });
-          }).catch((error) => {
+            
+            // 定期检查更新（每10秒）
+            setInterval(() => {
+              if (!pendingUpdate) {
+                checkForUpdate(registration);
+              }
+            }, 10000);
+            
+          } catch (error) {
             console.warn('⚠️ Service Worker 注册失败:', error);
-          });
+          }
         });
         
         // 监听 Service Worker 控制权变化
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('🔄 Service Worker 控制权已更新');
+          if (refreshing) return;
+          
+          const isManualRefresh = sessionStorage.getItem('sw_manual_refresh') === 'true';
+          if (isManualRefresh) {
+            sessionStorage.removeItem('sw_manual_refresh');
+            console.log('手动刷新，跳过自动刷新');
+            return;
+          }
+          
+          console.log('🔄 Service Worker 控制权已更新，即将刷新页面');
+          refreshing = true;
+          window.location.reload();
         });
+        
+        // 更新检测函数
+        async function checkForUpdate(reg) {
+          if (!reg) {
+            console.warn('Service Worker 注册对象不存在');
+            return;
+          }
+          
+          try {
+            // 强制更新检查（忽略缓存）
+            await reg.update();
+            
+            // 延迟检查，确保状态已更新
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // 检查是否有等待中的新版本
+            if (reg.waiting) {
+              console.log('发现等待中的新版本');
+              showUpdateNotification();
+              return;
+            }
+            
+            // 检查是否有正在安装的新版本
+            if (reg.installing) {
+              console.log('发现正在安装的新版本');
+              reg.installing.addEventListener('statechange', () => {
+                if (reg.installing && reg.installing.state === 'installed' && 
+                    navigator.serviceWorker.controller) {
+                  showUpdateNotification();
+                }
+              });
+              return;
+            }
+            
+            // 检查当前 Service Worker 的版本（通过 fetch 获取 sw.js 内容）
+            try {
+              const cacheBuster = Date.now() + Math.random();
+              const swResponse = await fetch('/sw.js?v=' + APP_VERSION + '&t=' + 
+                                           cacheBuster + '&nocache=' + Math.random() + 
+                                           '&force=' + Math.random(), {
+                cache: 'no-store',
+                headers: {
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  'Pragma': 'no-cache'
+                }
+              });
+              
+              if (swResponse.ok) {
+                const swText = await swResponse.text();
+                const versionMatch = swText.match(/const VERSION = ['"]([^'"]+)['"]/) || 
+                                   swText.match(/VERSION\s*=\s*['"]([^'"]+)['"]/);
+                
+                if (versionMatch) {
+                  const serverVersion = versionMatch[1];
+                  console.log('版本比较:', {
+                    current: APP_VERSION,
+                    server: serverVersion,
+                    match: serverVersion === APP_VERSION
+                  });
+                  
+                  if (serverVersion !== APP_VERSION) {
+                    console.log('🔔 检测到版本不匹配，需要更新');
+                    showUpdateNotification();
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('检查 Service Worker 版本失败:', err);
+            }
+          } catch (err) {
+            console.warn('更新检查失败:', err);
+          }
+        }
+        
+        // 显示更新通知
+        async function showUpdateNotification() {
+          // 检查是否已经有提示框在显示
+          if (document.getElementById('updateOverlay')) {
+            console.log('更新提示框已显示，跳过重复显示');
+            return;
+          }
+          
+          // 检查是否已经显示过通知
+          const lastShownVersion = localStorage.getItem('update_notification_shown');
+          if (lastShownVersion === APP_VERSION && pendingUpdate === false) {
+            console.log('当前版本已显示过更新提示，跳过');
+            return;
+          }
+          
+          // 标记有待处理的更新
+          pendingUpdate = true;
+          
+          // 通知 React 应用有新版本（保持原有方式）
+          window.dispatchEvent(new CustomEvent('sw-update-available', {
+            detail: { registration }
+          }));
+        }
+        
+        // 更新确认处理
+        window.handleUpdateConfirm = async function(e) {
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          
+          console.log('开始执行更新...');
+          
+          try {
+            // 移除提示框
+            const overlay = document.getElementById('updateOverlay');
+            if (overlay && overlay.parentNode) {
+              overlay.remove();
+            }
+            
+            // 记录已显示通知
+            localStorage.setItem('update_notification_shown', APP_VERSION);
+            
+            // 标记正在刷新
+            refreshing = true;
+            pendingUpdate = false;
+            
+            // 设置手动刷新标志
+            sessionStorage.setItem('sw_manual_refresh', 'true');
+            sessionStorage.setItem('sw_refreshing', 'true');
+            sessionStorage.setItem('sw_refresh_time', Date.now().toString());
+            
+            // 通知 Service Worker 跳过等待
+            if (registration && registration.waiting) {
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+            
+            // 清除所有缓存
+            if (registration) {
+              try {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+                console.log('所有缓存已清除');
+              } catch (err) {
+                console.warn('清除缓存失败:', err);
+              }
+            }
+            
+            // 延迟一小段时间，确保标志已设置，然后刷新
+            setTimeout(() => {
+              window.location.reload();
+            }, 50);
+          } catch (err) {
+            console.error('更新失败:', err);
+            alert('更新失败，请手动刷新页面（Ctrl+Shift+R / Cmd+Shift+R）');
+            refreshing = false;
+            pendingUpdate = false;
+          }
+        };
       }
     </script>
     
