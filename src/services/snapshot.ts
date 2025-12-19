@@ -84,6 +84,11 @@ function arraysEqual(arr1: any[], arr2: any[]): boolean {
  */
 export async function saveSnapshot(): Promise<{ success: boolean; message: string }> {
   try {
+    // 检查 Supabase 是否配置
+    if (!supabase) {
+      return { success: false, message: 'Supabase 未配置，无法保存快照' };
+    }
+
     const userId = await getCurrentUserId();
     if (!userId) {
       return { success: false, message: '用户未登录' };
@@ -198,6 +203,11 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
  */
 export async function loadSnapshot(): Promise<{ success: boolean; message: string; payload?: SnapshotPayload }> {
   try {
+    // 检查 Supabase 是否配置
+    if (!supabase) {
+      return { success: false, message: 'Supabase 未配置，无法读取快照' };
+    }
+
     const userId = await getCurrentUserId();
     if (!userId) {
       return { success: false, message: '用户未登录' };
@@ -262,6 +272,11 @@ export async function getSnapshotInfo(): Promise<{
   hasUpdate: boolean;
 }> {
   try {
+    // 检查 Supabase 是否配置
+    if (!supabase) {
+      return { local: '未配置', cloud: '未配置', hasUpdate: false };
+    }
+
     const userId = await getCurrentUserId();
     if (!userId) {
       return { local: '未登录', cloud: '未知', hasUpdate: false };

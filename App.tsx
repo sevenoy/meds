@@ -583,63 +583,65 @@ export default function App() {
       {/* Header */}
       <header className="px-6 md:px-24 pt-4 pb-8 md:pt-8 md:pb-16 flex flex-col md:flex-row md:items-end justify-between gap-4 relative z-10">
         <div className="flex-1">
-          <h1 className="text-2xl font-black italic tracking-tighter mb-4">
-            药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{(window as any).APP_VERSION || 'V251219.1'}</span>
-          </h1>
-          
-          {/* 云端快照管理按钮 */}
-          {isLoggedIn && (
-            <div className="flex gap-3">
-              <button
-                onClick={async () => {
-                  const result = await saveSnapshot();
-                  alert(result.message);
-                  if (result.success) {
-                    // 保存成功后，触发快照信息更新
-                    console.log('✅ 快照已保存到云端');
-                  }
-                }}
-                className="px-4 py-2 bg-blue-500 text-white rounded-full text-sm font-bold hover:bg-blue-600 transition-all shadow-md flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                云端保存
-              </button>
-              
-              <button
-                onClick={async () => {
-                  const result = await loadSnapshot();
-                  if (result.success && result.payload) {
-                    // 确认是否加载
-                    const confirmLoad = confirm(
-                      result.message + '\n\n⚠️ 加载云端快照将覆盖本地所有数据！\n\n确定要继续吗？'
-                    );
-                    
-                    if (confirmLoad) {
-                      try {
-                        // TODO: 实现数据恢复逻辑
-                        // 1. 清空本地数据
-                        // 2. 写入云端数据
-                        // 3. 刷新界面
-                        console.log('📥 正在恢复云端快照...');
-                        
-                        // 暂时刷新页面
-                        window.location.reload();
-                      } catch (error) {
-                        console.error('❌ 恢复快照失败:', error);
-                        alert('恢复快照失败，请重试');
-                      }
-                    }
-                  } else {
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <h1 className="text-2xl font-black italic tracking-tighter">
+              药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{(window as any).APP_VERSION || 'V251219.1'}</span>
+            </h1>
+            
+            {/* 云端快照管理按钮 - 移到标题右边 */}
+            {isLoggedIn && (
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    const result = await saveSnapshot();
                     alert(result.message);
-                  }
-                }}
-                className="px-4 py-2 bg-green-500 text-white rounded-full text-sm font-bold hover:bg-green-600 transition-all shadow-md flex items-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                云端读取
-              </button>
-            </div>
-          )}
+                    if (result.success) {
+                      // 保存成功后，触发快照信息更新
+                      console.log('✅ 快照已保存到云端');
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-blue-500 text-white rounded-full text-xs font-bold hover:bg-blue-600 transition-all shadow-md flex items-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  云端保存
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    const result = await loadSnapshot();
+                    if (result.success && result.payload) {
+                      // 确认是否加载
+                      const confirmLoad = confirm(
+                        result.message + '\n\n⚠️ 加载云端快照将覆盖本地所有数据！\n\n确定要继续吗？'
+                      );
+                      
+                      if (confirmLoad) {
+                        try {
+                          // TODO: 实现数据恢复逻辑
+                          // 1. 清空本地数据
+                          // 2. 写入云端数据
+                          // 3. 刷新界面
+                          console.log('📥 正在恢复云端快照...');
+                          
+                          // 暂时刷新页面
+                          window.location.reload();
+                        } catch (error) {
+                          console.error('❌ 恢复快照失败:', error);
+                          alert('恢复快照失败，请重试');
+                        }
+                      }
+                    } else {
+                      alert(result.message);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-green-500 text-white rounded-full text-xs font-bold hover:bg-green-600 transition-all shadow-md flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  云端读取
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
