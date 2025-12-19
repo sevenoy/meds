@@ -26,34 +26,61 @@
     
     <!-- 版本号配置 -->
     <script>
-      const APP_VERSION = 'V251219.3';
+      const APP_VERSION = 'V251219.4';
       console.log('📦 当前版本:', APP_VERSION);
       
       // 检查本地存储的版本号
       const storedVersion = localStorage.getItem('app_version');
       if (storedVersion && storedVersion !== APP_VERSION) {
         console.log('🔄 检测到版本更新:', storedVersion, '→', APP_VERSION);
-        // 清除所有缓存
+        console.log('🚀 开始强制更新...');
+        
+        // 1. 清除所有缓存
         if ('caches' in window) {
           caches.keys().then(function(names) {
+            console.log('🗑️ 清除', names.length, '个缓存');
             return Promise.all(names.map(function(name) {
-              console.log('🗑️ 清除缓存:', name);
+              console.log('   - 删除:', name);
               return caches.delete(name);
             }));
           }).then(function() {
-            console.log('✅ 缓存已清除');
+            console.log('✅ 所有缓存已清除');
+            
+            // 2. 注销所有Service Worker
+            if ('serviceWorker' in navigator) {
+              return navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                console.log('🗑️ 注销', registrations.length, '个Service Worker');
+                return Promise.all(registrations.map(function(reg) {
+                  return reg.unregister();
+                }));
+              });
+            }
+          }).then(function() {
+            console.log('✅ Service Worker已注销');
+            
+            // 3. 更新版本号
             localStorage.setItem('app_version', APP_VERSION);
-            // 延迟刷新，确保缓存清除完成
+            
+            // 4. 强制刷新
+            console.log('🔄 强制刷新页面...');
             setTimeout(function() {
-              window.location.reload(true);
+              window.location.href = window.location.href + '?v=' + APP_VERSION + '&t=' + Date.now();
             }, 500);
+          }).catch(function(err) {
+            console.error('❌ 更新失败:', err);
+            localStorage.setItem('app_version', APP_VERSION);
+            window.location.reload(true);
           });
         } else {
           localStorage.setItem('app_version', APP_VERSION);
           window.location.reload(true);
         }
-      } else {
+      } else if (!storedVersion) {
+        // 首次访问
+        console.log('🆕 首次访问，记录版本号');
         localStorage.setItem('app_version', APP_VERSION);
+      } else {
+        console.log('✅ 版本号一致，无需更新');
       }
     </script>
     

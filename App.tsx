@@ -7,6 +7,7 @@ import { UpdateNotification } from './src/components/UpdateNotification';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
+import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Types ---
@@ -345,6 +346,12 @@ export default function App() {
     
     loadData();
     
+    // 加载用户设置
+    getUserSettings().then(settings => {
+      console.log('📋 用户设置已加载:', settings);
+      // 这里可以应用用户设置到应用状态
+    }).catch(console.error);
+    
     // 初始化 Realtime 同步
     const cleanup = initRealtimeSync(
       // 处理服药记录更新
@@ -369,6 +376,19 @@ export default function App() {
       }
     );
     
+    // 初始化用户设置实时同步
+    const cleanupSettings = initSettingsRealtimeSync((settings) => {
+      console.log('⚙️ 用户设置已更新:', settings);
+      // 这里可以根据设置更新应用状态
+      // 例如：更新主题、语言等
+      // 可以触发一个提示或自动应用
+      const shouldApply = confirm('其他设备更新了设置，是否立即应用？');
+      if (shouldApply) {
+        // 刷新页面以应用新设置
+        window.location.reload();
+      }
+    });
+    
     // 定期同步（缩短到5秒）
     const syncInterval = setInterval(async () => {
       console.log('⏰ 定时同步...');
@@ -387,6 +407,7 @@ export default function App() {
     
     return () => {
       cleanup();
+      cleanupSettings();
       clearInterval(syncInterval);
     };
   }, [isLoggedIn]);
