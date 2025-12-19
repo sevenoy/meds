@@ -6,7 +6,7 @@ import { LoginPage } from './src/components/LoginPage';
 import { UpdateNotification } from './src/components/UpdateNotification';
 import { AvatarUpload } from './src/components/AvatarUpload';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
-import { getMedicationLogs, upsertMedication, deleteMedication } from './src/db/localDB';
+import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import type { Medication, MedicationLog } from './src/types';
@@ -369,15 +369,30 @@ export default function App() {
           loadData();
         }).catch(console.error);
       },
-      // 处理药品列表更新
+      // 处理药品列表更新（自动同步，无需确认）
       async () => {
-        console.log('🔔 收到药品列表更新');
-        // 弹出提示询问是否刷新
-        const shouldRefresh = confirm('其他设备更新了药品列表，是否立即刷新？');
-        if (shouldRefresh) {
-          await pullRemoteChanges();
+        console.log('🔔 收到药品列表更新，自动同步...');
+        
+        try {
+          // 先同步medications
+          await syncMedications();
+          // 然后重新加载数据
           await loadData();
-          console.log('✅ 药品列表已刷新');
+          
+          console.log('✅ 药品列表已自动同步');
+          
+          // 显示友好提示
+          const notification = document.createElement('div');
+          notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+          notification.textContent = '✅ 药品列表已从其他设备同步';
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            notification.classList.add('animate-fade-out');
+            setTimeout(() => notification.remove(), 300);
+          }, 3000);
+        } catch (error) {
+          console.error('❌ 药品列表同步失败:', error);
         }
       }
     );
@@ -412,21 +427,46 @@ export default function App() {
       }
     });
     
-    // 定期同步（缩短到5秒）
+    // 定期同步（缩短到3秒，更快速的多设备同步）
     const syncInterval = setInterval(async () => {
       console.log('⏰ 定时同步...');
-      // 同步medications
+      
+      let hasChanges = false;
+      
+      // 1. 同步medications（双向同步）
+      const oldMeds = await getMedications().catch(() => []);
       await syncMedications().catch(console.error);
-      // 同步medication_logs
+      const newMeds = await getMedications().catch(() => []);
+      
+      if (JSON.stringify(oldMeds) !== JSON.stringify(newMeds)) {
+        console.log('📊 检测到药品列表变化');
+        hasChanges = true;
+      }
+      
+      // 2. 同步medication_logs
       await pushLocalChanges().catch(console.error);
       const logs = await pullRemoteChanges().catch(() => []);
       if (logs && logs.length > 0) {
+        console.log(`📥 拉取到 ${logs.length} 条新记录`);
         for (const log of logs) {
           await mergeRemoteLog(log).catch(console.error);
         }
+        hasChanges = true;
+      }
+      
+      // 3. 同步用户设置（包括头像）
+      const settings = await getUserSettings().catch(() => ({}));
+      if (settings.avatar_url && settings.avatar_url !== avatarUrl) {
+        console.log('👤 检测到头像更新（定时同步）');
+        setAvatarUrl(settings.avatar_url);
+      }
+      
+      // 4. 如果有变化，刷新界面
+      if (hasChanges) {
+        console.log('🔄 数据已变化，刷新界面...');
         await loadData();
       }
-    }, 5000); // 每5秒同步一次
+    }, 3000); // 每3秒同步一次
     
     return () => {
       cleanup();

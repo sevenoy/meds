@@ -198,13 +198,18 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
     return () => {};
   }
 
-  getCurrentUserId().then(userId => {
-    if (!userId) return;
+  let cleanup: (() => void) | null = null;
 
-    console.log('🔄 启动用户设置实时监听...');
+  getCurrentUserId().then(userId => {
+    if (!userId) {
+      console.warn('⚠️ 未登录，无法启动设置同步');
+      return;
+    }
+
+    console.log('🔄 启动用户设置实时监听... (user_id:', userId, ')');
 
     const channel = supabase!
-      .channel('user-settings-sync')
+      .channel('user-settings-sync-' + userId) // 使用唯一的channel名称
       .on(
         'postgres_changes',
         {
@@ -214,31 +219,46 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
           filter: `user_id=eq.${userId}`
         },
         async (payload) => {
-          console.log('📥 收到用户设置更新:', payload);
+          console.log('📥 收到用户设置更新:', payload.eventType, payload);
           
           if (payload.new && typeof payload.new === 'object' && 'settings' in payload.new) {
             const newSettings = (payload.new as any).settings;
+            const updateTime = new Date((payload.new as any).updated_at).getTime();
             
             // 检查是否来自其他设备
             const lastSync = parseInt(localStorage.getItem(LAST_SYNC_KEY) || '0');
-            const updateTime = new Date((payload.new as any).updated_at).getTime();
             
+            // 只要云端时间戳更新，就应用（即使是相同设备，也可能是从其他浏览器）
             if (updateTime > lastSync) {
-              console.log('🔔 其他设备更新了设置，自动应用...');
+              console.log('🔔 检测到设置更新，自动应用...', {
+                lastSync: new Date(lastSync).toLocaleString(),
+                updateTime: new Date(updateTime).toLocaleString()
+              });
+              
               localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
               localStorage.setItem(LAST_SYNC_KEY, updateTime.toString());
+              
+              // 立即触发回调
               onSettingsUpdate(newSettings);
               console.log('✅ 设置已自动更新');
+            } else {
+              console.log('ℹ️ 设置时间戳未变化，跳过');
             }
           }
         }
       )
       .subscribe((status) => {
-        console.log('🔄 设置同步状态:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ 用户设置 Realtime 订阅成功');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('❌ 用户设置 Realtime 订阅失败:', status);
+        } else {
+          console.log('🔄 设置同步状态:', status);
+        }
       });
 
     // 返回清理函数
-    return () => {
+    cleanup = () => {
       console.log('🔌 断开设置同步');
       supabase!.removeChannel(channel);
     };
@@ -246,7 +266,9 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
     console.error('❌ 启动设置同步失败:', err);
   });
 
-  return () => {};
+  return () => {
+    if (cleanup) cleanup();
+  };
 }
 
 /**

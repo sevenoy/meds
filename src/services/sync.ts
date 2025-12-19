@@ -216,15 +216,16 @@ export function initRealtimeSync(
   onMedicationSync: () => void
 ): () => void {
   if (isMockMode) {
-    // Mock 模式：返回空清理函数
+    console.log('🔧 Mock模式：跳过Realtime同步');
     return () => {};
   }
   
   const currentDeviceId = getDeviceId();
+  console.log('🔄 启动 Realtime 同步... (device_id:', currentDeviceId, ')');
   
   // 创建一个channel监听所有变化
   const channel = supabase!
-    .channel('medication-realtime-sync')
+    .channel('medication-realtime-sync-' + currentDeviceId) // 使用唯一的channel名称
     // 监听medication_logs表的变化
     .on(
       'postgres_changes',
@@ -234,13 +235,21 @@ export function initRealtimeSync(
         table: 'medication_logs'
       },
       async (payload) => {
-        console.log('📥 Realtime: medication_logs变化', payload);
+        console.log('📥 Realtime: medication_logs变化', payload.eventType, payload);
+        
         if (payload.new) {
           const log = payload.new as MedicationLog;
+          
           // 只处理其他设备的记录
           if (log.source_device !== currentDeviceId) {
-            console.log('📱 其他设备的服药记录更新');
+            console.log('📱 检测到其他设备的服药记录:', {
+              device: log.source_device,
+              medication: log.medication_name,
+              time: log.taken_at
+            });
             onMedicationLogSync(log);
+          } else {
+            console.log('ℹ️ 本设备的记录，跳过');
           }
         }
       }
@@ -254,14 +263,21 @@ export function initRealtimeSync(
         table: 'medications'
       },
       async (payload) => {
-        console.log('📥 Realtime: medications变化', payload);
+        console.log('📥 Realtime: medications变化', payload.eventType, payload);
+        
         // 药品列表有变化，触发刷新
-        console.log('💊 药品列表更新');
+        console.log('💊 检测到药品列表更新');
         onMedicationSync();
       }
     )
     .subscribe((status) => {
-      console.log('🔄 Realtime订阅状态:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('✅ 药品数据 Realtime 订阅成功');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.error('❌ 药品数据 Realtime 订阅失败:', status);
+      } else {
+        console.log('🔄 Realtime订阅状态:', status);
+      }
     });
   
   // 返回清理函数
