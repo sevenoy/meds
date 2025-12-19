@@ -5,7 +5,7 @@ import { SyncPrompt } from './src/components/SyncPrompt';
 import { LoginPage } from './src/components/LoginPage';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication } from './src/db/localDB';
-import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges } from './src/services/sync';
+import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Types ---
@@ -344,18 +344,44 @@ export default function App() {
     loadData();
     
     // 初始化 Realtime 同步
-    const cleanup = initRealtimeSync((log) => {
-      // 收到远程同步事件，显示提示
-      setSyncPrompt(log);
-    });
+    const cleanup = initRealtimeSync(
+      // 处理服药记录更新
+      (log) => {
+        console.log('🔔 收到其他设备的服药记录更新');
+        // 自动合并远程记录
+        mergeRemoteLog(log).then(() => {
+          console.log('✅ 服药记录已自动同步');
+          loadData();
+        }).catch(console.error);
+      },
+      // 处理药品列表更新
+      async () => {
+        console.log('🔔 收到药品列表更新');
+        // 弹出提示询问是否刷新
+        const shouldRefresh = confirm('其他设备更新了药品列表，是否立即刷新？');
+        if (shouldRefresh) {
+          await pullRemoteChanges();
+          await loadData();
+          console.log('✅ 药品列表已刷新');
+        }
+      }
+    );
     
-    // 定期同步
-    const syncInterval = setInterval(() => {
-      pushLocalChanges().catch(console.error);
-      pullRemoteChanges().then(logs => {
-        logs.forEach(log => mergeRemoteLog(log).catch(console.error));
-      }).catch(console.error);
-    }, 30000); // 每30秒同步一次
+    // 定期同步（缩短到5秒）
+    const syncInterval = setInterval(async () => {
+      console.log('⏰ 定时同步...');
+      // 同步medications
+      await syncMedications().catch(console.error);
+      // 同步medication_logs
+      await pushLocalChanges().catch(console.error);
+      const logs = await pullRemoteChanges().catch(() => []);
+      if (logs && logs.length > 0) {
+        for (const log of logs) {
+          await mergeRemoteLog(log).catch(console.error);
+        }
+        await loadData();
+      }
+    }, 5000); // 每5秒同步一次
     
     return () => {
       cleanup();

@@ -1,8 +1,64 @@
 // 同步控制器 - 多设备同步核心逻辑
 
 import { supabase, isMockMode, getCurrentUserId } from '../lib/supabase';
-import { db, getUnsyncedLogs, markLogSynced, updateMedicationLog, getDeviceId } from '../db/localDB';
-import type { MedicationLog, ConflictInfo } from '../types';
+import { db, getUnsyncedLogs, markLogSynced, updateMedicationLog, getDeviceId, getMedications, upsertMedication } from '../db/localDB';
+import type { MedicationLog, ConflictInfo, Medication } from '../types';
+
+/**
+ * 同步medications到云端
+ */
+export async function syncMedications(): Promise<void> {
+  if (isMockMode) return;
+  
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+  
+  try {
+    const localMeds = await getMedications();
+    
+    // 推送本地medications到云端
+    for (const med of localMeds) {
+      await supabase!
+        .from('medications')
+        .upsert({
+          id: med.id,
+          user_id: userId,
+          name: med.name,
+          dosage: med.dosage,
+          scheduled_time: med.scheduled_time,
+          accent: med.accent,
+          updated_at: new Date().toISOString()
+        });
+    }
+    
+    // 拉取云端medications
+    const { data: cloudMeds } = await supabase!
+      .from('medications')
+      .select('*')
+      .eq('user_id', userId);
+    
+    if (cloudMeds) {
+      for (const cloudMed of cloudMeds) {
+        const localMed = localMeds.find(m => m.id === cloudMed.id);
+        if (!localMed) {
+          // 云端有但本地没有，添加到本地
+          await upsertMedication({
+            id: cloudMed.id,
+            name: cloudMed.name,
+            dosage: cloudMed.dosage,
+            scheduled_time: cloudMed.scheduled_time,
+            accent: cloudMed.accent || 'lime',
+            user_id: cloudMed.user_id
+          });
+        }
+      }
+    }
+    
+    console.log('✅ Medications同步完成');
+  } catch (error) {
+    console.error('❌ Medications同步失败:', error);
+  }
+}
 
 /**
  * 推送本地未同步的记录到服务器
@@ -156,7 +212,8 @@ export async function mergeRemoteLog(log: MedicationLog): Promise<void> {
  * 初始化 Realtime 监听
  */
 export function initRealtimeSync(
-  onSyncEvent: (log: MedicationLog) => void
+  onMedicationLogSync: (log: MedicationLog) => void,
+  onMedicationSync: () => void
 ): () => void {
   if (isMockMode) {
     // Mock 模式：返回空清理函数
@@ -165,8 +222,10 @@ export function initRealtimeSync(
   
   const currentDeviceId = getDeviceId();
   
+  // 创建一个channel监听所有变化
   const channel = supabase!
-    .channel('medication-sync')
+    .channel('medication-realtime-sync')
+    // 监听medication_logs表的变化
     .on(
       'postgres_changes',
       {
@@ -175,19 +234,39 @@ export function initRealtimeSync(
         table: 'medication_logs'
       },
       async (payload) => {
+        console.log('📥 Realtime: medication_logs变化', payload);
         if (payload.new) {
           const log = payload.new as MedicationLog;
           // 只处理其他设备的记录
           if (log.source_device !== currentDeviceId) {
-            onSyncEvent(log);
+            console.log('📱 其他设备的服药记录更新');
+            onMedicationLogSync(log);
           }
         }
       }
     )
-    .subscribe();
+    // 监听medications表的变化
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'medications'
+      },
+      async (payload) => {
+        console.log('📥 Realtime: medications变化', payload);
+        // 药品列表有变化，触发刷新
+        console.log('💊 药品列表更新');
+        onMedicationSync();
+      }
+    )
+    .subscribe((status) => {
+      console.log('🔄 Realtime订阅状态:', status);
+    });
   
   // 返回清理函数
   return () => {
+    console.log('🔌 断开Realtime连接');
     supabase!.removeChannel(channel);
   };
 }
