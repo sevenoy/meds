@@ -10,29 +10,52 @@ import type { ExifResult, TimeSource } from '../types';
  */
 export async function extractTakenAt(file: File): Promise<ExifResult> {
   try {
+    console.log('开始提取 EXIF 数据:', file.name, file.type);
+    
     // 使用 exifr 解析 EXIF 数据（支持 HEIC/HEIF）
     const exifData = await exifr.parse(file, {
-      pick: ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized', 'ModifyDate']
+      pick: ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized', 'DateTime', 'ModifyDate'],
+      // 确保支持所有格式
+      tiff: true,
+      xmp: true,
+      icc: false,
+      iptc: false,
+      jfif: false,
+      ihdr: false
     });
+
+    console.log('EXIF 数据:', exifData);
 
     // 获取拍摄时间（优先级顺序）
     const takenAt = exifData?.DateTimeOriginal || 
                     exifData?.CreateDate || 
-                    exifData?.DateTimeDigitized;
+                    exifData?.DateTimeDigitized ||
+                    exifData?.DateTime;
+
+    console.log('提取的拍摄时间:', takenAt);
 
     if (takenAt && takenAt instanceof Date) {
-      // 检查 EXIF 时间是否合理（在过去 24 小时内）
+      // 验证时间是否有效（不是未来时间，不早于2000年）
       const now = new Date();
-      const hoursDiff = (now.getTime() - takenAt.getTime()) / (1000 * 60 * 60);
-
-      // 如果 EXIF 时间超过 24 小时前，可能是旧照片，使用当前时间
-      if (hoursDiff > 24) {
+      const minDate = new Date('2000-01-01');
+      
+      if (takenAt > now) {
+        console.warn('照片时间在未来，使用当前时间');
+        return {
+          takenAt: new Date(),
+          source: 'system'
+        };
+      }
+      
+      if (takenAt < minDate) {
+        console.warn('照片时间过早，使用当前时间');
         return {
           takenAt: new Date(),
           source: 'system'
         };
       }
 
+      console.log('使用 EXIF 时间:', takenAt);
       return {
         takenAt: takenAt,
         source: 'exif'
@@ -40,6 +63,7 @@ export async function extractTakenAt(file: File): Promise<ExifResult> {
     }
 
     // 没有 EXIF 时间，使用当前时间
+    console.warn('未找到有效的 EXIF 时间，使用系统时间');
     return {
       takenAt: new Date(),
       source: 'system'
