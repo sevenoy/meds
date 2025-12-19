@@ -12,7 +12,7 @@ export interface Medication {
   dosage: string;
   scheduled_time: string; // HH:mm 格式
   created_at?: string;
-  accent?: 'berry' | 'lime' | 'mint';
+  accent?: string; // 自定义颜色（十六进制，如 #BFEFFF）
 }
 
 // 药物记录（证据表 - 不可变）

@@ -67,23 +67,20 @@ const MedCard: React.FC<{
   med: MedicationUI; 
   onCameraClick: () => void;
 }> = ({ med, onCameraClick }) => {
-  const getAccentClass = () => {
-    switch(med.accent) {
-      case 'berry': return 'bg-berry';
-      case 'lime': return 'bg-lime';
-      case 'mint': return 'bg-mint';
-      default: return 'bg-white';
-    }
-  };
-
   const formatTime = (isoString?: string) => {
     if (!isoString) return '--:--';
     const date = new Date(isoString);
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // 获取背景色（自定义颜色或白色）
+  const backgroundColor = med.status === 'completed' ? '#FFFFFF' : (med.accent || '#BFEFFF');
+
   return (
-    <div className={`group relative p-8 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${med.status === 'completed' ? 'bg-white' : getAccentClass()}`}>
+    <div 
+      className="group relative p-8 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
+      style={{ backgroundColor }}
+    >
       <div className="flex flex-col">
         <div className="flex items-center gap-3 mb-2">
           <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">{med.scheduled_time}</span>
@@ -250,7 +247,7 @@ export default function App() {
   const [newMedName, setNewMedName] = useState('');
   const [newMedDosage, setNewMedDosage] = useState('');
   const [newMedTime, setNewMedTime] = useState('');
-  const [newMedAccent, setNewMedAccent] = useState<'berry' | 'lime' | 'mint'>('lime');
+  const [newMedAccent, setNewMedAccent] = useState<string>('#BFEFFF'); // 默认薄荷蓝
 
   // 加载数据
   const loadData = async () => {
@@ -720,15 +717,11 @@ export default function App() {
                             {Array.from(new Set(logsOnDate.map(log => {
                               const med = medications.find(m => m.id === log.medication_id);
                               return med?.accent;
-                            }))).map((accent, idx) => (
+                            }))).filter(Boolean).map((accent, idx) => (
                               <div
                                 key={idx}
-                                className={`w-2 h-2 rounded-full shadow-md ring-1 ring-white ${
-                                  accent === 'lime' ? 'bg-lime' :
-                                  accent === 'mint' ? 'bg-mint' :
-                                  accent === 'berry' ? 'bg-berry' :
-                                  'bg-gray-400'
-                                }`}
+                                className="w-2 h-2 rounded-full shadow-md ring-1 ring-white"
+                                style={{ backgroundColor: accent || '#BFEFFF' }}
                               />
                             ))}
                           </div>
@@ -1231,38 +1224,54 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setNewMedAccent('lime')}
-                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-                        newMedAccent === 'lime' 
-                          ? 'bg-lime border-2 border-green-600 scale-105' 
-                          : 'bg-lime/50 border-2 border-transparent'
-                      }`}
+                  <label className="block text-sm font-bold text-gray-600 mb-2">卡片颜色</label>
+                  <div className="flex items-center gap-4">
+                    {/* 颜色预览 */}
+                    <div 
+                      className="w-24 h-24 rounded-2xl border-4 border-gray-300 shadow-lg transition-all hover:scale-105 cursor-pointer flex-shrink-0"
+                      style={{ backgroundColor: newMedAccent }}
+                      onClick={() => document.getElementById('colorPicker')?.click()}
                     >
-                      柠檬绿
-                    </button>
-                    <button
-                      onClick={() => setNewMedAccent('mint')}
-                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-                        newMedAccent === 'mint' 
-                          ? 'bg-mint border-2 border-blue-600 scale-105' 
-                          : 'bg-mint/50 border-2 border-transparent'
-                      }`}
-                    >
-                      薄荷蓝
-                    </button>
-                    <button
-                      onClick={() => setNewMedAccent('berry')}
-                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-                        newMedAccent === 'berry' 
-                          ? 'bg-berry border-2 border-pink-600 scale-105' 
-                          : 'bg-berry/50 border-2 border-transparent'
-                      }`}
-                    >
-                      莓果粉
-                    </button>
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-xs font-bold text-gray-700 bg-white/80 px-2 py-1 rounded-lg">
+                          点击选择
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* 颜色选择器（隐藏原生控件）*/}
+                    <div className="flex-1">
+                      <input
+                        id="colorPicker"
+                        type="color"
+                        value={newMedAccent}
+                        onChange={(e) => setNewMedAccent(e.target.value)}
+                        className="opacity-0 w-0 h-0 absolute"
+                      />
+                      
+                      {/* 显示颜色值 */}
+                      <div className="space-y-2">
+                        <div className="text-lg font-black italic tracking-tighter">
+                          {newMedAccent.toUpperCase()}
+                        </div>
+                        <div className="text-xs text-gray-500 font-bold">
+                          点击左侧色块选择颜色
+                        </div>
+                        
+                        {/* 快捷颜色推荐 */}
+                        <div className="flex gap-2 flex-wrap">
+                          {['#BFEFFF', '#E8F5E9', '#FFE0F0', '#FFF9C4', '#E1BEE7', '#FFCCBC'].map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => setNewMedAccent(color)}
+                              className="w-8 h-8 rounded-full border-2 border-gray-300 hover:scale-110 transition-all"
+                              style={{ backgroundColor: color }}
+                              title={color}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1311,11 +1320,11 @@ export default function App() {
                   {medications.map((med) => (
                     <div
                       key={med.id}
-                      className={`p-5 rounded-2xl border-2 flex items-center justify-between ${
-                        med.accent === 'lime' ? 'bg-lime/20 border-lime' :
-                        med.accent === 'mint' ? 'bg-mint/20 border-mint' :
-                        'bg-berry/20 border-berry'
-                      }`}
+                      className="p-5 rounded-2xl border-2 flex items-center justify-between"
+                      style={{ 
+                        backgroundColor: med.accent ? `${med.accent}33` : '#BFEFFF33',
+                        borderColor: med.accent || '#BFEFFF'
+                      }}
                     >
                       <div className="flex-1">
                         <h5 className="font-black italic tracking-tighter text-lg">{med.name}</h5>
