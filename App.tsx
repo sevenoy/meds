@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2 } from 'lucide-react';
+import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CameraModal } from './src/components/CameraModal';
 import { SyncPrompt } from './src/components/SyncPrompt';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
@@ -111,7 +111,11 @@ const MedCard: React.FC<{
   );
 };
 
-const TimelineItem: React.FC<{ log: MedicationLog; medication: Medication }> = ({ log, medication }) => {
+const TimelineItem: React.FC<{ 
+  log: MedicationLog; 
+  medication: Medication;
+  onMedicationClick?: (medicationId: string) => void;
+}> = ({ log, medication, onMedicationClick }) => {
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -133,11 +137,11 @@ const TimelineItem: React.FC<{ log: MedicationLog; medication: Medication }> = (
   };
 
   const getStatusText = () => {
-    switch(log.status) {
-      case 'ontime': return '已验证';
-      case 'late': return '延迟';
-      case 'suspect': return '可疑';
-      default: return '手动';
+    // 根据时间来源判断是拍摄还是读取
+    if (log.time_source === 'exif') {
+      return '拍摄'; // EXIF 时间 = 直接拍摄
+    } else {
+      return '读取'; // 系统时间 = 读取照片
     }
   };
 
@@ -156,11 +160,16 @@ const TimelineItem: React.FC<{ log: MedicationLog; medication: Medication }> = (
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-sm font-black italic uppercase">{medication.name}</span>
-            <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-widest ${getStatusColor()}`}>
+            <button
+              onClick={() => onMedicationClick?.(medication.id)}
+              className="text-sm font-black italic uppercase hover:text-blue-600 transition-colors cursor-pointer"
+            >
+              {medication.name}
+            </button>
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-md tracking-widest ${getStatusColor()}`}>
               {getStatusText()}
             </span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <span className="text-[10px] font-bold text-gray-400 tracking-widest">
               {formatDate(log.taken_at)}
             </span>
           </div>
@@ -207,6 +216,11 @@ export default function App() {
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [syncPrompt, setSyncPrompt] = useState<MedicationLog | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // 日期筛选
+  const [selectedDate, setSelectedDate] = useState<string | null>(null); // YYYY-MM-DD
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+  const [selectedMedicationId, setSelectedMedicationId] = useState<string | null>(null);
   
   // 个人中心状态
   const [showProfileEdit, setShowProfileEdit] = useState(false);
@@ -443,22 +457,191 @@ export default function App() {
 
         {activeTab === 'timeline' && (
           <div className="max-w-4xl">
-             <div className="space-y-4">
-                {timelineLogs.map(log => {
-                  const medication = medications.find(m => m.id === log.medication_id);
-                  if (!medication) return null;
-                  return (
-                    <TimelineItem key={log.id} log={log} medication={medication} />
-                  );
-                })}
-                
-                {/* Visual Empty State if nothing logged */}
-                {timelineLogs.length === 0 && (
-                  <div className="py-24 text-center">
-                    <p className="text-6xl font-black italic text-gray-200 tracking-tighter">暂无记录</p>
-                    <p className="text-gray-400 font-bold tracking-widest mt-4">完成上方的第一次服药验证</p>
+            {/* 月历选择器 */}
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-6">
+              {/* 月份导航 */}
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={() => {
+                    const newMonth = new Date(selectedMonth);
+                    newMonth.setMonth(newMonth.getMonth() - 1);
+                    setSelectedMonth(newMonth);
+                  }}
+                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <h3 className="text-xl font-black italic tracking-tighter">
+                  {selectedMonth.getFullYear()}年 {selectedMonth.getMonth() + 1}月
+                </h3>
+                <button
+                  onClick={() => {
+                    const newMonth = new Date(selectedMonth);
+                    newMonth.setMonth(newMonth.getMonth() + 1);
+                    setSelectedMonth(newMonth);
+                  }}
+                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* 星期标题 */}
+              <div className="grid grid-cols-7 gap-2 mb-2">
+                {['日', '一', '二', '三', '四', '五', '六'].map(day => (
+                  <div key={day} className="text-center text-xs font-bold text-gray-400 py-2">
+                    {day}
                   </div>
-                )}
+                ))}
+              </div>
+
+              {/* 日期网格 */}
+              <div className="grid grid-cols-7 gap-2">
+                {(() => {
+                  const year = selectedMonth.getFullYear();
+                  const month = selectedMonth.getMonth();
+                  const firstDay = new Date(year, month, 1).getDay();
+                  const daysInMonth = new Date(year, month + 1, 0).getDate();
+                  const days = [];
+
+                  // 填充空白
+                  for (let i = 0; i < firstDay; i++) {
+                    days.push(<div key={`empty-${i}`} className="aspect-square" />);
+                  }
+
+                  // 填充日期
+                  for (let day = 1; day <= daysInMonth; day++) {
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const logsOnDate = timelineLogs.filter(log => {
+                      const logDate = new Date(log.taken_at).toISOString().split('T')[0];
+                      return logDate === dateStr;
+                    });
+                    const isSelected = selectedDate === dateStr;
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                    days.push(
+                      <button
+                        key={day}
+                        onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                        className={`aspect-square rounded-xl flex flex-col items-center justify-center transition-all ${
+                          isSelected 
+                            ? 'bg-blue-600 text-white scale-110 shadow-lg' 
+                            : isToday
+                            ? 'bg-blue-50 text-blue-600 font-bold'
+                            : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <span className="text-sm font-bold">{day}</span>
+                        {logsOnDate.length > 0 && (
+                          <div className="flex gap-0.5 mt-1">
+                            {Array.from(new Set(logsOnDate.map(log => {
+                              const med = medications.find(m => m.id === log.medication_id);
+                              return med?.accent;
+                            }))).map((accent, idx) => (
+                              <div
+                                key={idx}
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  accent === 'lime' ? 'bg-lime' :
+                                  accent === 'mint' ? 'bg-mint' :
+                                  accent === 'berry' ? 'bg-berry' :
+                                  'bg-gray-400'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  }
+
+                  return days;
+                })()}
+              </div>
+
+              {/* 药品筛选 */}
+              {selectedDate && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-xs font-bold text-gray-500 mb-2">筛选药品</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedMedicationId(null)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        !selectedMedicationId
+                          ? 'bg-black text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      全部
+                    </button>
+                    {medications.map(med => (
+                      <button
+                        key={med.id}
+                        onClick={() => setSelectedMedicationId(
+                          selectedMedicationId === med.id ? null : med.id
+                        )}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                          selectedMedicationId === med.id
+                            ? 'bg-black text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {med.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+             <div className="space-y-4">
+                {(() => {
+                  let filteredLogs = timelineLogs;
+
+                  // 按日期筛选
+                  if (selectedDate) {
+                    filteredLogs = filteredLogs.filter(log => {
+                      const logDate = new Date(log.taken_at).toISOString().split('T')[0];
+                      return logDate === selectedDate;
+                    });
+                  } else {
+                    // 默认显示当月记录
+                    filteredLogs = filteredLogs.filter(log => {
+                      const logDate = new Date(log.taken_at);
+                      return logDate.getMonth() === selectedMonth.getMonth() &&
+                             logDate.getFullYear() === selectedMonth.getFullYear();
+                    });
+                  }
+
+                  // 按药品筛选
+                  if (selectedMedicationId) {
+                    filteredLogs = filteredLogs.filter(log => log.medication_id === selectedMedicationId);
+                  }
+
+                  return filteredLogs.length > 0 ? (
+                    filteredLogs.map(log => {
+                      const medication = medications.find(m => m.id === log.medication_id);
+                      if (!medication) return null;
+                      return (
+                        <TimelineItem 
+                          key={log.id} 
+                          log={log} 
+                          medication={medication}
+                          onMedicationClick={(medId) => {
+                            setSelectedMedicationId(medId);
+                            setSelectedDate(null); // 清除日期筛选以显示全部历史
+                          }}
+                        />
+                      );
+                    })
+                  ) : (
+                    <div className="py-24 text-center">
+                      <p className="text-6xl font-black italic text-gray-200 tracking-tighter">暂无记录</p>
+                      <p className="text-gray-400 font-bold tracking-widest mt-4">
+                        {selectedDate ? '当天' : '本月'}暂无服药记录
+                      </p>
+                    </div>
+                  );
+                })()}
              </div>
           </div>
         )}
