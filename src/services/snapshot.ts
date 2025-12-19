@@ -313,3 +313,4 @@ export async function getSnapshotInfo(): Promise<{
     return { local: '错误', cloud: '错误', hasUpdate: false };
   }
 }
+

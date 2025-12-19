@@ -2,14 +2,19 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// 从环境变量或 localStorage 读取配置
-// 优先级：环境变量 > localStorage
+// 默认配置（生产环境使用）
+const DEFAULT_SUPABASE_URL = 'https://ptmgncjechjprxtndqon.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB0bWduY2plY2hqcHJ4dG5kcW9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMzA2NjIsImV4cCI6MjA4MTcwNjY2Mn0.vN58E7gBVxZXfhL_qEUfYkX7ihMjMUr5z1_KQAul5Hg';
+
+// 从环境变量、localStorage 或默认配置读取
+// 优先级：环境变量 > localStorage > 默认配置
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 
   localStorage.getItem('SUPABASE_URL') || 
-  '';
+  DEFAULT_SUPABASE_URL;
+
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 
   localStorage.getItem('SUPABASE_ANON_KEY') || 
-  '';
+  DEFAULT_SUPABASE_ANON_KEY;
 
 // 是否启用 Mock 模式
 export const isMockMode = !supabaseUrl || !supabaseAnonKey;
@@ -19,9 +24,13 @@ export const supabase = isMockMode
   ? null 
   : createClient(supabaseUrl, supabaseAnonKey);
 
-// 如果使用的是 localStorage 配置，打印日志
-if (!import.meta.env.VITE_SUPABASE_URL && supabaseUrl) {
+// 打印配置来源日志
+if (import.meta.env.VITE_SUPABASE_URL) {
+  console.log('✅ 使用环境变量中的 Supabase 配置');
+} else if (localStorage.getItem('SUPABASE_URL')) {
   console.log('✅ 使用 localStorage 中的 Supabase 配置');
+} else if (supabaseUrl === DEFAULT_SUPABASE_URL) {
+  console.log('✅ 使用默认 Supabase 配置（生产环境）');
 }
 
 /**

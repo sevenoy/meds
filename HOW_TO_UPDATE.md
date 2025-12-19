@@ -216,5 +216,5 @@ https://sevenoy.github.io/meds/force-update.html
 
 ---
 
-**当前最新版本**: V251219.19  
+**当前最新版本**: V251219.20  
 **更新时间**: 2025年12月19日
