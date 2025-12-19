@@ -382,16 +382,33 @@ export default function App() {
       }
     );
     
-    // 初始化用户设置实时同步
+    // 初始化用户设置实时同步（参考技术白皮书的多设备同步机制）
     const cleanupSettings = initSettingsRealtimeSync((settings) => {
       console.log('⚙️ 用户设置已更新:', settings);
-      // 这里可以根据设置更新应用状态
-      // 例如：更新主题、语言等
-      // 可以触发一个提示或自动应用
-      const shouldApply = confirm('其他设备更新了设置，是否立即应用？');
-      if (shouldApply) {
-        // 刷新页面以应用新设置
-        window.location.reload();
+      
+      // 自动应用头像更新（无需用户确认）
+      if (settings.avatar_url !== avatarUrl) {
+        console.log('👤 检测到头像更新，自动同步...');
+        setAvatarUrl(settings.avatar_url || null);
+        
+        // 显示友好提示
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 z-50 bg-black text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+        notification.textContent = '✅ 头像已从其他设备同步';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.classList.add('animate-fade-out');
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
+      }
+      
+      // 对于其他设置变更，询问用户是否应用
+      if (Object.keys(settings).some(key => key !== 'avatar_url' && settings[key] !== undefined)) {
+        const shouldApply = confirm('其他设备更新了设置，是否立即应用？');
+        if (shouldApply) {
+          window.location.reload();
+        }
       }
     });
     
@@ -777,10 +794,18 @@ export default function App() {
         {activeTab === 'profile' && (
           <div className="max-w-4xl">
             {/* 用户信息卡片 */}
-            <div className="bg-white rounded-[40px] p-8 shadow-sm border border-gray-100 mb-6">
+            <div className="bg-white rounded-[40px] p-4 shadow-sm border border-gray-100 mb-6">
               <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                  <User className="w-10 h-10 text-white" strokeWidth={2.5} />
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
+                  {avatarUrl ? (
+                    <img 
+                      src={avatarUrl} 
+                      alt="用户头像" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-10 h-10 text-white" strokeWidth={2.5} />
+                  )}
                 </div>
                 <div className="flex-1">
                   <h2 className="text-2xl font-black italic tracking-tighter mb-1">{userName}</h2>
@@ -962,8 +987,12 @@ export default function App() {
                 <AvatarUpload 
                   currentAvatarUrl={avatarUrl || undefined}
                   onAvatarUpdated={(url) => {
+                    console.log('📸 App: 收到头像更新回调', url);
                     setAvatarUrl(url);
-                    console.log('✅ 头像已更新:', url);
+                    console.log('✅ App: 头像状态已更新');
+                    
+                    // 强制重新渲染（通过更新一个临时状态）
+                    // React会自动优化，这只是确保状态传播
                   }}
                   size={120}
                 />

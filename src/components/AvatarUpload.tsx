@@ -3,7 +3,7 @@
  * 支持头像上传、预览、删除，自动同步到云端
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User, Upload, Trash2, Loader } from 'lucide-react';
 import { supabase, isMockMode, getCurrentUserId } from '../lib/supabase';
 import { getUserSettings, updateUserSettings } from '../services/userSettings';
@@ -26,6 +26,12 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 监听 props 变化，同步更新内部 state
+  useEffect(() => {
+    console.log('👤 AvatarUpload: props更新，同步头像URL', currentAvatarUrl);
+    setAvatarUrl(currentAvatarUrl || null);
+  }, [currentAvatarUrl]);
 
   /**
    * 处理文件选择
@@ -60,13 +66,28 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       const reader = new FileReader();
       reader.onload = async (e) => {
         const dataUrl = e.target?.result as string;
+        
+        // 立即更新本地显示
         setAvatarUrl(dataUrl);
         
         // 保存到用户设置
         await updateUserSettings({ avatar_url: dataUrl });
+        
+        // 通知父组件更新
         onAvatarUpdated?.(dataUrl);
         
         console.log('🔧 Mock模式：头像已保存到本地');
+        
+        // 显示成功提示
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+        notification.textContent = '✅ 头像上传成功（Mock模式）';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          notification.classList.add('animate-fade-out');
+          setTimeout(() => notification.remove(), 300);
+        }, 3000);
       };
       reader.readAsDataURL(file);
       return;
@@ -116,13 +137,30 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         .getPublicUrl(data.path);
 
       const publicUrl = urlData.publicUrl;
+      
+      // 立即更新本地显示
       setAvatarUrl(publicUrl);
+      console.log('✅ 头像URL:', publicUrl);
 
-      // 保存到用户设置
+      // 保存到用户设置（会自动触发云端同步）
       await updateUserSettings({ avatar_url: publicUrl });
+      console.log('☁️ 头像已保存到云端，正在推送到其他设备...');
+      
+      // 通知父组件更新
       onAvatarUpdated?.(publicUrl);
+      
+      // 显示成功提示
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+      notification.textContent = '✅ 头像上传成功，已推送到其他设备';
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.classList.add('animate-fade-out');
+        setTimeout(() => notification.remove(), 300);
+      }, 3000);
 
-      console.log('✅ 头像URL已保存到用户设置');
+      console.log('✅ 头像上传和同步完成');
     } catch (err: any) {
       console.error('❌ 头像上传失败:', err);
       setError(err.message || '上传失败，请重试');
@@ -157,12 +195,27 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         }
       }
 
-      // 更新用户设置
-      await updateUserSettings({ avatar_url: null });
+      // 立即更新本地显示
       setAvatarUrl(null);
+      
+      // 更新用户设置（会自动触发云端同步）
+      await updateUserSettings({ avatar_url: null });
+      
+      // 通知父组件更新
       onAvatarUpdated?.(null);
+      
+      // 显示成功提示
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+      notification.textContent = '✅ 头像已删除，已同步到其他设备';
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.classList.add('animate-fade-out');
+        setTimeout(() => notification.remove(), 300);
+      }, 3000);
 
-      console.log('✅ 头像已删除');
+      console.log('✅ 头像删除和同步完成');
     } catch (err: any) {
       console.error('❌ 删除头像失败:', err);
       setError(err.message || '删除失败，请重试');

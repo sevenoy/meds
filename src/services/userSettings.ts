@@ -130,7 +130,9 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
 
     // Step 4: 本地数据更新，保存到云端
     const newTimestamp = new Date().toISOString();
-    const { error } = await supabase!
+    console.log('📤 正在推送用户设置到云端...', { userId, settings });
+    
+    const { error, data } = await supabase!
       .from('user_settings')
       .upsert({
         user_id: userId,
@@ -138,9 +140,16 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
         updated_at: newTimestamp
       }, {
         onConflict: 'user_id'
-      });
+      })
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ 推送失败:', error);
+      throw error;
+    }
+
+    console.log('✅ 推送成功，云端数据已更新:', data);
+    console.log('📡 Realtime将自动推送到其他设备...');
 
     // 更新本地时间戳
     localStorage.setItem(LAST_SYNC_KEY, new Date(newTimestamp).getTime().toString());
