@@ -236,7 +236,6 @@ export default function App() {
   // 个人中心状态
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [showReminderSettings, setShowReminderSettings] = useState(false);
-  const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showMedicationManage, setShowMedicationManage] = useState(false);
   
@@ -244,7 +243,8 @@ export default function App() {
   const [userName, setUserName] = useState(localStorage.getItem('userName') || '用户');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(localStorage.getItem('reminderEnabled') === 'true');
-  const [syncEnabled, setSyncEnabled] = useState(localStorage.getItem('syncEnabled') === 'true');
+  // 多设备同步功能永远开启，无需用户设置
+  const syncEnabled = true;
   
   // 药品管理
   const [newMedName, setNewMedName] = useState('');
@@ -833,10 +833,10 @@ export default function App() {
 
         {activeTab === 'profile' && (
           <div className="max-w-4xl">
-            {/* 用户信息卡片 */}
-            <div className="bg-white rounded-[40px] p-4 shadow-sm border border-gray-100 mb-6">
-              <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
+            {/* 用户信息卡片 - 安卓优化版（高度减半）*/}
+            <div className="bg-white rounded-3xl p-3 shadow-sm border border-gray-100 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden flex-shrink-0">
                   {avatarUrl ? (
                     <img 
                       src={avatarUrl} 
@@ -844,35 +844,35 @@ export default function App() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User className="w-10 h-10 text-white" strokeWidth={2.5} />
+                    <User className="w-6 h-6 text-white" strokeWidth={2.5} />
                   )}
                 </div>
-                <div className="flex-1">
-                  <h2 className="text-2xl font-black italic tracking-tighter mb-1">{userName}</h2>
-                  <p className="text-sm text-gray-500 font-bold tracking-widest">药盒助手用户</p>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-black italic tracking-tighter mb-0.5 truncate">{userName}</h2>
+                  <p className="text-xs text-gray-500 font-bold tracking-widest truncate">药盒助手用户</p>
                 </div>
                 <button 
                   onClick={() => setShowProfileEdit(true)}
-                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all flex-shrink-0"
                 >
-                  <Edit2 className="w-5 h-5" />
+                  <Edit2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* 统计卡片 */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-lime rounded-3xl p-6 text-center">
-                <p className="text-3xl font-black italic tracking-tighter mb-1">{medications.length}</p>
-                <p className="text-xs font-bold text-gray-600 tracking-widest">药物总数</p>
+            {/* 统计卡片 - 安卓优化版（减少高度和内边距）*/}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="bg-lime rounded-2xl p-3 text-center">
+                <p className="text-2xl font-black italic tracking-tighter mb-0.5">{medications.length}</p>
+                <p className="text-[10px] font-bold text-gray-600 tracking-wider leading-tight">药物总数</p>
               </div>
-              <div className="bg-mint rounded-3xl p-6 text-center">
-                <p className="text-3xl font-black italic tracking-tighter mb-1">{timelineLogs.length}</p>
-                <p className="text-xs font-bold text-gray-600 tracking-widest">服药记录</p>
+              <div className="bg-mint rounded-2xl p-3 text-center">
+                <p className="text-2xl font-black italic tracking-tighter mb-0.5">{timelineLogs.length}</p>
+                <p className="text-[10px] font-bold text-gray-600 tracking-wider leading-tight">服药记录</p>
               </div>
-              <div className="bg-berry rounded-3xl p-6 text-center">
-                <p className="text-3xl font-black italic tracking-tighter mb-1">{progress}%</p>
-                <p className="text-xs font-bold text-gray-600 tracking-widest">今日完成</p>
+              <div className="bg-berry rounded-2xl p-3 text-center">
+                <p className="text-2xl font-black italic tracking-tighter mb-0.5">{progress}%</p>
+                <p className="text-[10px] font-bold text-gray-600 tracking-wider leading-tight">今日完成</p>
               </div>
             </div>
 
@@ -922,24 +922,6 @@ export default function App() {
                     <p className="font-black italic tracking-tighter">提醒设置</p>
                     <p className="text-xs text-gray-400 font-bold">
                       {reminderEnabled ? '提醒已开启' : '设置服药提醒时间'}
-                    </p>
-                  </div>
-                </div>
-                <span className="text-gray-400">›</span>
-              </div>
-
-              <div 
-                onClick={() => setShowSyncSettings(true)}
-                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                    <RefreshCw className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="font-black italic tracking-tighter">数据同步</p>
-                    <p className="text-xs text-gray-400 font-bold">
-                      {syncEnabled ? '同步已开启' : '多设备数据同步管理'}
                     </p>
                   </div>
                 </div>
@@ -1120,91 +1102,6 @@ export default function App() {
 
               <button
                 onClick={() => setShowReminderSettings(false)}
-                className="w-full px-6 py-4 bg-black text-white font-black italic rounded-full tracking-tighter hover:bg-gray-800 transition-all"
-              >
-                完成
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 数据同步设置 */}
-      {showSyncSettings && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-black italic tracking-tighter">数据同步</h3>
-              <button
-                onClick={() => setShowSyncSettings(false)}
-                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-gray-50 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <RefreshCw className="w-5 h-5 text-purple-600" />
-                    <span className="font-black italic tracking-tighter">自动同步</span>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={syncEnabled}
-                      onChange={(e) => {
-                        setSyncEnabled(e.target.checked);
-                        localStorage.setItem('syncEnabled', e.target.checked.toString());
-                      }}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                  </label>
-                </div>
-                <p className="text-xs text-gray-500 font-bold">
-                  开启后，数据会自动在多个设备间同步
-                </p>
-              </div>
-
-              {syncEnabled && (
-                <div className="space-y-3">
-                  <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Check className="w-5 h-5 text-blue-600" />
-                      <span className="font-black italic tracking-tighter text-blue-900">同步状态正常</span>
-                    </div>
-                    <p className="text-xs text-blue-700 font-bold">
-                      最后同步时间: {new Date().toLocaleString('zh-CN')}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={async () => {
-                      try {
-                        await pushLocalChanges();
-                        const logs = await pullRemoteChanges();
-                        for (const log of logs) {
-                          await mergeRemoteLog(log);
-                        }
-                        await loadData();
-                        alert('同步成功！');
-                      } catch (error) {
-                        console.error('同步失败:', error);
-                        alert('同步失败，请检查网络连接');
-                      }
-                    }}
-                    className="w-full px-6 py-3 bg-purple-100 text-purple-700 font-black italic rounded-full tracking-tighter hover:bg-purple-200 transition-all flex items-center justify-center gap-2"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    立即同步
-                  </button>
-                </div>
-              )}
-
-              <button
-                onClick={() => setShowSyncSettings(false)}
                 className="w-full px-6 py-4 bg-black text-white font-black italic rounded-full tracking-tighter hover:bg-gray-800 transition-all"
               >
                 完成
