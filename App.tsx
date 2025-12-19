@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { CameraModal } from './src/components/CameraModal';
 import { SyncPrompt } from './src/components/SyncPrompt';
+import { LoginPage } from './src/components/LoginPage';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges } from './src/services/sync';
@@ -210,6 +211,10 @@ const TimelineItem: React.FC<{
 // --- Main App ---
 
 export default function App() {
+  // 登录状态
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'timeline' | 'profile'>('dashboard');
   const [medications, setMedications] = useState<MedicationUI[]>([]);
   const [timelineLogs, setTimelineLogs] = useState<MedicationLog[]>([]);
@@ -325,8 +330,17 @@ export default function App() {
     }
   };
 
+  // 检查登录状态
+  useEffect(() => {
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    setIsLoggedIn(loggedIn);
+    setCheckingAuth(false);
+  }, []);
+
   // 初始化同步监听
   useEffect(() => {
+    if (!isLoggedIn) return;
+    
     loadData();
     
     // 初始化 Realtime 同步
@@ -347,7 +361,7 @@ export default function App() {
       cleanup();
       clearInterval(syncInterval);
     };
-  }, []);
+  }, [isLoggedIn]);
 
   // 处理拍照成功
   const handleRecordSuccess = async () => {
@@ -368,6 +382,22 @@ export default function App() {
   const progress = medications.length > 0 
     ? Math.round((completedCount / medications.length) * 100) 
     : 0;
+
+  // 检查认证状态
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-2xl font-black italic tracking-tighter">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 显示登录页面
+  if (!isLoggedIn) {
+    return <LoginPage onLoginSuccess={() => setIsLoggedIn(true)} />;
+  }
 
   if (loading) {
     return (
@@ -820,6 +850,28 @@ export default function App() {
                   </div>
                 </div>
                 <span className="text-gray-400">›</span>
+              </div>
+
+              <div 
+                onClick={() => {
+                  if (confirm('确定要退出登录吗？')) {
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('username');
+                    setIsLoggedIn(false);
+                  }
+                }}
+                className="bg-red-50 rounded-2xl p-5 shadow-sm border border-red-100 flex items-center justify-between hover:bg-red-100 transition-all cursor-pointer active:scale-98"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                    <X className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="font-black italic tracking-tighter text-red-600">退出登录</p>
+                    <p className="text-xs text-red-400 font-bold">当前用户：{userName}</p>
+                  </div>
+                </div>
+                <span className="text-red-400">›</span>
               </div>
             </div>
           </div>
