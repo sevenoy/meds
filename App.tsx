@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { CameraModal } from './src/components/CameraModal';
 import { SyncPrompt } from './src/components/SyncPrompt';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
@@ -222,6 +222,7 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [selectedMedicationId, setSelectedMedicationId] = useState<string | null>(null);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   
   // 个人中心状态
   const [showProfileEdit, setShowProfileEdit] = useState(false);
@@ -383,12 +384,12 @@ export default function App() {
       <Watermark text="健康" />
 
       {/* Nav */}
-      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-[rgba(52,130,213,1)] text-white px-8 py-4 rounded-full flex items-center gap-12 shadow-2xl backdrop-blur-lg bg-opacity-90">
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-[rgba(52,130,213,1)] text-white px-8 py-4 rounded-full flex items-center gap-8 shadow-2xl backdrop-blur-lg bg-opacity-90">
         <button 
           onClick={() => setActiveTab('dashboard')}
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'dashboard' ? 'scale-110' : ''}`}
         >
-          <Plus className="w-6 h-6 text-white" />
+          <Camera className="w-6 h-6 text-white" />
           <span className="text-[8px] font-black text-white">首页</span>
         </button>
         <button 
@@ -397,6 +398,13 @@ export default function App() {
         >
           <Clock className="w-6 h-6 text-white" />
           <span className="text-[8px] font-black text-white">记录</span>
+        </button>
+        <button 
+          onClick={() => setShowMedicationManage(true)}
+          className="flex flex-col items-center gap-1 transition-all hover:scale-110"
+        >
+          <Pill className="w-6 h-6 text-white" />
+          <span className="text-[8px] font-black text-white">药品</span>
         </button>
         <button 
           onClick={() => setActiveTab('profile')}
@@ -445,14 +453,6 @@ export default function App() {
                 ))}
               </div>
             </div>
-
-            {/* 添加历史记录按钮 */}
-            <button
-              onClick={() => setShowCameraModal(true)}
-              className="fixed bottom-24 right-6 md:right-24 w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center shadow-2xl hover:scale-110 transition-transform z-40"
-            >
-              <Plus className="w-8 h-8" />
-            </button>
           </div>
         )}
 
@@ -460,35 +460,56 @@ export default function App() {
           <div className="max-w-4xl">
             {/* 月历选择器 */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
-              {/* 月份导航 */}
-              <div className="flex items-center justify-between mb-3">
-                <button
-                  onClick={() => {
-                    const newMonth = new Date(selectedMonth);
-                    newMonth.setMonth(newMonth.getMonth() - 1);
-                    setSelectedMonth(newMonth);
-                  }}
-                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setShowMonthPicker(!showMonthPicker)}
-                  className="text-base font-black italic tracking-tighter hover:text-blue-600 transition-colors"
-                >
-                  {selectedMonth.getFullYear()}年 {selectedMonth.getMonth() + 1}月
-                </button>
-                <button
-                  onClick={() => {
-                    const newMonth = new Date(selectedMonth);
-                    newMonth.setMonth(newMonth.getMonth() + 1);
-                    setSelectedMonth(newMonth);
-                  }}
-                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+              {/* 日历标题栏 - 可点击展开/收起 */}
+              <button
+                onClick={() => setShowCalendar(!showCalendar)}
+                className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 -mx-4 px-4 py-2 rounded-xl transition-all"
+              >
+                <div className="flex items-center gap-2">
+                  <ChevronDown 
+                    className={`w-5 h-5 transition-transform ${showCalendar ? 'rotate-180' : ''}`}
+                  />
+                  <span className="text-base font-black italic tracking-tighter">
+                    {selectedMonth.getFullYear()}年 {selectedMonth.getMonth() + 1}月
+                  </span>
+                </div>
+                <span className="text-xs text-gray-400">
+                  {showCalendar ? '收起日历' : '展开日历'}
+                </span>
+              </button>
+
+              {/* 日历内容 - 可折叠 */}
+              {showCalendar && (
+                <>
+                  {/* 月份导航 */}
+                  <div className="flex items-center justify-between mb-3">
+                    <button
+                      onClick={() => {
+                        const newMonth = new Date(selectedMonth);
+                        newMonth.setMonth(newMonth.getMonth() - 1);
+                        setSelectedMonth(newMonth);
+                      }}
+                      className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setShowMonthPicker(!showMonthPicker)}
+                      className="text-base font-black italic tracking-tighter hover:text-blue-600 transition-colors"
+                    >
+                      {selectedMonth.getFullYear()}年 {selectedMonth.getMonth() + 1}月
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newMonth = new Date(selectedMonth);
+                        newMonth.setMonth(newMonth.getMonth() + 1);
+                        setSelectedMonth(newMonth);
+                      }}
+                      className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
 
               {/* 月份选择器 */}
               {showMonthPicker && (
@@ -563,14 +584,14 @@ export default function App() {
                       >
                         <span className="font-bold">{day}</span>
                         {logsOnDate.length > 0 && (
-                          <div className="flex gap-0.5 mt-0.5">
+                          <div className="flex gap-1 mt-1">
                             {Array.from(new Set(logsOnDate.map(log => {
                               const med = medications.find(m => m.id === log.medication_id);
                               return med?.accent;
                             }))).map((accent, idx) => (
                               <div
                                 key={idx}
-                                className={`w-1 h-1 rounded-full ${
+                                className={`w-2 h-2 rounded-full shadow-md ring-1 ring-white ${
                                   accent === 'lime' ? 'bg-lime' :
                                   accent === 'mint' ? 'bg-mint' :
                                   accent === 'berry' ? 'bg-berry' :
@@ -620,6 +641,8 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+              )}
+                </>
               )}
             </div>
 
