@@ -26,18 +26,57 @@
     
     <!-- 版本号配置 -->
     <script>
-      const APP_VERSION = 'V251219.1';
+      const APP_VERSION = 'V251219.2';
       console.log('📦 当前版本:', APP_VERSION);
+      
+      // 检查本地存储的版本号
+      const storedVersion = localStorage.getItem('app_version');
+      if (storedVersion && storedVersion !== APP_VERSION) {
+        console.log('🔄 检测到版本更新:', storedVersion, '→', APP_VERSION);
+        // 清除所有缓存
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            return Promise.all(names.map(function(name) {
+              console.log('🗑️ 清除缓存:', name);
+              return caches.delete(name);
+            }));
+          }).then(function() {
+            console.log('✅ 缓存已清除');
+            localStorage.setItem('app_version', APP_VERSION);
+            // 延迟刷新，确保缓存清除完成
+            setTimeout(function() {
+              window.location.reload(true);
+            }, 500);
+          });
+        } else {
+          localStorage.setItem('app_version', APP_VERSION);
+          window.location.reload(true);
+        }
+      } else {
+        localStorage.setItem('app_version', APP_VERSION);
+      }
     </script>
     
     <!-- Service Worker 注册 -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          const swUrl = '/sw.js?v=' + APP_VERSION + '&t=' + Date.now();
-          navigator.serviceWorker.register(swUrl, {
-            scope: '/',
-            updateViaCache: 'none'
+          // 先注销旧的 Service Worker
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for (let registration of registrations) {
+              registration.unregister().then(function(success) {
+                if (success) {
+                  console.log('🗑️ 已注销旧的 Service Worker');
+                }
+              });
+            }
+          }).then(function() {
+            // 注册新的 Service Worker
+            const swUrl = '/sw.js?v=' + APP_VERSION + '&t=' + Date.now();
+            return navigator.serviceWorker.register(swUrl, {
+              scope: '/',
+              updateViaCache: 'none'
+            });
           }).then((registration) => {
             console.log('✅ Service Worker 注册成功');
             
@@ -90,7 +129,7 @@
         .bg-mint { background-color: #BFEFFF; }
         .rounded-pill { border-radius: 40px; }
     </style>
-  <script type="module" crossorigin src="/meds/assets/index-JqdN5jXa.js"></script>
+  <script type="module" crossorigin src="/meds/assets/index-DdDBHxpy.js"></script>
 </head>
 <body>
     <div id="root"></div>

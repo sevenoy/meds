@@ -1,7 +1,7 @@
 {
   "name": "药盒助手 - 智能服药追踪",
   "short_name": "药盒助手",
-  "version": "V251219.1",
+  "version": "V251219.2",
   "description": "智能服药追踪应用，帮助您准确记录和管理用药时间",
   "start_url": "/meds/",
   "display": "standalone",

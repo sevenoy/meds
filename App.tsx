@@ -38,24 +38,24 @@ const SectionTitle: React.FC<{ title: string; subtitle?: string; outline?: boole
 
 const ProgressRing: React.FC<{ percentage: number }> = ({ percentage }) => {
   return (
-    <div className="relative flex items-center justify-center w-11 h-11 md:w-16 md:h-16 group">
+    <div className="relative flex items-center justify-center w-36 h-36 md:w-40 md:h-40 group">
       <svg className="w-full h-full transform -rotate-90">
         <circle
           cx="50%" cy="50%" r="45%"
           className="stroke-[#BFEFFF] fill-none"
-          strokeWidth="6"
+          strokeWidth="10"
         />
         <circle
           cx="50%" cy="50%" r="45%"
           className="stroke-black fill-none transition-all duration-1000 ease-out"
-          strokeWidth="6"
+          strokeWidth="10"
           strokeDasharray={`${percentage * 2.83}, 283`}
           strokeLinecap="round"
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className="text-xs md:text-base font-black italic tracking-tighter">{percentage}%</span>
-        <span className="text-[6px] md:text-[8px] font-bold text-gray-400 tracking-widest">完成</span>
+        <span className="text-2xl md:text-3xl font-black italic tracking-tighter">{percentage}%</span>
+        <span className="text-[10px] md:text-xs font-bold text-gray-400 tracking-widest">完成</span>
       </div>
     </div>
   );
@@ -473,7 +473,7 @@ export default function App() {
       </nav>
 
       {/* Header */}
-      <header className="px-6 md:px-24 pt-16 pb-8 md:pt-24 md:pb-16 flex flex-col md:flex-row md:items-end justify-between gap-4 relative z-10">
+      <header className="px-6 md:px-24 pt-4 pb-8 md:pt-8 md:pb-16 flex flex-col md:flex-row md:items-end justify-between gap-4 relative z-10">
         <div>
           <h1 className="text-2xl font-black italic tracking-tighter mb-4">
             药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{(window as any).APP_VERSION || 'V251219.1'}</span>
