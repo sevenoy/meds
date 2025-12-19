@@ -135,8 +135,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
-                capture="environment"
+                accept="image/*,.heic,.heif"
                 onChange={handleFileSelect}
                 className="hidden"
               />
@@ -147,7 +146,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
                 <Camera className="w-16 h-16 text-gray-400" />
                 <div className="text-center">
                   <p className="text-sm font-black italic tracking-tighter mb-1">
-                    点击选择照片
+                    拍照或从相册选择
                   </p>
                   <p className="text-xs text-gray-400 font-bold tracking-widest">
                     支持 HEIC/JPEG/PNG 格式
@@ -195,7 +194,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
                     type="date"
                     value={confirmedDate}
                     onChange={(e) => setConfirmedDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-blue-300 focus:border-blue-500 focus:outline-none font-bold"
+                    className="w-full max-w-full px-3 py-3 rounded-xl border-2 border-blue-300 focus:border-blue-500 focus:outline-none font-bold text-base"
+                    style={{ WebkitAppearance: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
 
@@ -208,7 +208,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
                     type="time"
                     value={confirmedTime}
                     onChange={(e) => setConfirmedTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-blue-300 focus:border-blue-500 focus:outline-none font-bold"
+                    className="w-full max-w-full px-3 py-3 rounded-xl border-2 border-blue-300 focus:border-blue-500 focus:outline-none font-bold text-base"
+                    style={{ WebkitAppearance: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
