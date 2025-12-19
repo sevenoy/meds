@@ -66,8 +66,7 @@ const ProgressRing: React.FC<{ percentage: number }> = ({ percentage }) => {
 const MedCard: React.FC<{ 
   med: MedicationUI; 
   onCameraClick: () => void;
-  onEditClick: () => void;
-}> = ({ med, onCameraClick, onEditClick }) => {
+}> = ({ med, onCameraClick }) => {
   const formatTime = (isoString?: string) => {
     if (!isoString) return '--:--';
     const date = new Date(isoString);
@@ -82,15 +81,6 @@ const MedCard: React.FC<{
       className="group relative p-5 rounded-3xl flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
       style={{ backgroundColor }}
     >
-      {/* 编辑按钮（右上角）*/}
-      <button
-        onClick={onEditClick}
-        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-white hover:scale-110 shadow-md"
-        title="编辑药品"
-      >
-        <Edit2 className="w-4 h-4 text-gray-700" />
-      </button>
-
       <div className="flex flex-col">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xs font-black bg-black text-white px-2.5 py-0.5 rounded-full italic">{med.scheduled_time}</span>
@@ -596,14 +586,6 @@ export default function App() {
                     key={med.id} 
                     med={med}
                     onCameraClick={() => setShowCameraModal(true)}
-                    onEditClick={() => {
-                      setEditingMedication(med);
-                      setEditMedName(med.name);
-                      setEditMedDosage(med.dosage);
-                      setEditMedTime(med.scheduled_time);
-                      setEditMedAccent(med.accent || '#BFEFFF');
-                      setShowMedicationEdit(true);
-                    }}
                   />
                 ))}
               </div>
@@ -1362,17 +1344,36 @@ export default function App() {
                         </div>
                       </div>
                       
-                      <button
-                        onClick={async () => {
-                          if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-                            await deleteMedication(med.id);
-                            await loadData();
-                          }
-                        }}
-                        className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all ml-4"
-                      >
-                        <Trash2 className="w-5 h-5 text-red-600" />
-                      </button>
+                      {/* 编辑和删除按钮 */}
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => {
+                            setEditingMedication(med);
+                            setEditMedName(med.name);
+                            setEditMedDosage(med.dosage);
+                            setEditMedTime(med.scheduled_time);
+                            setEditMedAccent(med.accent || '#BFEFFF');
+                            setShowMedicationEdit(true);
+                          }}
+                          className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-all"
+                          title="编辑药品"
+                        >
+                          <Edit2 className="w-5 h-5 text-blue-600" />
+                        </button>
+                        
+                        <button
+                          onClick={async () => {
+                            if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                              await deleteMedication(med.id);
+                              await loadData();
+                            }
+                          }}
+                          className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
+                          title="删除药品"
+                        >
+                          <Trash2 className="w-5 h-5 text-red-600" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
