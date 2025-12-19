@@ -87,8 +87,9 @@ const MedCard: React.FC<{
           <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">{med.scheduled_time}</span>
           {med.status === 'completed' && <Check className="w-5 h-5 text-green-600" strokeWidth={3} />}
         </div>
-        <h3 className="text-2xl font-black tracking-tighter uppercase italic text-[#DF4949]">{med.name}</h3>
-        <p className="text-gray-600 font-bold text-xs uppercase tracking-widest mt-1">{med.dosage}</p>
+        <h3 className="text-2xl font-black tracking-tighter uppercase italic text-[#DF4949]">
+          {med.name} <span className="text-gray-600 font-bold text-base normal-case">{med.dosage}</span>
+        </h3>
       </div>
 
       <div className="flex items-center">
@@ -479,16 +480,6 @@ export default function App() {
             药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{(window as any).APP_VERSION || 'V251219.1'}</span>
           </h1>
         </div>
-        
-        {activeTab === 'dashboard' && (
-          <div className="flex items-center gap-8 bg-white p-8 rounded-[40px] shadow-sm border border-gray-100">
-             <div className="hidden md:block">
-                <p className="text-[10px] font-bold text-gray-400 tracking-widest text-right mb-2">今日进度</p>
-                <p className="text-xl font-black italic tracking-tighter text-right">状态良好</p>
-             </div>
-             <ProgressRing percentage={progress} />
-          </div>
-        )}
       </header>
 
       {/* Content */}
