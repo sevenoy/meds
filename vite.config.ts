@@ -7,8 +7,8 @@ export default defineConfig(({ mode }) => {
     return {
       base: '/meds/',
       server: {
-        port: 3000,
-        host: '0.0.0.0',
+        port: 5173,
+        host: 'localhost',
       },
       plugins: [react()],
       define: {

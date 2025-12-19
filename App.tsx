@@ -221,6 +221,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null); // YYYY-MM-DD
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [selectedMedicationId, setSelectedMedicationId] = useState<string | null>(null);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
   
   // 个人中心状态
   const [showProfileEdit, setShowProfileEdit] = useState(false);
@@ -458,45 +459,74 @@ export default function App() {
         {activeTab === 'timeline' && (
           <div className="max-w-4xl">
             {/* 月历选择器 */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-6">
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
               {/* 月份导航 */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <button
                   onClick={() => {
                     const newMonth = new Date(selectedMonth);
                     newMonth.setMonth(newMonth.getMonth() - 1);
                     setSelectedMonth(newMonth);
                   }}
-                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
-                <h3 className="text-xl font-black italic tracking-tighter">
+                <button
+                  onClick={() => setShowMonthPicker(!showMonthPicker)}
+                  className="text-base font-black italic tracking-tighter hover:text-blue-600 transition-colors"
+                >
                   {selectedMonth.getFullYear()}年 {selectedMonth.getMonth() + 1}月
-                </h3>
+                </button>
                 <button
                   onClick={() => {
                     const newMonth = new Date(selectedMonth);
                     newMonth.setMonth(newMonth.getMonth() + 1);
                     setSelectedMonth(newMonth);
                   }}
-                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
 
+              {/* 月份选择器 */}
+              {showMonthPicker && (
+                <div className="mb-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="grid grid-cols-4 gap-2">
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          const newMonth = new Date(selectedMonth);
+                          newMonth.setMonth(i);
+                          setSelectedMonth(newMonth);
+                          setShowMonthPicker(false);
+                        }}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                          selectedMonth.getMonth() === i
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-white hover:bg-gray-100'
+                        }`}
+                      >
+                        {i + 1}月
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 星期标题 */}
-              <div className="grid grid-cols-7 gap-2 mb-2">
+              <div className="grid grid-cols-7 gap-1 mb-1">
                 {['日', '一', '二', '三', '四', '五', '六'].map(day => (
-                  <div key={day} className="text-center text-xs font-bold text-gray-400 py-2">
+                  <div key={day} className="text-center text-[10px] font-bold text-gray-400 py-1">
                     {day}
                   </div>
                 ))}
               </div>
 
               {/* 日期网格 */}
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1">
                 {(() => {
                   const year = selectedMonth.getFullYear();
                   const month = selectedMonth.getMonth();
@@ -523,24 +553,24 @@ export default function App() {
                       <button
                         key={day}
                         onClick={() => setSelectedDate(isSelected ? null : dateStr)}
-                        className={`aspect-square rounded-xl flex flex-col items-center justify-center transition-all ${
+                        className={`aspect-square rounded-lg flex flex-col items-center justify-center transition-all text-xs ${
                           isSelected 
-                            ? 'bg-blue-600 text-white scale-110 shadow-lg' 
+                            ? 'bg-blue-600 text-white scale-105 shadow-md' 
                             : isToday
                             ? 'bg-blue-50 text-blue-600 font-bold'
                             : 'hover:bg-gray-100'
                         }`}
                       >
-                        <span className="text-sm font-bold">{day}</span>
+                        <span className="font-bold">{day}</span>
                         {logsOnDate.length > 0 && (
-                          <div className="flex gap-0.5 mt-1">
+                          <div className="flex gap-0.5 mt-0.5">
                             {Array.from(new Set(logsOnDate.map(log => {
                               const med = medications.find(m => m.id === log.medication_id);
                               return med?.accent;
                             }))).map((accent, idx) => (
                               <div
                                 key={idx}
-                                className={`w-1.5 h-1.5 rounded-full ${
+                                className={`w-1 h-1 rounded-full ${
                                   accent === 'lime' ? 'bg-lime' :
                                   accent === 'mint' ? 'bg-mint' :
                                   accent === 'berry' ? 'bg-berry' :
@@ -560,12 +590,12 @@ export default function App() {
 
               {/* 药品筛选 */}
               {selectedDate && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-xs font-bold text-gray-500 mb-2">筛选药品</p>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-[10px] font-bold text-gray-500 mb-2">筛选药品</p>
+                  <div className="flex flex-wrap gap-1.5">
                     <button
                       onClick={() => setSelectedMedicationId(null)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
                         !selectedMedicationId
                           ? 'bg-black text-white'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -579,7 +609,7 @@ export default function App() {
                         onClick={() => setSelectedMedicationId(
                           selectedMedicationId === med.id ? null : med.id
                         )}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
                           selectedMedicationId === med.id
                             ? 'bg-black text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
