@@ -125,3 +125,4 @@ A: Supabase Dashboard → Table Editor → medications / medication_logs
 - Supabase文档: https://supabase.com/docs
 - JavaScript客户端: https://supabase.com/docs/reference/javascript
 - Storage指南: https://supabase.com/docs/guides/storage
+
