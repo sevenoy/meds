@@ -2,16 +2,27 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// 从环境变量读取配置（如果没有则使用 Mock 模式）
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// 从环境变量或 localStorage 读取配置
+// 优先级：环境变量 > localStorage
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 
+  localStorage.getItem('SUPABASE_URL') || 
+  '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 
+  localStorage.getItem('SUPABASE_ANON_KEY') || 
+  '';
 
 // 是否启用 Mock 模式
 export const isMockMode = !supabaseUrl || !supabaseAnonKey;
 
+// 创建 Supabase 客户端
 export const supabase = isMockMode 
   ? null 
   : createClient(supabaseUrl, supabaseAnonKey);
+
+// 如果使用的是 localStorage 配置，打印日志
+if (!import.meta.env.VITE_SUPABASE_URL && supabaseUrl) {
+  console.log('✅ 使用 localStorage 中的 Supabase 配置');
+}
 
 /**
  * 获取当前用户 ID
