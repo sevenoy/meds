@@ -13,15 +13,28 @@ import type { Medication, MedicationLog, TimeSource } from '../types';
  */
 export async function recordMedicationIntake(
   medicationId: string,
-  imageFile: File
+  imageFile: File,
+  customTakenAt?: Date // 新增：允许自定义服药时间
 ): Promise<MedicationLog> {
   const userId = await getCurrentUserId();
   const deviceId = getDeviceId();
   const uploadedAt = new Date();
   
-  // 1. 提取 EXIF 时间
-  const { takenAt, source } = await extractTakenAt(imageFile);
-  const takenAtDate = takenAt || uploadedAt;
+  let takenAtDate: Date;
+  let source: TimeSource;
+  
+  if (customTakenAt) {
+    // 使用用户确认的时间
+    takenAtDate = customTakenAt;
+    // 尝试提取 EXIF 以确定时间来源
+    const exifResult = await extractTakenAt(imageFile);
+    source = exifResult.source;
+  } else {
+    // 1. 提取 EXIF 时间
+    const exifResult = await extractTakenAt(imageFile);
+    takenAtDate = exifResult.takenAt || uploadedAt;
+    source = exifResult.source;
+  }
   
   // 2. 计算状态
   const status = calculateStatus(takenAtDate, uploadedAt);

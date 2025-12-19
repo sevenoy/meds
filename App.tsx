@@ -61,7 +61,7 @@ const ProgressRing: React.FC<{ percentage: number }> = ({ percentage }) => {
 
 const MedCard: React.FC<{ 
   med: MedicationUI; 
-  onCameraClick: (med: Medication) => void;
+  onCameraClick: () => void;
 }> = ({ med, onCameraClick }) => {
   const getAccentClass = () => {
     switch(med.accent) {
@@ -92,7 +92,7 @@ const MedCard: React.FC<{
       <div className="flex items-center">
         {med.status === 'pending' ? (
           <button 
-            onClick={() => onCameraClick(med)}
+            onClick={onCameraClick}
             className="w-16 h-16 rounded-full bg-black text-white flex items-center justify-center hover:scale-110 transition-transform active:scale-95 shadow-xl"
           >
             <Camera className="w-8 h-8" />
@@ -204,7 +204,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'timeline' | 'profile'>('dashboard');
   const [medications, setMedications] = useState<MedicationUI[]>([]);
   const [timelineLogs, setTimelineLogs] = useState<MedicationLog[]>([]);
-  const [selectedMedication, setSelectedMedication] = useState<Medication | null>(null);
+  const [showCameraModal, setShowCameraModal] = useState(false);
   const [syncPrompt, setSyncPrompt] = useState<MedicationLog | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -425,12 +425,19 @@ export default function App() {
                   <MedCard 
                     key={med.id} 
                     med={med}
-                    onCameraClick={setSelectedMedication}
+                    onCameraClick={() => setShowCameraModal(true)}
                   />
                 ))}
               </div>
             </div>
-            
+
+            {/* 添加历史记录按钮 */}
+            <button
+              onClick={() => setShowCameraModal(true)}
+              className="fixed bottom-24 right-6 md:right-24 w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center shadow-2xl hover:scale-110 transition-transform z-40"
+            >
+              <Plus className="w-8 h-8" />
+            </button>
           </div>
         )}
 
@@ -585,10 +592,10 @@ export default function App() {
 
 
       {/* Camera Modal */}
-      {selectedMedication && (
+      {showCameraModal && medications.length > 0 && (
         <CameraModal
-          medication={selectedMedication}
-          onClose={() => setSelectedMedication(null)}
+          medications={medications}
+          onClose={() => setShowCameraModal(false)}
           onSuccess={handleRecordSuccess}
         />
       )}
