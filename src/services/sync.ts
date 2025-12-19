@@ -248,22 +248,8 @@ export function initRealtimeSync(
               time: log.taken_at
             });
             
-            // 弹出确认对话框
-            const shouldSync = confirm(
-              '🔔 检测到其他设备的数据更新\n\n' +
-              `📱 设备: ${log.source_device?.substring(0, 8)}...\n` +
-              `💊 药品: ${log.medication_name || '未知'}\n` +
-              `⏰ 时间: ${new Date(log.taken_at).toLocaleString('zh-CN')}\n\n` +
-              '是否立即同步到本设备？\n\n' +
-              '点击【确定】立即同步，点击【取消】稍后同步'
-            );
-            
-            if (shouldSync) {
-              console.log('✅ 用户确认同步');
-              onMedicationLogSync(log);
-            } else {
-              console.log('⏭️ 用户跳过同步');
-            }
+            // 直接同步，不需要用户确认
+            onMedicationLogSync(log);
           } else {
             console.log('ℹ️ 本设备的记录，跳过');
           }
@@ -289,25 +275,8 @@ export function initRealtimeSync(
           if (med.user_id === userId) {
             console.log('💊 检测到药品列表更新');
             
-            // 弹出确认对话框
-            const eventText = payload.eventType === 'INSERT' ? '添加' : 
-                            payload.eventType === 'UPDATE' ? '修改' : '删除';
-            
-            const shouldSync = confirm(
-              '🔔 检测到其他设备的药品数据更新\n\n' +
-              `📋 操作: ${eventText}药品\n` +
-              `💊 药品: ${med.name || '未知'}\n` +
-              `⏰ 服用时间: ${med.scheduled_time || '未知'}\n\n` +
-              '是否立即同步到本设备？\n\n' +
-              '点击【确定】立即同步，点击【取消】稍后同步'
-            );
-            
-            if (shouldSync) {
-              console.log('✅ 用户确认同步药品列表');
-              onMedicationSync();
-            } else {
-              console.log('⏭️ 用户跳过同步药品列表');
-            }
+            // 直接同步，不需要用户确认
+            onMedicationSync();
           }
         }
       }

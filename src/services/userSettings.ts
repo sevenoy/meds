@@ -228,50 +228,19 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
             // 检查是否来自其他设备
             const lastSync = parseInt(localStorage.getItem(LAST_SYNC_KEY) || '0');
             
-            // 只要云端时间戳更新，就弹出提示
+            // 只要云端时间戳更新，就自动应用（即使是相同设备，也可能是从其他浏览器）
             if (updateTime > lastSync) {
-              console.log('🔔 检测到设置更新...', {
+              console.log('🔔 检测到设置更新，自动应用...', {
                 lastSync: new Date(lastSync).toLocaleString(),
                 updateTime: new Date(updateTime).toLocaleString()
               });
               
-              // 检查哪些设置发生了变化
-              const currentSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-              const changes: string[] = [];
+              localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+              localStorage.setItem(LAST_SYNC_KEY, updateTime.toString());
               
-              if (newSettings.avatar_url !== currentSettings.avatar_url) {
-                changes.push('👤 用户头像');
-              }
-              if (newSettings.userName !== currentSettings.userName) {
-                changes.push('📝 用户名称');
-              }
-              if (newSettings.reminderEnabled !== currentSettings.reminderEnabled) {
-                changes.push('🔔 提醒设置');
-              }
-              
-              const changesText = changes.length > 0 ? 
-                `\n\n变更内容:\n${changes.join('\n')}` : 
-                '';
-              
-              // 弹出确认对话框
-              const shouldSync = confirm(
-                '🔔 检测到其他设备的设置更新\n\n' +
-                `⏰ 更新时间: ${new Date(updateTime).toLocaleString('zh-CN')}${changesText}\n\n` +
-                '是否立即同步到本设备？\n\n' +
-                '点击【确定】立即同步，点击【取消】稍后同步'
-              );
-              
-              if (shouldSync) {
-                console.log('✅ 用户确认同步设置');
-                localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
-                localStorage.setItem(LAST_SYNC_KEY, updateTime.toString());
-                
-                // 立即触发回调
-                onSettingsUpdate(newSettings);
-                console.log('✅ 设置已自动更新');
-              } else {
-                console.log('⏭️ 用户跳过同步设置');
-              }
+              // 立即触发回调
+              onSettingsUpdate(newSettings);
+              console.log('✅ 设置已自动更新');
             } else {
               console.log('ℹ️ 设置时间戳未变化，跳过');
             }

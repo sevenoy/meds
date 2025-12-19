@@ -2,7 +2,7 @@
  * Service Worker - 缓存管理和版本更新
  */
 
-const VERSION = 'V251219.14';
+const VERSION = 'V251219.15';
 const CACHE_NAME = `meds-cache-${VERSION}`;
 
 // 需要缓存的关键资源
