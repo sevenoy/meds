@@ -1,7 +1,7 @@
 {
   "name": "medication-tracker---minimalist-edition",
   "private": true,
-  "version": "251219.38",
+  "version": "251219.39",
   "type": "module",
   "scripts": {
     "dev": "vite",

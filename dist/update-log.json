@@ -1,4 +1,17 @@
 {
+  "V251219.38": {
+    "version": "V251219.38",
+    "date": "2025-12-20",
+    "title": "修复 GitHub Pages 下 Service Worker 404 导致 iOS Safari 一直 loading 的问题",
+    "content": [
+      "✅ 修改 Service Worker 注册代码，使用动态 base 路径",
+      "✅ 修复 public/sw.js 中的资源路径，适配 GitHub Pages 子路径部署",
+      "✅ 确保 sw.js 使用正确的 scope 路径",
+      "🔧 从 window.location.pathname 动态推断 base 路径",
+      "📝 修复 CRITICAL_RESOURCES 使用 base 路径",
+      "🚀 解决 iOS Safari 卡在 loading 的问题"
+    ]
+  },
   "V251219.37": {
     "version": "V251219.37",
     "date": "2025-12-20",

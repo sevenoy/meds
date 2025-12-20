@@ -2,7 +2,7 @@
  * Service Worker - 缓存管理和版本更新
  */
 
-const VERSION = 'V251219.38';
+const VERSION = 'V251219.39';
 const CACHE_NAME = `meds-cache-${VERSION}`;
 
 // 获取 base 路径（从 Service Worker 的 location 推断）
