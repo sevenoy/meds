@@ -252,6 +252,14 @@ export default function App() {
   const [newMedDosage, setNewMedDosage] = useState('');
   const [newMedTime, setNewMedTime] = useState('');
   const [newMedAccent, setNewMedAccent] = useState<'berry' | 'lime' | 'mint'>('lime');
+  
+  // 编辑药品
+  const [showMedicationEdit, setShowMedicationEdit] = useState(false);
+  const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
+  const [editMedName, setEditMedName] = useState('');
+  const [editMedDosage, setEditMedDosage] = useState('');
+  const [editMedTime, setEditMedTime] = useState('');
+  const [editMedAccent, setEditMedAccent] = useState<'berry' | 'lime' | 'mint'>('lime');
 
   // 加载数据
   const loadData = async () => {
@@ -1477,18 +1485,37 @@ export default function App() {
                         </div>
                       </div>
                       
-                      <button
-                        onClick={async () => {
-                          if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-                            await deleteMedication(med.id);
-                            markLocalDataDirty(); // 标记为已修改
-                            await loadData();
-                          }
-                        }}
-                        className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all ml-4"
-                      >
-                        <Trash2 className="w-5 h-5 text-red-600" />
-                      </button>
+                      {/* 编辑和删除按钮 */}
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => {
+                            setEditingMedication(med);
+                            setEditMedName(med.name);
+                            setEditMedDosage(med.dosage);
+                            setEditMedTime(med.scheduled_time);
+                            setEditMedAccent((med.accent as 'berry' | 'lime' | 'mint') || 'lime');
+                            setShowMedicationEdit(true);
+                          }}
+                          className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-all"
+                          title="编辑药品"
+                        >
+                          <Edit2 className="w-5 h-5 text-blue-600" />
+                        </button>
+                        
+                        <button
+                          onClick={async () => {
+                            if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                              await deleteMedication(med.id);
+                              markLocalDataDirty(); // 标记为已修改
+                              await loadData();
+                            }
+                          }}
+                          className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
+                          title="删除药品"
+                        >
+                          <Trash2 className="w-5 h-5 text-red-600" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1506,6 +1533,133 @@ export default function App() {
             >
               完成
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 编辑药品 */}
+      {showMedicationEdit && editingMedication && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black italic tracking-tighter">编辑药品</h3>
+              <button
+                onClick={() => {
+                  setShowMedicationEdit(false);
+                  setEditingMedication(null);
+                }}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">药品名称</label>
+                <input
+                  type="text"
+                  value={editMedName}
+                  onChange={(e) => setEditMedName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-blue-500 focus:outline-none font-medium"
+                  placeholder="例如：降压药"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">剂量</label>
+                <input
+                  type="text"
+                  value={editMedDosage}
+                  onChange={(e) => setEditMedDosage(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-blue-500 focus:outline-none font-medium"
+                  placeholder="例如：1片"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">服用时间</label>
+                <input
+                  type="time"
+                  value={editMedTime}
+                  onChange={(e) => setEditMedTime(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-blue-500 focus:outline-none font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setEditMedAccent('lime')}
+                    className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                      editMedAccent === 'lime' 
+                        ? 'bg-lime border-2 border-green-600 scale-105' 
+                        : 'bg-lime/50 border-2 border-transparent'
+                    }`}
+                  >
+                    柠檬绿
+                  </button>
+                  <button
+                    onClick={() => setEditMedAccent('mint')}
+                    className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                      editMedAccent === 'mint' 
+                        ? 'bg-mint border-2 border-blue-600 scale-105' 
+                        : 'bg-mint/50 border-2 border-transparent'
+                    }`}
+                  >
+                    薄荷蓝
+                  </button>
+                  <button
+                    onClick={() => setEditMedAccent('berry')}
+                    className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                      editMedAccent === 'berry' 
+                        ? 'bg-berry border-2 border-pink-600 scale-105' 
+                        : 'bg-berry/50 border-2 border-transparent'
+                    }`}
+                  >
+                    莓果粉
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  if (!editMedName || !editMedDosage || !editMedTime) {
+                    alert('请填写完整信息');
+                    return;
+                  }
+
+                  const updatedMed: Medication = {
+                    ...editingMedication,
+                    name: editMedName,
+                    dosage: editMedDosage,
+                    scheduled_time: editMedTime,
+                    accent: editMedAccent
+                  };
+
+                  await upsertMedication(updatedMed);
+                  markLocalDataDirty(); // 标记为已修改
+                  await loadData();
+                  setShowMedicationEdit(false);
+                  setEditingMedication(null);
+
+                  // 显示成功提示
+                  const notification = document.createElement('div');
+                  notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+                  notification.textContent = '✅ 药品信息已更新';
+                  document.body.appendChild(notification);
+                  setTimeout(() => {
+                    notification.classList.add('animate-fade-out');
+                    setTimeout(() => notification.remove(), 300);
+                  }, 2000);
+                }}
+                className="w-full px-6 py-4 bg-blue-600 text-white font-black italic rounded-full tracking-tighter hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+              >
+                <Save className="w-5 h-5" />
+                保存修改
+              </button>
+            </div>
           </div>
         </div>
       )}
