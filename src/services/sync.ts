@@ -5,6 +5,25 @@ import { db, getUnsyncedLogs, markLogSynced, updateMedicationLog, getDeviceId, g
 import type { MedicationLog, ConflictInfo, Medication } from '../types';
 
 /**
+ * 防御性检查：移除 local_xxx 格式的 ID，避免写入 UUID 字段
+ */
+function sanitizePayload(payload: any): any {
+  const sanitized = { ...payload };
+  
+  // 移除 local_xxx 格式的 id
+  if (sanitized.id && typeof sanitized.id === 'string' && sanitized.id.startsWith('local_')) {
+    delete sanitized.id;
+  }
+  
+  // 移除 local_xxx 格式的 medication_id
+  if (sanitized.medication_id && typeof sanitized.medication_id === 'string' && sanitized.medication_id.startsWith('local_')) {
+    delete sanitized.medication_id;
+  }
+  
+  return sanitized;
+}
+
+/**
  * 同步medications到云端
  */
 export async function syncMedications(): Promise<void> {
@@ -19,7 +38,6 @@ export async function syncMedications(): Promise<void> {
     // 推送本地medications到云端
     for (const med of localMeds) {
       const medData: any = {
-        id: med.id,
         user_id: userId,
         name: med.name,
         dosage: med.dosage,
@@ -32,9 +50,35 @@ export async function syncMedications(): Promise<void> {
         medData.accent = med.accent;
       }
       
-      await supabase!
-        .from('medications')
-        .upsert(medData);
+      // 防御性检查：移除 local_xxx 格式的 id
+      const sanitized = sanitizePayload(medData);
+      
+      // 如果本地有云端 ID，使用 upsert；否则使用 insert（让数据库生成 UUID）
+      if (med.id && !med.id.startsWith('local_')) {
+        sanitized.id = med.id; // 只有真正的 UUID 才传
+      }
+      
+      const { data, error } = med.id && !med.id.startsWith('local_')
+        ? await supabase!.from('medications').upsert(sanitized).select().single()
+        : await supabase!.from('medications').insert(sanitized).select().single();
+      
+      if (error) {
+        console.error('❌ 同步 medication 失败:', error);
+        continue;
+      }
+      
+      // 如果返回了新的 UUID，更新本地记录（保留 local_id）
+      if (data && data.id && med.id.startsWith('local_')) {
+        const updatedMed = {
+          ...med,
+          id: data.id // 使用云端生成的 UUID
+        };
+        // 保留 local_id（如果存在）
+        if (med.local_id) {
+          (updatedMed as any).local_id = med.local_id;
+        }
+        await upsertMedication(updatedMed);
+      }
     }
     
     // 拉取云端medications
@@ -117,31 +161,58 @@ export async function pushLocalChanges(): Promise<void> {
         }
       }
       
-      // 插入新记录（只发送数据库存在的字段）
+      // 处理 medication_id：如果是 local_xxx，需要找到对应的云端 ID
+      let cloudMedicationId = log.medication_id;
+      
+      if (log.medication_id && log.medication_id.startsWith('local_')) {
+        // 查找本地 medication，看是否有云端 ID
+        const localMed = await getMedications().then(meds => 
+          meds.find(m => m.id === log.medication_id)
+        );
+        
+        if (!localMed || localMed.id.startsWith('local_')) {
+          // 本地 medication 还没有云端 ID，跳过本次同步
+          console.warn('⚠️ medication_id 是 local_xxx，且未找到云端 ID，跳过同步:', log.medication_id);
+          continue;
+        }
+        
+        cloudMedicationId = localMed.id; // 使用云端 ID
+      }
+      
+      // 构建插入数据（只发送数据库存在的字段）
+      const insertData: any = {
+        user_id: userId,
+        medication_id: cloudMedicationId,
+        taken_at: log.taken_at,
+        uploaded_at: log.uploaded_at,
+        time_source: log.time_source,
+        status: log.status,
+        image_path: log.image_path,
+        image_hash: log.image_hash,
+        source_device: log.source_device,
+        created_at: new Date().toISOString(),
+        updated_at: log.updated_at || new Date().toISOString()
+      };
+      
+      // 防御性检查：移除 local_xxx 格式的 id
+      const sanitized = sanitizePayload(insertData);
+      
+      // 插入新记录（不传 id，让数据库自动生成 UUID）
       const { data, error } = await supabase!
         .from('medication_logs')
-        .insert({
-          id: log.id,
-          user_id: userId,
-          medication_id: log.medication_id,
-          taken_at: log.taken_at,
-          uploaded_at: log.uploaded_at,
-          time_source: log.time_source,
-          status: log.status,
-          image_path: log.image_path,
-          image_hash: log.image_hash,
-          source_device: log.source_device,
-          created_at: new Date().toISOString(),
-          updated_at: log.updated_at || new Date().toISOString()
-          // 注意：不发送 local_id 和 sync_state，这些是本地字段
-        })
+        .insert(sanitized)
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ 插入 medication_log 失败:', error);
+        throw error;
+      }
       
-      // 标记为已同步
-      await markLogSynced(log.id, data);
+      // 标记为已同步（使用云端返回的 UUID）
+      if (data && data.id) {
+        await markLogSynced(log.id, { ...log, id: data.id });
+      }
     } catch (error) {
       console.error('同步失败:', error);
       // 保持 dirty 状态，稍后重试
