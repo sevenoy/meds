@@ -498,10 +498,8 @@ export default function App() {
 
   // 处理拍照成功
   const handleRecordSuccess = async () => {
-    // 【C】拍照记录已由 recordMedicationIntake 写入 Dexie
-    // 但需要同步到 payload，这里只刷新 UI
-    // 注意：recordMedicationIntake 会调用 pushLocalChanges，但不会触发 cloudSaveV2
-    // 真正的 payload 同步应该在用户操作时统一处理
+    // 【C】拍照记录已由 recordMedicationIntake 写入 Dexie 并同步到 payload
+    // 这里只刷新 UI
     await loadData();
   };
 
@@ -1443,8 +1441,9 @@ export default function App() {
                         return;
                       }
 
+                      // 【D】新药品创建路径锁死（唯一合法入口）
                       const newMedication = {
-                        id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        id: `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
                         name: newMedName,
                         dosage: newMedDosage,
                         scheduled_time: newMedTime,

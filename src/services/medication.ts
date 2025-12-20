@@ -86,21 +86,22 @@ export async function recordMedicationIntake(
     console.warn('⚠️ 保存的记录未找到，可能有问题');
   }
   
-  // 【C】拍照记录需要同步到 payload
-  // 这里不调用 pushLocalChanges，而是由用户操作统一处理
-  // 或者在这里直接同步到 payload（但需要确保 isApplyingRemote 检查）
-  const { isApplyingRemote, getCurrentSnapshotPayload, cloudSaveV2 } = await import('./snapshot');
+  // 【C】拍照记录需要同步到 payload（但必须检查 isApplyingRemote）
+  const { isApplyingRemote, getCurrentSnapshotPayload, cloudSaveV2, runWithUserAction } = await import('./snapshot');
   if (!isApplyingRemote()) {
-    const payload = getCurrentSnapshotPayload();
-    if (payload) {
-      payload.medication_logs = payload.medication_logs || [];
-      payload.medication_logs.push({
-        ...log,
-        id: savedId
-      });
-      // 异步保存，不阻塞 UI
-      cloudSaveV2(payload).catch(console.error);
-    }
+    // 拍照是用户操作，必须用 runWithUserAction 包裹
+    runWithUserAction(async () => {
+      const payload = getCurrentSnapshotPayload();
+      if (payload) {
+        payload.medication_logs = payload.medication_logs || [];
+        payload.medication_logs.push({
+          ...log,
+          id: savedId
+        });
+        // 异步保存，不阻塞 UI
+        cloudSaveV2(payload).catch(console.error);
+      }
+    });
   }
   
   return log;

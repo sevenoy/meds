@@ -7,6 +7,7 @@
 import { supabase, getCurrentUserId } from '../lib/supabase';
 import { getMedications, getMedicationLogs, upsertMedication, deleteMedication, db, getDeviceId } from '../db/localDB';
 import { getUserSettings, saveUserSettings } from './userSettings';
+import type { Medication } from '../types';
 
 // Supabase 表名
 const SNAPSHOT_TABLE = 'app_snapshots';
@@ -39,6 +40,33 @@ let isUserAction = false;
 
 // 【当前快照 payload 的内存变量】
 let currentSnapshotPayload: SnapshotPayload | null = null;
+
+/**
+ * 【A】统一去重工具（系统级幂等）
+ * 确保 payload.medications 在任何时刻都是幂等集合
+ */
+export function dedupeMedications(meds: Medication[]): Medication[] {
+  const map = new Map<string, Medication>();
+
+  for (const med of meds) {
+    // 优先使用稳定 id；否则退化到业务唯一键
+    const key =
+      med.id ??
+      `${med.name || ''}__${med.dosage || ''}__${med.scheduled_time || ''}`;
+
+    if (!map.has(key)) {
+      map.set(key, med);
+    } else {
+      // 如果已存在，保留第一个（优先保留有 id 的）
+      const existing = map.get(key)!;
+      if (!existing.id && med.id) {
+        map.set(key, med);
+      }
+    }
+  }
+
+  return Array.from(map.values());
+}
 
 /**
  * 在用户操作上下文中执行函数
@@ -226,6 +254,15 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
   message?: string;
 }> {
   try {
+    // 【C】保存前强制去重（第二道闸）
+    const originalCount = payload.medications?.length || 0;
+    payload.medications = dedupeMedications(payload.medications ?? []);
+    const dedupedCount = payload.medications.length;
+    
+    if (originalCount !== dedupedCount) {
+      console.warn(`⚠️ cloudSaveV2 检测到重复药品，已去重: ${originalCount} → ${dedupedCount}`);
+    }
+
     // 1. 检查 Supabase 是否配置
     if (!supabase) {
       return { success: false, message: 'Supabase 未配置' };
@@ -287,8 +324,8 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
       updated_by: updatedState.updated_by
     });
 
-    // 【2】在 cloudSaveV2 成功后，更新 currentSnapshotPayload（deep clone）
-    currentSnapshotPayload = JSON.parse(JSON.stringify(payload));
+    // 【2】在 cloudSaveV2 成功后，更新 currentSnapshotPayload（deep clone，使用去重后的数据）
+    currentSnapshotPayload = structuredClone(payload);
 
     return {
       success: true,
@@ -364,12 +401,19 @@ export async function cloudLoadV2(): Promise<{
       console.log('✅ 新记录已创建，返回空 payload');
       const payload = newState.payload || {};
       
-      // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload（deep clone）
-      currentSnapshotPayload = JSON.parse(JSON.stringify(payload)) as SnapshotPayload;
+      // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload（deep clone，使用去重后的数据）
+      const cleanMeds = dedupeMedications(payload.medications ?? []);
+      currentSnapshotPayload = structuredClone({
+        ...payload,
+        medications: cleanMeds
+      }) as SnapshotPayload;
       
       return {
         success: true,
-        payload: payload,
+        payload: {
+          ...payload,
+          medications: cleanMeds
+        },
         version: newState.version || 1,
         updated_at: newState.updated_at
       };
@@ -384,12 +428,19 @@ export async function cloudLoadV2(): Promise<{
 
     const payload = existingState.payload || {};
     
-      // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload（deep clone）
-      currentSnapshotPayload = JSON.parse(JSON.stringify(payload)) as SnapshotPayload;
+    // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload（deep clone，使用去重后的数据）
+    const cleanMeds = dedupeMedications(payload.medications ?? []);
+    currentSnapshotPayload = structuredClone({
+      ...payload,
+      medications: cleanMeds
+    }) as SnapshotPayload;
 
     return {
       success: true,
-      payload: payload,
+      payload: {
+        ...payload,
+        medications: cleanMeds
+      },
       version: existingState.version || 1,
       updated_at: existingState.updated_at
     };
@@ -405,42 +456,32 @@ export async function cloudLoadV2(): Promise<{
  * Phase 4.5: 防止重复添加药品
  */
 export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
-  console.log('🔄 应用云端快照（全量替换）');
+  console.log('🔄 应用云端快照（全量替换 + 幂等去重）');
 
   // 【2】进入云端应用保护区
   isApplyingRemoteSnapshot = true;
 
-  // 【6】最终保险：防止重复 ID
-  const ids = (payload.medications || []).map((m: any) => m.id);
-  const unique = new Set(ids);
-  if (ids.length !== unique.size) {
-    console.error('🚨 检测到重复药品 ID，已阻止应用', ids);
-    isApplyingRemoteSnapshot = false; // 解除保护
-    return;
-  }
-
   try {
-    // 【A】全量覆盖写入：先清空，后 bulkAdd
-    console.log('🔄 开始全量覆盖写入（清空后 bulkAdd）');
-    
+    // 【B】强制幂等：先去重，再应用
+    const cleanMeds = dedupeMedications(payload.medications ?? []);
+    const cleanLogs = payload.medication_logs ?? [];
+
+    console.log(`🔄 去重前: ${payload.medications?.length || 0} 条，去重后: ${cleanMeds.length} 条`);
+
     // 1. 清空所有现有数据（全量覆盖）
     await db.medications.clear();
     await db.medicationLogs.clear();
     console.log('✅ 已清空所有本地数据');
     
-    // 2. 批量写入药物（全量覆盖，使用 bulkAdd）
-    if (payload.medications && payload.medications.length > 0) {
-      const medsToAdd = payload.medications.map((med: any) => ({
-        ...med,
-        sync_state: 'clean' // 从云端加载的记录标记为已同步
-      }));
-      await db.medications.bulkAdd(medsToAdd);
-      console.log(`✅ 已批量添加 ${medsToAdd.length} 条药品记录`);
+    // 2. 批量写入药物（全量覆盖，使用 bulkAdd，使用去重后的数据）
+    if (cleanMeds.length > 0) {
+      await db.medications.bulkAdd(cleanMeds);
+      console.log(`✅ 已批量添加 ${cleanMeds.length} 条药品记录（已去重）`);
     }
     
     // 3. 批量写入记录（全量覆盖，使用 bulkAdd）
-    if (payload.medication_logs && payload.medication_logs.length > 0) {
-      const logsToAdd = payload.medication_logs.map((log: any) => {
+    if (cleanLogs.length > 0) {
+      const logsToAdd = cleanLogs.map((log: any) => {
         // 确保有 id
         if (!log.id) {
           log.id = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -459,10 +500,14 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
       await saveUserSettings(payload.user_settings);
     }
 
-    console.log('✅ 云端快照已应用到本地数据库（全量替换）');
-    
-    // 【2】在 applySnapshot 成功后，正确赋值 currentSnapshotPayload（deep clone）
-    currentSnapshotPayload = JSON.parse(JSON.stringify(payload));
+    // 【B】使用去重后的数据更新 currentSnapshotPayload（deep clone）
+    currentSnapshotPayload = structuredClone({
+      ...payload,
+      medications: cleanMeds,
+      medication_logs: cleanLogs
+    });
+
+    console.log('✅ applySnapshot：全量覆盖 + 幂等去重完成');
   } catch (error: any) {
     console.error('❌ 应用云端快照失败:', error);
     throw error;
@@ -531,6 +576,12 @@ export async function initRealtimeV2(): Promise<() => void> {
         filter: `owner_id=eq.${userId}` // 只监听当前用户的数据
       },
       async (payload) => {
+        // 【E】所有监听必须加"云端回放锁"
+        if (isApplyingRemote()) {
+          console.log('⏭ 忽略云端回放期间的本地变化（Realtime V2）');
+          return;
+        }
+
         // 5. 处理数据库变更事件
         const newRow = payload.new as any;
         
@@ -998,6 +1049,12 @@ export async function initAutoSyncLegacy(onSnapshotUpdate?: () => void): Promise
         filter: `key=eq.${SNAPSHOT_KEY} AND owner_id=eq.${userId}`
       },
       async (evt) => {
+        // 【E】所有监听必须加"云端回放锁"
+        if (isApplyingRemote()) {
+          console.log('⏭ 忽略云端回放期间的本地变化（initAutoSyncLegacy）');
+          return;
+        }
+
         // 6. 处理数据库变更事件
         const newRow = evt.new as any;
         if (!newRow) return;
