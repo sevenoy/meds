@@ -361,9 +361,11 @@ export async function initRealtimeV2(): Promise<() => void> {
     return () => {}; // 返回空函数
   }
 
-  console.log('🔄 initRealtimeV2() 开始订阅，userId:', userId);
+  // 3. 获取当前 deviceId（用于过滤自身更新）
+  const currentDeviceId = getDeviceId();
+  console.log('🔄 initRealtimeV2() 开始订阅，userId:', userId, 'deviceId:', currentDeviceId);
 
-  // 3. 创建 Realtime 订阅
+  // 4. 创建 Realtime 订阅
   const channel = supabase
     .channel('app-state-realtime-v2-' + userId)
     .on(
@@ -375,7 +377,7 @@ export async function initRealtimeV2(): Promise<() => void> {
         filter: `owner_id=eq.${userId}` // 只监听当前用户的数据
       },
       async (payload) => {
-        // 4. 处理数据库变更事件
+        // 5. 处理数据库变更事件
         const newRow = payload.new as any;
         
         if (!newRow) {
@@ -383,7 +385,7 @@ export async function initRealtimeV2(): Promise<() => void> {
           return;
         }
 
-        // 5. 打印日志（打印 new.version）
+        // 6. 打印日志（打印 new.version）
         console.log('📥 Realtime V2: 收到 app_state 更新事件', {
           eventType: payload.eventType,
           version: newRow.version,
@@ -391,7 +393,13 @@ export async function initRealtimeV2(): Promise<() => void> {
           updated_by: newRow.updated_by
         });
 
-        // 6. 调用 cloudLoadV2() 拉取最新数据
+        // 7. Phase 4.5: 过滤自身更新
+        if (newRow.updated_by === currentDeviceId) {
+          console.log('⏭ Realtime V2: 忽略自身更新（updated_by === 当前 deviceId）');
+          return;
+        }
+
+        // 8. 只有非自身更新，才调用 cloudLoadV2() 拉取最新数据
         try {
           console.log('🔄 Realtime V2: 开始拉取最新数据...');
           const loadResult = await cloudLoadV2();
