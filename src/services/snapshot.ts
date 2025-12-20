@@ -31,6 +31,9 @@ export interface SnapshotPayload {
 let isAutoSyncStarted = false;
 let lastCheckedSnapshotName = '';
 
+// 【1】全局同步保护标志（防止无限循环）
+let isApplyingRemoteSnapshot = false;
+
 /**
  * 生成快照名称
  * 格式：用户名 YYYYMMDDHHmm
@@ -350,11 +353,15 @@ export async function cloudLoadV2(): Promise<{
 export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
   console.log('🔄 应用云端快照（全量替换）');
 
+  // 【2】进入云端应用保护区
+  isApplyingRemoteSnapshot = true;
+
   // 【6】最终保险：防止重复 ID
   const ids = (payload.medications || []).map((m: any) => m.id);
   const unique = new Set(ids);
   if (ids.length !== unique.size) {
     console.error('🚨 检测到重复药品 ID，已阻止应用', ids);
+    isApplyingRemoteSnapshot = false; // 解除保护
     return;
   }
 
@@ -414,7 +421,20 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
   } catch (error: any) {
     console.error('❌ 应用云端快照失败:', error);
     throw error;
+  } finally {
+    // 【2】延迟解除，确保所有 state 更新完成
+    setTimeout(() => {
+      isApplyingRemoteSnapshot = false;
+      console.log('🛡 云端快照应用完成，解除保护');
+    }, 0);
   }
+}
+
+/**
+ * 检查是否正在应用云端快照（用于防止循环调用）
+ */
+export function isApplyingSnapshot(): boolean {
+  return isApplyingRemoteSnapshot;
 }
 
 /**

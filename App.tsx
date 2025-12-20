@@ -9,7 +9,7 @@ import { getTodayMedications, isMedicationTakenToday } from './src/services/medi
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
-import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot } from './src/services/snapshot';
+import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot } from './src/services/snapshot';
 // 注意：旧函数名（saveSnapshot, loadSnapshot, initAutoSync）已改为 Legacy 版本
 // 新版本占位函数：cloudSaveV2, cloudLoadV2（待实现）
 import { checkStorageBucket } from './src/services/storage';
@@ -471,6 +471,13 @@ export default function App() {
       },
       // 处理药品列表更新（自动同步，无需确认）
       async () => {
+        // 【3】修复"药品列表变化监听"逻辑
+        if (isApplyingSnapshot()) {
+          console.log('⏭ 忽略云端快照触发的变化');
+          return;
+        }
+
+        console.log('✍ 用户本地修改触发变化');
         console.log('🔔 收到药品列表更新，自动同步...');
         
         try {
@@ -500,6 +507,13 @@ export default function App() {
     // 初始化快照自动同步（Legacy）
     let cleanupSnapshot: (() => void) | null = null;
     initAutoSyncLegacy(() => {
+      // 【3】修复"快照更新监听"逻辑
+      if (isApplyingSnapshot()) {
+        console.log('⏭ 忽略云端快照触发的变化');
+        return;
+      }
+
+      console.log('✍ 用户本地修改触发变化');
       // 快照更新后刷新数据
       loadData();
     }).then(cleanup => {
@@ -572,6 +586,13 @@ export default function App() {
       
       // 4. 如果有变化，刷新界面
       if (hasChanges) {
+        // 【3】修复"定时同步监听"逻辑
+        if (isApplyingSnapshot()) {
+          console.log('⏭ 忽略云端快照触发的变化');
+          return;
+        }
+
+        console.log('✍ 用户本地修改触发变化');
         console.log('🔄 数据已变化，刷新界面...');
         await loadData();
       }
