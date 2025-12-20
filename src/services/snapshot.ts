@@ -34,6 +34,44 @@ let lastCheckedSnapshotName = '';
 // 【1】全局同步保护标志（防止无限循环）
 let isApplyingRemoteSnapshot = false;
 
+// 【2】显式用户操作标志（最终修复）
+let isUserAction = false;
+
+/**
+ * 在用户操作上下文中执行函数
+ * 用于标记用户触发的操作，防止状态变化误判
+ */
+export function runWithUserAction(fn: () => void | Promise<void>): void | Promise<void> {
+  isUserAction = true;
+  try {
+    const result = fn();
+    if (result instanceof Promise) {
+      return result.finally(() => {
+        setTimeout(() => {
+          isUserAction = false;
+        }, 0);
+      });
+    } else {
+      setTimeout(() => {
+        isUserAction = false;
+      }, 0);
+      return result;
+    }
+  } catch (error) {
+    setTimeout(() => {
+      isUserAction = false;
+    }, 0);
+    throw error;
+  }
+}
+
+/**
+ * 检查当前操作是否由用户触发
+ */
+export function isUserTriggered(): boolean {
+  return isUserAction;
+}
+
 /**
  * 生成快照名称
  * 格式：用户名 YYYYMMDDHHmm

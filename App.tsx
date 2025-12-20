@@ -9,7 +9,7 @@ import { getTodayMedications, isMedicationTakenToday } from './src/services/medi
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
-import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot } from './src/services/snapshot';
+import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered } from './src/services/snapshot';
 // 注意：旧函数名（saveSnapshot, loadSnapshot, initAutoSync）已改为 Legacy 版本
 // 新版本占位函数：cloudSaveV2, cloudLoadV2（待实现）
 import { checkStorageBucket } from './src/services/storage';
@@ -471,51 +471,18 @@ export default function App() {
       },
       // 处理药品列表更新（自动同步，无需确认）
       async () => {
-        // 【3】修复"药品列表变化监听"逻辑
-        if (isApplyingSnapshot()) {
-          console.log('⏭ 忽略云端快照触发的变化');
-          return;
-        }
-
-        console.log('✍ 用户本地修改触发变化');
-        console.log('🔔 收到药品列表更新，自动同步...');
-        
-        try {
-          // 先同步medications
-          await syncMedications();
-          // 然后重新加载数据
-          await loadData();
-          
-          console.log('✅ 药品列表已自动同步');
-          
-          // 显示友好提示
-          const notification = document.createElement('div');
-          notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-          notification.textContent = '✅ 药品列表已从其他设备同步';
-          document.body.appendChild(notification);
-          
-          setTimeout(() => {
-            notification.classList.add('animate-fade-out');
-            setTimeout(() => notification.remove(), 300);
-          }, 3000);
-        } catch (error) {
-          console.error('❌ 药品列表同步失败:', error);
-        }
+        // 【1】删除所有"药品列表变化监听"中的自动行为
+        // 状态变化 ≠ 用户操作，禁止自动触发刷新
+        console.log('🔔 收到药品列表更新（Realtime），但不自动刷新（等待用户操作）');
       }
     );
     
     // 初始化快照自动同步（Legacy）
     let cleanupSnapshot: (() => void) | null = null;
     initAutoSyncLegacy(() => {
-      // 【3】修复"快照更新监听"逻辑
-      if (isApplyingSnapshot()) {
-        console.log('⏭ 忽略云端快照触发的变化');
-        return;
-      }
-
-      console.log('✍ 用户本地修改触发变化');
-      // 快照更新后刷新数据
-      loadData();
+      // 【1】删除所有"快照更新监听"中的自动行为
+      // 状态变化 ≠ 用户操作，禁止自动触发刷新
+      console.log('🔔 收到快照更新（Realtime），但不自动刷新（等待用户操作）');
     }).then(cleanup => {
       cleanupSnapshot = cleanup;
     }).catch(console.error);
@@ -557,14 +524,7 @@ export default function App() {
       let hasChanges = false;
       
       // 1. 同步medications（双向同步）
-      const oldMeds = await getMedications().catch(() => []);
       await syncMedications().catch(console.error);
-      const newMeds = await getMedications().catch(() => []);
-      
-      if (JSON.stringify(oldMeds) !== JSON.stringify(newMeds)) {
-        console.log('📊 检测到药品列表变化');
-        hasChanges = true;
-      }
       
       // 2. 同步medication_logs
       await pushLocalChanges().catch(console.error);
@@ -574,7 +534,6 @@ export default function App() {
         for (const log of logs) {
           await mergeRemoteLog(log).catch(console.error);
         }
-        hasChanges = true;
       }
       
       // 3. 同步用户设置（包括头像）
@@ -584,18 +543,9 @@ export default function App() {
         setAvatarUrl((settings as any).avatar_url);
       }
       
-      // 4. 如果有变化，刷新界面
-      if (hasChanges) {
-        // 【3】修复"定时同步监听"逻辑
-        if (isApplyingSnapshot()) {
-          console.log('⏭ 忽略云端快照触发的变化');
-          return;
-        }
-
-        console.log('✍ 用户本地修改触发变化');
-        console.log('🔄 数据已变化，刷新界面...');
-        await loadData();
-      }
+      // 【1】删除所有"定时同步监听"中的自动刷新行为
+      // 状态变化 ≠ 用户操作，禁止自动触发刷新
+      // 定时同步只负责数据同步，不触发界面刷新
     }, 3000); // 每3秒同步一次
     
     return () => {
@@ -608,35 +558,41 @@ export default function App() {
 
   // 处理拍照成功
   const handleRecordSuccess = async () => {
-    console.log('📸 拍照成功，刷新数据...');
-    markLocalDataDirty(); // 标记为已修改
-    
-    // 延迟一下确保数据已保存
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    await loadData();
-    
-    // 验证数据是否加载
-    const allLogs = await getMedicationLogs();
-    console.log('📊 当前所有记录数:', allLogs.length);
-    allLogs.forEach((log, idx) => {
-      console.log(`记录 ${idx + 1}:`, {
-        id: log.id,
-        medication_id: log.medication_id,
-        taken_at: log.taken_at,
-        has_image: !!log.image_path,
-        image_path_preview: log.image_path ? log.image_path.substring(0, 50) + '...' : 'null'
+    // 【3】所有用户操作必须包裹 runWithUserAction
+    runWithUserAction(async () => {
+      console.log('📸 拍照成功，刷新数据...');
+      markLocalDataDirty(); // 标记为已修改
+      
+      // 延迟一下确保数据已保存
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      await loadData();
+      
+      // 验证数据是否加载
+      const allLogs = await getMedicationLogs();
+      console.log('📊 当前所有记录数:', allLogs.length);
+      allLogs.forEach((log, idx) => {
+        console.log(`记录 ${idx + 1}:`, {
+          id: log.id,
+          medication_id: log.medication_id,
+          taken_at: log.taken_at,
+          has_image: !!log.image_path,
+          image_path_preview: log.image_path ? log.image_path.substring(0, 50) + '...' : 'null'
+        });
       });
     });
   };
 
   // 处理同步提示接受
   const handleSyncAccept = async () => {
-    if (syncPrompt) {
-      await mergeRemoteLog(syncPrompt);
-      setSyncPrompt(null);
-      await loadData();
-    }
+    // 【3】所有用户操作必须包裹 runWithUserAction
+    runWithUserAction(async () => {
+      if (syncPrompt) {
+        await mergeRemoteLog(syncPrompt);
+        setSyncPrompt(null);
+        await loadData();
+      }
+    });
   };
 
   // 计算进度
@@ -1100,27 +1056,30 @@ export default function App() {
 
                 <button
                   onClick={async () => {
-                    if (!newMedName || !newMedDosage || !newMedTime) {
-                      alert('请填写完整信息');
-                      return;
-                    }
+                    // 【3】所有用户操作必须包裹 runWithUserAction
+                    runWithUserAction(async () => {
+                      if (!newMedName || !newMedDosage || !newMedTime) {
+                        alert('请填写完整信息');
+                        return;
+                      }
 
-                    const newMed: Medication = {
-                      id: `med_${Date.now()}`,
-                      name: newMedName,
-                      dosage: newMedDosage,
-                      scheduled_time: newMedTime,
-                      accent: newMedAccent
-                    };
+                      const newMed: Medication = {
+                        id: `med_${Date.now()}`,
+                        name: newMedName,
+                        dosage: newMedDosage,
+                        scheduled_time: newMedTime,
+                        accent: newMedAccent
+                      };
 
-                    await upsertMedication(newMed);
-                    markLocalDataDirty(); // 标记为已修改
-                    await loadData();
-                    
-                    setNewMedName('');
-                    setNewMedDosage('');
-                    setNewMedTime('');
-                    setNewMedAccent('#E8F5E9');
+                      await upsertMedication(newMed);
+                      markLocalDataDirty(); // 标记为已修改
+                      await loadData();
+                      
+                      setNewMedName('');
+                      setNewMedDosage('');
+                      setNewMedTime('');
+                      setNewMedAccent('#E8F5E9');
+                    });
                   }}
                   className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
@@ -1188,11 +1147,14 @@ export default function App() {
                         
                         <button
                           onClick={async () => {
-                            if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-                              await deleteMedication(med.id);
-                              markLocalDataDirty(); // 标记为已修改
-                              await loadData();
-                            }
+                            // 【3】所有用户操作必须包裹 runWithUserAction
+                            runWithUserAction(async () => {
+                              if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                                await deleteMedication(med.id);
+                                markLocalDataDirty(); // 标记为已修改
+                                await loadData();
+                              }
+                            });
                           }}
                           className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
                           title="删除药品"
@@ -1739,34 +1701,37 @@ export default function App() {
 
               <button
                 onClick={async () => {
-                  if (!editMedName || !editMedDosage || !editMedTime) {
-                    alert('请填写完整信息');
-                    return;
-                  }
+                  // 【3】所有用户操作必须包裹 runWithUserAction
+                  runWithUserAction(async () => {
+                    if (!editMedName || !editMedDosage || !editMedTime) {
+                      alert('请填写完整信息');
+                      return;
+                    }
 
-                  const updatedMed: Medication = {
-                    ...editingMedication,
-                    name: editMedName,
-                    dosage: editMedDosage,
-                    scheduled_time: editMedTime,
-                    accent: editMedAccent
-                  };
+                    const updatedMed: Medication = {
+                      ...editingMedication,
+                      name: editMedName,
+                      dosage: editMedDosage,
+                      scheduled_time: editMedTime,
+                      accent: editMedAccent
+                    };
 
-                  await upsertMedication(updatedMed);
-                  markLocalDataDirty(); // 标记为已修改
-                  await loadData();
-                  setShowMedicationEdit(false);
-                  setEditingMedication(null);
+                    await upsertMedication(updatedMed);
+                    markLocalDataDirty(); // 标记为已修改
+                    await loadData();
+                    setShowMedicationEdit(false);
+                    setEditingMedication(null);
 
-                  // 显示成功提示
-                  const notification = document.createElement('div');
-                  notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-                  notification.textContent = '✅ 药品信息已更新';
-                  document.body.appendChild(notification);
-                  setTimeout(() => {
-                    notification.classList.add('animate-fade-out');
-                    setTimeout(() => notification.remove(), 300);
-                  }, 2000);
+                    // 显示成功提示
+                    const notification = document.createElement('div');
+                    notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+                    notification.textContent = '✅ 药品信息已更新';
+                    document.body.appendChild(notification);
+                    setTimeout(() => {
+                      notification.classList.add('animate-fade-out');
+                      setTimeout(() => notification.remove(), 300);
+                    }, 2000);
+                  });
                 }}
                 className="w-full px-6 py-4 bg-blue-600 text-white font-black italic rounded-full tracking-tighter hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
               >
