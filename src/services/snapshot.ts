@@ -5,7 +5,7 @@
  */
 
 import { supabase, getCurrentUserId } from '../lib/supabase';
-import { getMedications, getMedicationLogs, upsertMedication, deleteMedication, upsertMedicationLog } from '../db/localDB';
+import { getMedications, getMedicationLogs, upsertMedication, deleteMedication, db } from '../db/localDB';
 import { getUserSettings, saveUserSettings } from './userSettings';
 
 // Supabase 表名
@@ -392,10 +392,18 @@ export async function loadSnapshot(silent: boolean = false): Promise<{ success: 
         }
       }
       
-      // 6.3 批量写入记录
+      // 6.3 批量写入记录（使用 put 实现 upsert）
       if (payload.medication_logs && payload.medication_logs.length > 0) {
         for (const log of payload.medication_logs) {
-          await upsertMedicationLog(log);
+          // 确保有 id
+          if (!log.id) {
+            log.id = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          }
+          // 使用 put 实现 upsert（如果存在则更新，不存在则添加）
+          await db.medicationLogs.put({
+            ...log,
+            sync_state: 'clean' // 从云端加载的记录标记为已同步
+          });
         }
       }
       

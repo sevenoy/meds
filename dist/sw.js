@@ -2,7 +2,7 @@
  * Service Worker - 缓存管理和版本更新
  */
 
-const VERSION = 'V251219.5';
+const VERSION = 'V251219.21';
 const CACHE_NAME = `meds-cache-${VERSION}`;
 
 // 需要缓存的关键资源
@@ -107,11 +107,34 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// 监听消息
+// 监听消息（增强版本）
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('[SW] 收到 SKIP_WAITING 消息');
+    console.log('[SW] 收到 SKIP_WAITING 消息，立即跳过等待');
     self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    console.log('[SW] 收到 CLEAR_CACHE 消息，清除所有缓存');
+    event.waitUntil(
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            console.log(`[SW] 清除缓存: ${cacheName}`);
+            return caches.delete(cacheName);
+          })
+        );
+      })
+    );
+  }
+  
+  // 响应版本查询
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({
+      type: 'VERSION_INFO',
+      version: VERSION,
+      cacheName: CACHE_NAME
+    });
   }
 });
 
