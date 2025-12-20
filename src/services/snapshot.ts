@@ -171,11 +171,87 @@ function compareSettings(settings1: any, settings2: any): boolean {
 }
 
 /**
- * 保存快照到云端 V2（新版本占位函数）
+ * 保存快照到云端 V2（Phase 3 实现 - 乐观锁版本）
  */
-export async function cloudSaveV2(): Promise<{ success: boolean; message: string }> {
-  console.log('🔄 cloudSaveV2() 被调用（占位函数，待实现）');
-  return { success: false, message: 'cloudSaveV2 功能待实现' };
+export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
+  success: boolean;
+  version?: number;
+  updated_at?: string;
+  conflict?: boolean;
+  message?: string;
+}> {
+  try {
+    // 1. 检查 Supabase 是否配置
+    if (!supabase) {
+      return { success: false, message: 'Supabase 未配置' };
+    }
+
+    // 2. 获取当前登录用户
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return { success: false, message: '用户未登录' };
+    }
+
+    console.log('💾 cloudSaveV2() 开始保存，userId:', userId);
+
+    // 3. 调用 cloudLoadV2() 获取当前云端 version（作为"本地 version"）
+    const loadResult = await cloudLoadV2();
+    if (!loadResult.success) {
+      console.error('❌ 获取云端 version 失败:', loadResult.message);
+      return { success: false, message: `获取版本失败: ${loadResult.message}` };
+    }
+
+    const currentVersion = loadResult.version || 1;
+    console.log('📌 当前云端 version:', currentVersion);
+
+    // 4. 执行 UPDATE（乐观锁）
+    const deviceId = getDeviceId();
+    const { data: updatedState, error: updateError } = await supabase
+      .from('app_state')
+      .update({
+        payload: payload,
+        version: currentVersion + 1,
+        updated_by: deviceId
+        // updated_at 由数据库 DEFAULT now() 自动设置
+      })
+      .eq('owner_id', userId)
+      .eq('version', currentVersion) // 乐观锁：只有 version 匹配才更新
+      .select('id, payload, version, updated_at, updated_by')
+      .single();
+
+    // 5. 检查更新结果
+    if (updateError) {
+      console.error('❌ UPDATE 操作失败:', updateError);
+      return { success: false, message: `更新失败: ${updateError.message}` };
+    }
+
+    // 6. 如果 UPDATE 影响行数 = 0（data 为 null），返回冲突
+    if (!updatedState) {
+      console.warn('⚠️ cloudSaveV2() 检测到冲突：version 不匹配，更新失败');
+      return { 
+        success: false, 
+        conflict: true, 
+        message: '版本冲突：云端数据已被其他设备修改，请刷新后重试' 
+      };
+    }
+
+    // 7. 成功时返回新 version 和 updated_at
+    console.log('✅ cloudSaveV2() 保存成功:', {
+      version: updatedState.version,
+      updated_at: updatedState.updated_at,
+      updated_by: updatedState.updated_by
+    });
+
+    return {
+      success: true,
+      version: updatedState.version || (currentVersion + 1),
+      updated_at: updatedState.updated_at
+    };
+
+  } catch (error: any) {
+    console.error('❌ cloudSaveV2() 异常:', error);
+    return { success: false, message: `保存异常: ${error.message || '未知错误'}` };
+  }
 }
 
 /**
