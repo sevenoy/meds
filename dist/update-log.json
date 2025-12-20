@@ -1,4 +1,16 @@
 {
+  "V251219.29": {
+    "version": "V251219.29",
+    "date": "2025-12-20",
+    "title": "为同步系统整改做准备（函数重命名和占位）",
+    "content": [
+      "🔄 将旧函数重命名为 Legacy 版本（saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy）",
+      "✨ 创建新版本占位函数（cloudSaveV2, cloudLoadV2）",
+      "🔗 添加向后兼容导出，保持旧函数名可用",
+      "📝 更新 App.tsx 中的调用，使用 Legacy 版本",
+      "✅ 确保页面正常运行，不影响现有功能"
+    ]
+  },
   "V251219.28": {
     "version": "V251219.28",
     "date": "2025-12-20",

@@ -5,7 +5,7 @@
  */
 
 import { supabase, getCurrentUserId } from '../lib/supabase';
-import { getMedications, getMedicationLogs, upsertMedication, deleteMedication, db } from '../db/localDB';
+import { getMedications, getMedicationLogs, upsertMedication, deleteMedication, db, getDeviceId } from '../db/localDB';
 import { getUserSettings, saveUserSettings } from './userSettings';
 
 // Supabase 表名
@@ -179,11 +179,91 @@ export async function cloudSaveV2(): Promise<{ success: boolean; message: string
 }
 
 /**
- * 从云端读取快照 V2（新版本占位函数）
+ * 从云端读取快照 V2（Phase 2 实现）
  */
-export async function cloudLoadV2(): Promise<{ success: boolean; message: string; payload?: SnapshotPayload }> {
-  console.log('🔄 cloudLoadV2() 被调用（占位函数，待实现）');
-  return { success: false, message: 'cloudLoadV2 功能待实现' };
+export async function cloudLoadV2(): Promise<{ 
+  success: boolean; 
+  payload?: any; 
+  version?: number; 
+  updated_at?: string;
+  message?: string;
+}> {
+  try {
+    // 1. 检查 Supabase 是否配置
+    if (!supabase) {
+      return { success: false, message: 'Supabase 未配置' };
+    }
+
+    // 2. 获取当前登录用户
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return { success: false, message: '用户未登录' };
+    }
+
+    console.log('🔄 cloudLoadV2() 开始读取，userId:', userId);
+
+    // 3. 查询 app_state 表
+    const { data: existingState, error: queryError } = await supabase
+      .from('app_state')
+      .select('id, payload, version, updated_at, updated_by')
+      .eq('owner_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (queryError) {
+      console.error('❌ 查询 app_state 失败:', queryError);
+      return { success: false, message: `查询失败: ${queryError.message}` };
+    }
+
+    // 4. 如果查询结果为空，插入新记录
+    if (!existingState) {
+      console.log('📝 app_state 不存在，创建新记录...');
+      
+      const deviceId = getDeviceId();
+      const { data: newState, error: insertError } = await supabase
+        .from('app_state')
+        .insert({
+          owner_id: userId,
+          payload: {},
+          version: 1,
+          updated_by: deviceId
+        })
+        .select('id, payload, version, updated_at, updated_by')
+        .single();
+
+      if (insertError) {
+        console.error('❌ 插入 app_state 失败:', insertError);
+        return { success: false, message: `插入失败: ${insertError.message}` };
+      }
+
+      console.log('✅ 新记录已创建，返回空 payload');
+      return {
+        success: true,
+        payload: newState.payload || {},
+        version: newState.version || 1,
+        updated_at: newState.updated_at
+      };
+    }
+
+    // 5. 返回查询到的数据
+    console.log('✅ cloudLoadV2() 读取成功:', {
+      version: existingState.version,
+      updated_at: existingState.updated_at,
+      updated_by: existingState.updated_by
+    });
+
+    return {
+      success: true,
+      payload: existingState.payload || {},
+      version: existingState.version || 1,
+      updated_at: existingState.updated_at
+    };
+
+  } catch (error: any) {
+    console.error('❌ cloudLoadV2() 异常:', error);
+    return { success: false, message: `读取异常: ${error.message || '未知错误'}` };
+  }
 }
 
 /**
