@@ -8,6 +8,8 @@ export interface UserSettings {
   theme?: 'light' | 'dark';
   notifications?: boolean;
   language?: string;
+  userName?: string;
+  avatar_url?: string | null;
   calendar?: {
     showWeekends?: boolean;
     startOfWeek?: number;

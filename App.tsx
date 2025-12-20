@@ -399,10 +399,13 @@ export default function App() {
     );
     
     // 初始化快照自动同步
-    const cleanupSnapshot = initAutoSync(() => {
+    let cleanupSnapshot: (() => void) | null = null;
+    initAutoSync(() => {
       // 快照更新后刷新数据
       loadData();
-    });
+    }).then(cleanup => {
+      cleanupSnapshot = cleanup;
+    }).catch(console.error);
     
     // 初始化用户设置实时同步（参考技术白皮书的多设备同步机制）
     const cleanupSettings = initSettingsRealtimeSync((settings) => {
@@ -462,10 +465,10 @@ export default function App() {
       }
       
       // 3. 同步用户设置（包括头像）
-      const settings = await getUserSettings().catch(() => ({}));
-      if (settings.avatar_url && settings.avatar_url !== avatarUrl) {
+      const settings = await getUserSettings().catch(() => ({} as any));
+      if (settings && (settings as any).avatar_url && (settings as any).avatar_url !== avatarUrl) {
         console.log('👤 检测到头像更新（定时同步）');
-        setAvatarUrl(settings.avatar_url);
+        setAvatarUrl((settings as any).avatar_url);
       }
       
       // 4. 如果有变化，刷新界面
