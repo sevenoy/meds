@@ -10,6 +10,7 @@ import { getMedicationLogs, upsertMedication, deleteMedication, getMedications }
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import { saveSnapshot, loadSnapshot, initAutoSync, markLocalDataDirty } from './src/services/snapshot';
+import { checkStorageBucket } from './src/services/storage';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Types ---
@@ -362,6 +363,19 @@ export default function App() {
     if (!isLoggedIn) return;
     
     loadData();
+    
+    // 检查 Storage bucket
+    checkStorageBucket().then(exists => {
+      if (!exists) {
+        console.warn('⚠️ Storage bucket 不存在，图片将保存在本地');
+        // 显示提示（可选，避免打扰用户）
+        // const notification = document.createElement('div');
+        // notification.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-orange-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg';
+        // notification.textContent = '💡 提示：请在 Supabase 中创建 medication-images bucket';
+        // document.body.appendChild(notification);
+        // setTimeout(() => notification.remove(), 5000);
+      }
+    }).catch(console.error);
     
     // 加载用户设置
     getUserSettings().then(settings => {
