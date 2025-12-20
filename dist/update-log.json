@@ -1,4 +1,18 @@
 {
+  "V251219.27": {
+    "version": "V251219.27",
+    "date": "2025-12-20",
+    "title": "修复local_xxx ID写入UUID字段的错误（22P02）",
+    "content": [
+      "🐛 修复 local_xxx 格式ID写入UUID字段导致的22P02错误",
+      "✅ 添加防御性检查函数，自动移除local_xxx格式的ID",
+      "🔧 medications插入：local_xxx时使用insert让数据库生成UUID",
+      "🔧 medication_logs插入：绝对不传id，让数据库自动生成",
+      "🔧 medication_logs插入：local_xxx的medication_id时查找云端ID",
+      "💾 同步成功后保存云端返回的UUID，保留本地local_id",
+      "🛡️ 最小修改原则，不影响现有业务流程"
+    ]
+  },
   "V251219.26": {
     "version": "V251219.26",
     "date": "2025-12-20",

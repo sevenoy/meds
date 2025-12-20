@@ -5,18 +5,30 @@ import { db, getUnsyncedLogs, markLogSynced, updateMedicationLog, getDeviceId, g
 import type { MedicationLog, ConflictInfo, Medication } from '../types';
 
 /**
- * 防御性检查：移除 local_xxx 格式的 ID，避免写入 UUID 字段
+ * UUID v4 正则表达式
+ */
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * 判断字符串是否为合法的 UUID v4
+ */
+function isValidUUID(str: string): boolean {
+  return UUID_V4_REGEX.test(str);
+}
+
+/**
+ * 防御性检查：只允许合法 UUID，其余一律移除
  */
 function sanitizePayload(payload: any): any {
   const sanitized = { ...payload };
   
-  // 移除 local_xxx 格式的 id
-  if (sanitized.id && typeof sanitized.id === 'string' && sanitized.id.startsWith('local_')) {
+  // 如果 id 不是 UUID，移除
+  if (sanitized.id && (typeof sanitized.id !== 'string' || !isValidUUID(sanitized.id))) {
     delete sanitized.id;
   }
   
-  // 移除 local_xxx 格式的 medication_id
-  if (sanitized.medication_id && typeof sanitized.medication_id === 'string' && sanitized.medication_id.startsWith('local_')) {
+  // 如果 medication_id 不是 UUID，移除
+  if (sanitized.medication_id && (typeof sanitized.medication_id !== 'string' || !isValidUUID(sanitized.medication_id))) {
     delete sanitized.medication_id;
   }
   
@@ -37,6 +49,7 @@ export async function syncMedications(): Promise<void> {
     
     // 推送本地medications到云端
     for (const med of localMeds) {
+      // 只发送数据库真实存在的字段（根据 supabase-schema.sql）
       const medData: any = {
         user_id: userId,
         name: med.name,
@@ -45,20 +58,21 @@ export async function syncMedications(): Promise<void> {
         updated_at: new Date().toISOString()
       };
       
-      // 只有当 accent 存在且不为空时才添加
-      if (med.accent) {
-        medData.accent = med.accent;
-      }
+      // 注意：不发送 accent 字段（数据库中可能不存在）
+      // 如果数据库已执行 supabase-schema-fix.sql 添加了 accent 字段，可以取消注释：
+      // if (med.accent) {
+      //   medData.accent = med.accent;
+      // }
       
-      // 防御性检查：移除 local_xxx 格式的 id
+      // 防御性检查：移除非 UUID 格式的 id
       const sanitized = sanitizePayload(medData);
       
-      // 如果本地有云端 ID，使用 upsert；否则使用 insert（让数据库生成 UUID）
-      if (med.id && !med.id.startsWith('local_')) {
-        sanitized.id = med.id; // 只有真正的 UUID 才传
+      // 如果本地有合法的 UUID，使用 upsert；否则使用 insert（让数据库生成 UUID）
+      if (med.id && isValidUUID(med.id)) {
+        sanitized.id = med.id; // 只有合法的 UUID 才传
       }
       
-      const { data, error } = med.id && !med.id.startsWith('local_')
+      const { data, error } = med.id && isValidUUID(med.id)
         ? await supabase!.from('medications').upsert(sanitized).select().single()
         : await supabase!.from('medications').insert(sanitized).select().single();
       
@@ -68,7 +82,7 @@ export async function syncMedications(): Promise<void> {
       }
       
       // 如果返回了新的 UUID，更新本地记录（保留 local_id）
-      if (data && data.id && med.id.startsWith('local_')) {
+      if (data && data.id && med.id && !isValidUUID(med.id)) {
         const updatedMed = {
           ...med,
           id: data.id // 使用云端生成的 UUID
@@ -161,25 +175,35 @@ export async function pushLocalChanges(): Promise<void> {
         }
       }
       
-      // 处理 medication_id：如果是 local_xxx，需要找到对应的云端 ID
-      let cloudMedicationId = log.medication_id;
+      // 处理 medication_id：如果不是 UUID，需要找到对应的云端 ID
+      let cloudMedicationId: string | undefined = undefined;
       
-      if (log.medication_id && log.medication_id.startsWith('local_')) {
+      if (!log.medication_id || !isValidUUID(log.medication_id)) {
+        // medication_id 不是 UUID（可能是 local_xxx 或 med_xxx）
         // 查找本地 medication，看是否有云端 ID
         const localMed = await getMedications().then(meds => 
           meds.find(m => m.id === log.medication_id)
         );
         
-        if (!localMed || localMed.id.startsWith('local_')) {
-          // 本地 medication 还没有云端 ID，跳过本次同步
-          console.warn('⚠️ medication_id 是 local_xxx，且未找到云端 ID，跳过同步:', log.medication_id);
+        if (!localMed) {
+          // 找不到对应的 medication，跳过本次同步
+          console.warn('⚠️ medication_id 不是 UUID 且未找到本地记录，跳过同步:', log.medication_id);
+          continue;
+        }
+        
+        if (!isValidUUID(localMed.id)) {
+          // 本地 medication 还没有云端 ID（仍然是 local_xxx 或 med_xxx），跳过本次同步
+          console.warn('⚠️ medication_id 不是 UUID，且本地 medication 也没有云端 ID，跳过同步:', log.medication_id);
           continue;
         }
         
         cloudMedicationId = localMed.id; // 使用云端 ID
+      } else {
+        // medication_id 已经是合法的 UUID
+        cloudMedicationId = log.medication_id;
       }
       
-      // 构建插入数据（只发送数据库存在的字段）
+      // 构建插入数据（只发送数据库存在的字段，根据 supabase-schema.sql）
       const insertData: any = {
         user_id: userId,
         medication_id: cloudMedicationId,
@@ -194,8 +218,14 @@ export async function pushLocalChanges(): Promise<void> {
         updated_at: log.updated_at || new Date().toISOString()
       };
       
-      // 防御性检查：移除 local_xxx 格式的 id
+      // 防御性检查：移除非 UUID 格式的 id 和 medication_id
       const sanitized = sanitizePayload(insertData);
+      
+      // 最终检查：确保 medication_id 是合法的 UUID
+      if (!sanitized.medication_id || !isValidUUID(sanitized.medication_id)) {
+        console.warn('⚠️ medication_id 不是合法 UUID，跳过同步:', sanitized.medication_id);
+        continue;
+      }
       
       // 插入新记录（不传 id，让数据库自动生成 UUID）
       const { data, error } = await supabase!

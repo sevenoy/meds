@@ -1,4 +1,17 @@
 {
+  "V251219.28": {
+    "version": "V251219.28",
+    "date": "2025-12-20",
+    "title": "彻底修复非UUID字符串写入UUID字段的问题",
+    "content": [
+      "🔒 升级sanitizePayload：使用UUID正则校验，禁止所有非UUID字符串",
+      "🐛 修复med_xxx格式ID写入UUID字段的问题",
+      "🐛 修复medications写入时accent字段不存在的错误",
+      "✅ medication_logs：medication_id不是UUID时查找云端ID或跳过",
+      "✅ medications：只发送数据库真实存在的字段",
+      "🛡️ 多重防御检查，确保绝对不传非UUID到UUID字段"
+    ]
+  },
   "V251219.27": {
     "version": "V251219.27",
     "date": "2025-12-20",
