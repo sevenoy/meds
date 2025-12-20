@@ -9,7 +9,7 @@ import { getTodayMedications, isMedicationTakenToday } from './src/services/medi
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
-import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2 } from './src/services/snapshot';
+import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot } from './src/services/snapshot';
 // 注意：旧函数名（saveSnapshot, loadSnapshot, initAutoSync）已改为 Legacy 版本
 // 新版本占位函数：cloudSaveV2, cloudLoadV2（待实现）
 import { checkStorageBucket } from './src/services/storage';
@@ -290,47 +290,81 @@ export default function App() {
   const [editMedTime, setEditMedTime] = useState('');
   const [editMedAccent, setEditMedAccent] = useState<string>('#E8F5E9'); // 默认浅绿色
 
+  // 创建默认药品（一次性）
+  const createDefaultMedications = (): Medication[] => {
+    return [
+      { 
+        id: `med_${Date.now()}_1`, 
+        name: '降压药', 
+        dosage: '1片', 
+        scheduled_time: '08:00', 
+        accent: '#E8F5E9' 
+      },
+      { 
+        id: `med_${Date.now()}_2`, 
+        name: '降糖药', 
+        dosage: '1片', 
+        scheduled_time: '12:00', 
+        accent: '#E0F2F1' 
+      },
+      { 
+        id: `med_${Date.now()}_3`, 
+        name: '钙片', 
+        dosage: '2片', 
+        scheduled_time: '20:00', 
+        accent: '#FCE4EC' 
+      },
+    ];
+  };
+
   // 加载数据
   const loadData = async () => {
     try {
       setLoading(true);
       
+      // 【4】修复默认药品初始化（幂等）
+      // 从云端检查初始化状态
+      const loadResult = await cloudLoadV2();
+      if (loadResult.success && loadResult.payload) {
+        const payload = loadResult.payload as any;
+        
+        // 如果未初始化，执行一次性初始化
+        if (!payload.__initialized) {
+          console.log('🆕 执行一次性默认药品初始化');
+          
+          const defaultMeds = createDefaultMedications();
+          
+          // 构建新的 payload
+          const newPayload = {
+            ver: 1,
+            medications: defaultMeds,
+            medication_logs: payload.medication_logs ?? [],
+            user_settings: payload.user_settings ?? {},
+            snapshot_label: `初始化 ${new Date().toLocaleString('zh-CN')}`,
+            __initialized: true
+          };
+          
+          // 保存到云端
+          const saveResult = await cloudSaveV2(newPayload);
+          if (saveResult.success) {
+            console.log('✅ 默认药品已保存到云端');
+          } else {
+            console.error('❌ 保存默认药品到云端失败:', saveResult.message);
+          }
+          
+          // 应用到本地数据库
+          await applySnapshot(newPayload);
+        } else {
+          // 已初始化，应用云端快照（整体替换）
+          await applySnapshot(payload);
+        }
+      } else {
+        // 如果 cloudLoadV2 失败，使用本地数据
+        console.warn('⚠️ cloudLoadV2 失败，使用本地数据');
+      }
+      
       // 加载药物列表
       const meds = await getTodayMedications();
-      
-      // 如果没有药物，初始化一些示例数据
-      if (meds.length === 0) {
-        const defaultMeds: Medication[] = [
-          { 
-            id: '1', 
-            name: '降压药', 
-            dosage: '1片', 
-            scheduled_time: '08:00', 
-            accent: 'lime' 
-          },
-          { 
-            id: '2', 
-            name: '降糖药', 
-            dosage: '1片', 
-            scheduled_time: '12:00', 
-            accent: 'mint' 
-          },
-          { 
-            id: '3', 
-            name: '钙片', 
-            dosage: '2片', 
-            scheduled_time: '20:00', 
-            accent: 'berry' 
-          },
-        ];
-        
-        // 保存到本地数据库
-        for (const med of defaultMeds) {
-          await upsertMedication(med);
-        }
-        
-        meds.push(...defaultMeds);
-      }
       
       // 转换药物列表并检查状态
       const medsWithStatus: MedicationUI[] = await Promise.all(

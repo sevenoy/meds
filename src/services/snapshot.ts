@@ -24,6 +24,7 @@ export interface SnapshotPayload {
   medication_logs: any[];
   user_settings: any;
   snapshot_label: string;
+  __initialized?: boolean; // 初始化标记（Phase 4.5 添加）
 }
 
 // 全局状态
@@ -343,6 +344,80 @@ export async function cloudLoadV2(): Promise<{
 }
 
 /**
+ * 应用云端快照到本地数据库（强制整体替换）
+ * Phase 4.5: 防止重复添加药品
+ */
+export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
+  console.log('🔄 应用云端快照（全量替换）');
+
+  // 【6】最终保险：防止重复 ID
+  const ids = (payload.medications || []).map((m: any) => m.id);
+  const unique = new Set(ids);
+  if (ids.length !== unique.size) {
+    console.error('🚨 检测到重复药品 ID，已阻止应用', ids);
+    return;
+  }
+
+  try {
+    // 1. 清空现有数据（整体替换）
+    const existingMeds = await getMedications();
+    const existingLogs = await getMedicationLogs();
+
+    // 删除不存在的药物
+    const cloudMedIds = new Set((payload.medications || []).map((m: any) => m.id));
+    for (const med of existingMeds) {
+      if (!cloudMedIds.has(med.id)) {
+        await deleteMedication(med.id);
+      }
+    }
+
+    // 2. 批量写入药物（整体替换，不使用 push）
+    if (payload.medications && payload.medications.length > 0) {
+      for (const med of payload.medications) {
+        await upsertMedication(med);
+      }
+    } else {
+      // 如果云端没有药物，清空本地
+      for (const med of existingMeds) {
+        await deleteMedication(med.id);
+      }
+    }
+
+    // 3. 批量写入记录（整体替换）
+    // 删除不存在的记录
+    const cloudLogIds = new Set((payload.medication_logs || []).map((l: any) => l.id));
+    for (const log of existingLogs) {
+      if (!cloudLogIds.has(log.id)) {
+        await db.medicationLogs.delete(log.id);
+      }
+    }
+    // 然后写入新记录（使用 put 实现 upsert）
+    if (payload.medication_logs && payload.medication_logs.length > 0) {
+      for (const log of payload.medication_logs) {
+        // 确保有 id
+        if (!log.id) {
+          log.id = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+        await db.medicationLogs.put({
+          ...log,
+          sync_state: 'clean' // 从云端加载的记录标记为已同步
+        });
+      }
+    }
+
+    // 4. 更新用户设置
+    if (payload.user_settings) {
+      await saveUserSettings(payload.user_settings);
+    }
+
+    console.log('✅ 云端快照已应用到本地数据库（全量替换）');
+  } catch (error: any) {
+    console.error('❌ 应用云端快照失败:', error);
+    throw error;
+  }
+}
+
+/**
  * 初始化 Realtime V2 订阅（Phase 4 实现）
  * 监听 app_state 表的 INSERT 和 UPDATE 事件
  * @returns 返回 unsubscribe 函数
@@ -404,11 +479,15 @@ export async function initRealtimeV2(): Promise<() => void> {
           console.log('🔄 Realtime V2: 开始拉取最新数据...');
           const loadResult = await cloudLoadV2();
           
-          if (loadResult.success) {
+          if (loadResult.success && loadResult.payload) {
             console.log('✅ Realtime V2: 拉取完成', {
               version: loadResult.version,
               updated_at: loadResult.updated_at
             });
+            
+            // 【2】强制修复：使用整体替换，不使用 push/merge
+            const payload = loadResult.payload as SnapshotPayload;
+            await applySnapshot(payload);
           } else {
             console.error('❌ Realtime V2: 拉取失败', loadResult.message);
           }
