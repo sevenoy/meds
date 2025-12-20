@@ -343,6 +343,96 @@ export async function cloudLoadV2(): Promise<{
 }
 
 /**
+ * 初始化 Realtime V2 订阅（Phase 4 实现）
+ * 监听 app_state 表的 INSERT 和 UPDATE 事件
+ * @returns 返回 unsubscribe 函数
+ */
+export async function initRealtimeV2(): Promise<() => void> {
+  // 1. 检查 Supabase 是否配置
+  if (!supabase) {
+    console.warn('⚠️ Supabase 未配置，无法启动 Realtime V2');
+    return () => {}; // 返回空函数
+  }
+
+  // 2. 获取当前登录用户
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    console.warn('⚠️ 用户未登录，无法启动 Realtime V2');
+    return () => {}; // 返回空函数
+  }
+
+  console.log('🔄 initRealtimeV2() 开始订阅，userId:', userId);
+
+  // 3. 创建 Realtime 订阅
+  const channel = supabase
+    .channel('app-state-realtime-v2-' + userId)
+    .on(
+      'postgres_changes',
+      {
+        event: '*', // 监听 INSERT 和 UPDATE
+        schema: 'public',
+        table: 'app_state',
+        filter: `owner_id=eq.${userId}` // 只监听当前用户的数据
+      },
+      async (payload) => {
+        // 4. 处理数据库变更事件
+        const newRow = payload.new as any;
+        
+        if (!newRow) {
+          console.warn('⚠️ Realtime V2: 收到事件但 new 为空');
+          return;
+        }
+
+        // 5. 打印日志（打印 new.version）
+        console.log('📥 Realtime V2: 收到 app_state 更新事件', {
+          eventType: payload.eventType,
+          version: newRow.version,
+          updated_at: newRow.updated_at,
+          updated_by: newRow.updated_by
+        });
+
+        // 6. 调用 cloudLoadV2() 拉取最新数据
+        try {
+          console.log('🔄 Realtime V2: 开始拉取最新数据...');
+          const loadResult = await cloudLoadV2();
+          
+          if (loadResult.success) {
+            console.log('✅ Realtime V2: 拉取完成', {
+              version: loadResult.version,
+              updated_at: loadResult.updated_at
+            });
+          } else {
+            console.error('❌ Realtime V2: 拉取失败', loadResult.message);
+          }
+        } catch (error: any) {
+          console.error('❌ Realtime V2: 拉取异常', error);
+        }
+      }
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('✅ Realtime V2: 订阅成功，开始监听 app_state 变化');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.error('❌ Realtime V2: 订阅失败', status);
+      } else {
+        console.log('🔄 Realtime V2: 订阅状态', status);
+      }
+    });
+
+  // 7. 保存 channel 引用，防止被垃圾回收
+  (window as any)._appStateRealtimeV2Channel = channel;
+
+  // 8. 返回清理函数
+  return () => {
+    console.log('🔌 initRealtimeV2() 断开订阅');
+    if (channel) {
+      supabase.removeChannel(channel);
+    }
+    delete (window as any)._appStateRealtimeV2Channel;
+  };
+}
+
+/**
  * 保存快照到云端（Legacy - 完整实现 - 基于技术文档）
  */
 export async function saveSnapshotLegacy(): Promise<{ success: boolean; message: string }> {
