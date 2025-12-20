@@ -276,7 +276,7 @@ export function initRealtimeSync(
             console.log('💊 检测到药品列表更新');
             
             // 直接同步，不需要用户确认
-            onMedicationSync();
+        onMedicationSync();
           }
         }
       }
@@ -287,7 +287,7 @@ export function initRealtimeSync(
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.error('❌ 药品数据 Realtime 订阅失败:', status);
       } else {
-        console.log('🔄 Realtime订阅状态:', status);
+      console.log('🔄 Realtime订阅状态:', status);
       }
     });
   

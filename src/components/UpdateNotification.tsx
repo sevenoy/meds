@@ -104,8 +104,8 @@ export const UpdateNotification: React.FC = () => {
     // 清除所有缓存
     if ('caches' in window) {
       try {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(name => caches.delete(name)));
         console.log('🗑️ 已清除所有缓存:', cacheNames.length);
       } catch (err) {
         console.warn('清除缓存失败:', err);
@@ -120,8 +120,8 @@ export const UpdateNotification: React.FC = () => {
     
     // 延迟一小段时间确保标志已设置，然后刷新
     setTimeout(() => {
-      console.log('🔄 正在刷新页面...');
-      window.location.reload();
+    console.log('🔄 正在刷新页面...');
+    window.location.reload();
     }, 50);
   };
 

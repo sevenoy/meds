@@ -255,7 +255,7 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.error('❌ 用户设置 Realtime 订阅失败:', status);
         } else {
-          console.log('🔄 设置同步状态:', status);
+        console.log('🔄 设置同步状态:', status);
         }
       });
 
