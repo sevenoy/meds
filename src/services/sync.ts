@@ -18,17 +18,23 @@ export async function syncMedications(): Promise<void> {
     
     // 推送本地medications到云端
     for (const med of localMeds) {
+      const medData: any = {
+        id: med.id,
+        user_id: userId,
+        name: med.name,
+        dosage: med.dosage,
+        scheduled_time: med.scheduled_time,
+        updated_at: new Date().toISOString()
+      };
+      
+      // 只有当 accent 存在且不为空时才添加
+      if (med.accent) {
+        medData.accent = med.accent;
+      }
+      
       await supabase!
         .from('medications')
-        .upsert({
-          id: med.id,
-          user_id: userId,
-          name: med.name,
-          dosage: med.dosage,
-          scheduled_time: med.scheduled_time,
-          accent: med.accent,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(medData);
     }
     
     // 拉取云端medications
@@ -42,14 +48,23 @@ export async function syncMedications(): Promise<void> {
         const localMed = localMeds.find(m => m.id === cloudMed.id);
         if (!localMed) {
           // 云端有但本地没有，添加到本地
-          await upsertMedication({
+          const medData: Medication = {
             id: cloudMed.id,
             name: cloudMed.name,
             dosage: cloudMed.dosage,
             scheduled_time: cloudMed.scheduled_time,
-            accent: cloudMed.accent || 'lime',
             user_id: cloudMed.user_id
-          });
+          };
+          
+          // 只有当云端有 accent 时才添加
+          if (cloudMed.accent) {
+            medData.accent = cloudMed.accent;
+          } else {
+            // 如果没有，使用默认值
+            medData.accent = '#E8F5E9'; // 默认浅绿色
+          }
+          
+          await upsertMedication(medData);
         }
       }
     }
@@ -82,26 +97,43 @@ export async function pushLocalChanges(): Promise<void> {
     try {
       // 检查是否已存在（通过 image_hash）
       if (log.image_hash) {
-        const { data: existing } = await supabase!
-          .from('medication_logs')
-          .select('id')
-          .eq('image_hash', log.image_hash)
-          .single();
-        
-        if (existing) {
-          // 已存在，更新本地记录
-          await markLogSynced(log.id, { ...log, id: existing.id });
-          continue;
+        try {
+          const { data: existing, error: queryError } = await supabase!
+            .from('medication_logs')
+            .select('id')
+            .eq('image_hash', log.image_hash)
+            .maybeSingle();
+          
+          // 406 错误通常表示查询格式问题，跳过检查继续插入
+          if (queryError && queryError.code !== 'PGRST116') {
+            console.warn('⚠️ 查询 image_hash 失败，继续插入:', queryError);
+          } else if (existing) {
+            // 已存在，更新本地记录
+            await markLogSynced(log.id, { ...log, id: existing.id });
+            continue;
+          }
+        } catch (err) {
+          console.warn('⚠️ 检查重复记录失败，继续插入:', err);
         }
       }
       
-      // 插入新记录
+      // 插入新记录（只发送数据库存在的字段）
       const { data, error } = await supabase!
         .from('medication_logs')
         .insert({
-          ...log,
+          id: log.id,
           user_id: userId,
-          created_at: new Date().toISOString()
+          medication_id: log.medication_id,
+          taken_at: log.taken_at,
+          uploaded_at: log.uploaded_at,
+          time_source: log.time_source,
+          status: log.status,
+          image_path: log.image_path,
+          image_hash: log.image_hash,
+          source_device: log.source_device,
+          created_at: new Date().toISOString(),
+          updated_at: log.updated_at || new Date().toISOString()
+          // 注意：不发送 local_id 和 sync_state，这些是本地字段
         })
         .select()
         .single();
@@ -143,10 +175,20 @@ export async function pullRemoteChanges(lastSyncTime?: string): Promise<Medicati
   
   if (error) {
     console.error('拉取失败:', error);
+    // 如果是字段不存在的错误，返回空数组（表结构可能未更新）
+    if (error.message?.includes('column') || error.code === 'PGRST204') {
+      console.warn('⚠️ 数据库表结构可能未更新，请执行 supabase-schema-fix.sql');
+      return [];
+    }
     return [];
   }
   
-  return data || [];
+  // 转换数据，添加本地字段
+  return (data || []).map(log => ({
+    ...log,
+    sync_state: 'clean' as SyncState,
+    local_id: undefined // 云端数据没有 local_id
+  }));
 }
 
 /**
