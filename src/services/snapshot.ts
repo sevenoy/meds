@@ -171,9 +171,25 @@ function compareSettings(settings1: any, settings2: any): boolean {
 }
 
 /**
- * 保存快照到云端（完整实现 - 基于技术文档）
+ * 保存快照到云端 V2（新版本占位函数）
  */
-export async function saveSnapshot(): Promise<{ success: boolean; message: string }> {
+export async function cloudSaveV2(): Promise<{ success: boolean; message: string }> {
+  console.log('🔄 cloudSaveV2() 被调用（占位函数，待实现）');
+  return { success: false, message: 'cloudSaveV2 功能待实现' };
+}
+
+/**
+ * 从云端读取快照 V2（新版本占位函数）
+ */
+export async function cloudLoadV2(): Promise<{ success: boolean; message: string; payload?: SnapshotPayload }> {
+  console.log('🔄 cloudLoadV2() 被调用（占位函数，待实现）');
+  return { success: false, message: 'cloudLoadV2 功能待实现' };
+}
+
+/**
+ * 保存快照到云端（Legacy - 完整实现 - 基于技术文档）
+ */
+export async function saveSnapshotLegacy(): Promise<{ success: boolean; message: string }> {
   try {
     // 检查 Supabase 是否配置
     if (!supabase) {
@@ -247,7 +263,7 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
           console.warn('⚠️ 检测到冲突，云端数据更新');
           
           // 自动加载云端最新数据
-          await loadSnapshot(true); // 静默加载
+          await loadSnapshotLegacy(true); // 静默加载
           
           return {
             success: false,
@@ -310,9 +326,9 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
 }
 
 /**
- * 从云端读取快照（完整实现 - 基于技术文档）
+ * 从云端读取快照（Legacy - 完整实现 - 基于技术文档）
  */
-export async function loadSnapshot(silent: boolean = false): Promise<{ success: boolean; message: string; payload?: SnapshotPayload }> {
+export async function loadSnapshotLegacy(silent: boolean = false): Promise<{ success: boolean; message: string; payload?: SnapshotPayload }> {
   try {
     // 检查 Supabase 是否配置
     if (!supabase) {
@@ -505,9 +521,9 @@ export async function getSnapshotInfo(): Promise<{
 }
 
 /**
- * 初始化自动同步（Realtime监听快照变化）
+ * 初始化自动同步（Legacy - Realtime监听快照变化）
  */
-export async function initAutoSync(onSnapshotUpdate?: () => void): Promise<() => void> {
+export async function initAutoSyncLegacy(onSnapshotUpdate?: () => void): Promise<() => void> {
   // 1. 检查是否已启动
   if (isAutoSyncStarted) {
     console.log('自动同步已启动，跳过重复初始化');
@@ -608,7 +624,7 @@ export async function initAutoSync(onSnapshotUpdate?: () => void): Promise<() =>
           );
           if (ok) {
             saveLastSyncTimestamp(0); // 重置时间戳，强制加载
-            await loadSnapshot(false);
+            await loadSnapshotLegacy(false);
             if (onSnapshotUpdate) onSnapshotUpdate();
           } else {
             // 显示提示
@@ -668,3 +684,22 @@ export async function initAutoSync(onSnapshotUpdate?: () => void): Promise<() =>
 export function markLocalDataDirty(): void {
   markDirty();
 }
+
+// ============================================
+// 向后兼容导出（保持旧函数名可用）
+// ============================================
+
+/**
+ * @deprecated 使用 saveSnapshotLegacy 或 cloudSaveV2
+ */
+export const saveSnapshot = saveSnapshotLegacy;
+
+/**
+ * @deprecated 使用 loadSnapshotLegacy 或 cloudLoadV2
+ */
+export const loadSnapshot = loadSnapshotLegacy;
+
+/**
+ * @deprecated 使用 initAutoSyncLegacy
+ */
+export const initAutoSync = initAutoSyncLegacy;

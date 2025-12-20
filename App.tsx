@@ -9,7 +9,9 @@ import { getTodayMedications, isMedicationTakenToday } from './src/services/medi
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
-import { saveSnapshot, loadSnapshot, initAutoSync, markLocalDataDirty } from './src/services/snapshot';
+import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2 } from './src/services/snapshot';
+// 注意：旧函数名（saveSnapshot, loadSnapshot, initAutoSync）已改为 Legacy 版本
+// 新版本占位函数：cloudSaveV2, cloudLoadV2（待实现）
 import { checkStorageBucket } from './src/services/storage';
 import type { Medication, MedicationLog } from './src/types';
 
@@ -461,9 +463,9 @@ export default function App() {
       }
     );
     
-    // 初始化快照自动同步
+    // 初始化快照自动同步（Legacy）
     let cleanupSnapshot: (() => void) | null = null;
-    initAutoSync(() => {
+    initAutoSyncLegacy(() => {
       // 快照更新后刷新数据
       loadData();
     }).then(cleanup => {
@@ -662,7 +664,8 @@ export default function App() {
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
-                    const result = await saveSnapshot();
+                    // 暂时使用 Legacy 版本，待 V2 实现后切换
+                    const result = await saveSnapshotLegacy();
                     alert(result.message);
                     if (result.success) {
                       await loadData(); // 刷新数据
@@ -676,7 +679,8 @@ export default function App() {
                 
                 <button
                   onClick={async () => {
-                    const result = await loadSnapshot(false);
+                    // 暂时使用 Legacy 版本，待 V2 实现后切换
+                    const result = await loadSnapshotLegacy(false);
                     alert(result.message);
                     if (result.success) {
                       await loadData(); // 刷新数据
