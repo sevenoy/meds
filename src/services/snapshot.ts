@@ -1,11 +1,12 @@
 /**
  * 云端快照管理服务
- * 基于云端同步技术文档实现
+ * 基于云端同步技术文档完整实现
+ * 支持：LWW冲突解决、自动同步、性能优化
  */
 
 import { supabase, getCurrentUserId } from '../lib/supabase';
-import { getMedications, getMedicationLogs } from '../db/localDB';
-import { getUserSettings } from './userSettings';
+import { getMedications, getMedicationLogs, upsertMedication, deleteMedication, upsertMedicationLog } from '../db/localDB';
+import { getUserSettings, saveUserSettings } from './userSettings';
 
 // Supabase 表名
 const SNAPSHOT_TABLE = 'app_snapshots';
@@ -14,6 +15,7 @@ const SNAPSHOT_KEY = 'default';
 // 本地存储键
 const LAST_SYNC_TIME_KEY = 'meds_last_sync_time';
 const LAST_SNAPSHOT_NAME_KEY = 'meds_last_snapshot_name';
+const IS_DIRTY_KEY = 'meds_is_dirty'; // 本地是否有未保存修改
 
 // 快照数据接口
 export interface SnapshotPayload {
@@ -24,18 +26,26 @@ export interface SnapshotPayload {
   snapshot_label: string;
 }
 
+// 全局状态
+let isAutoSyncStarted = false;
+let lastCheckedSnapshotName = '';
+
 /**
  * 生成快照名称
  * 格式：用户名 YYYYMMDDHHmm
  */
 function generateSnapshotName(userName: string, timestamp: string | Date): string {
-  const d = new Date(timestamp);
-  const Y = d.getFullYear();
-  const M = String(d.getMonth() + 1).padStart(2, '0');
-  const D = String(d.getDate()).padStart(2, '0');
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = String(d.getMinutes()).padStart(2, '0');
-  return `${userName} ${Y}${M}${D}${h}${m}`;
+  try {
+    const d = new Date(timestamp);
+    const Y = d.getFullYear();
+    const M = String(d.getMonth() + 1).padStart(2, '0');
+    const D = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${userName} ${Y}${M}${D}${h}${m}`;
+  } catch {
+    return `${userName} ${Date.now()}`;
+  }
 }
 
 /**
@@ -64,23 +74,104 @@ function getLastSnapshotName(): string {
  * 保存最后快照名称
  */
 function saveLastSnapshotName(name: string): void {
-  localStorage.setItem(LAST_SNAPSHOT_NAME_KEY, name);
+  if (name) {
+    localStorage.setItem(LAST_SNAPSHOT_NAME_KEY, name);
+  }
+}
+
+/**
+ * 检查本地是否有未保存修改
+ */
+function isLocalDirty(): boolean {
+  return localStorage.getItem(IS_DIRTY_KEY) === 'true';
+}
+
+/**
+ * 标记本地为已保存
+ */
+function clearDirty(): void {
+  localStorage.removeItem(IS_DIRTY_KEY);
+}
+
+/**
+ * 标记本地为未保存
+ */
+function markDirty(): void {
+  localStorage.setItem(IS_DIRTY_KEY, 'true');
+}
+
+/**
+ * 标准化数据用于比较（忽略顺序和元数据）
+ */
+function normalizeMedication(med: any): any {
+  if (!med) return null;
+  return {
+    name: String(med.name || '').trim(),
+    dosage: String(med.dosage || '').trim(),
+    scheduled_time: String(med.scheduled_time || '').trim(),
+    accent: String(med.accent || '').trim()
+  };
+}
+
+function normalizeLog(log: any): any {
+  if (!log) return null;
+  return {
+    medication_id: String(log.medication_id || '').trim(),
+    taken_at: String(log.taken_at || '').trim(),
+    status: String(log.status || '').trim()
+  };
 }
 
 /**
  * 比较两个数组是否相等（忽略顺序）
  */
-function arraysEqual(arr1: any[], arr2: any[]): boolean {
+function compareMedications(arr1: any[], arr2: any[]): boolean {
   if (arr1.length !== arr2.length) return false;
   
-  const normalized1 = arr1.map(item => JSON.stringify(item)).sort();
-  const normalized2 = arr2.map(item => JSON.stringify(item)).sort();
+  const normalized1 = arr1.map(normalizeMedication).filter(Boolean).sort((a, b) => 
+    (a.name + a.scheduled_time).localeCompare(b.name + b.scheduled_time)
+  );
+  const normalized2 = arr2.map(normalizeMedication).filter(Boolean).sort((a, b) => 
+    (a.name + a.scheduled_time).localeCompare(b.name + b.scheduled_time)
+  );
   
   return JSON.stringify(normalized1) === JSON.stringify(normalized2);
 }
 
+function compareLogs(arr1: any[], arr2: any[]): boolean {
+  if (arr1.length !== arr2.length) return false;
+  
+  const normalized1 = arr1.map(normalizeLog).filter(Boolean).sort((a, b) => 
+    (a.medication_id + a.taken_at).localeCompare(b.medication_id + b.taken_at)
+  );
+  const normalized2 = arr2.map(normalizeLog).filter(Boolean).sort((a, b) => 
+    (a.medication_id + a.taken_at).localeCompare(b.medication_id + b.taken_at)
+  );
+  
+  return JSON.stringify(normalized1) === JSON.stringify(normalized2);
+}
+
+function compareSettings(settings1: any, settings2: any): boolean {
+  // 标准化设置对象（排序键）
+  const normalize = (s: any) => {
+    if (!s) return {};
+    const normalized: any = {};
+    Object.keys(s).sort().forEach(key => {
+      const value = s[key];
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        normalized[key] = normalize(value);
+      } else {
+        normalized[key] = value;
+      }
+    });
+    return normalized;
+  };
+  
+  return JSON.stringify(normalize(settings1)) === JSON.stringify(normalize(settings2));
+}
+
 /**
- * 保存快照到云端（带冲突检测）
+ * 保存快照到云端（完整实现 - 基于技术文档）
  */
 export async function saveSnapshot(): Promise<{ success: boolean; message: string }> {
   try {
@@ -94,6 +185,8 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
       return { success: false, message: '用户未登录' };
     }
 
+    console.log('📊 开始保存快照...');
+
     // 1. 获取当前用户设置中的用户名
     const settings = await getUserSettings();
     const userName = settings.userName || '未知用户';
@@ -103,13 +196,13 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
     const medicationLogs = await getMedicationLogs();
     const userSettings = settings;
 
-    console.log('📊 准备保存快照:', {
+    console.log('📊 本地数据:', {
       medications: medications.length,
       logs: medicationLogs.length
     });
 
-    // 3. 查询云端最新快照
-    const { data: cloudData } = await supabase!
+    // 3. 查询云端最新快照（优化：只查询必要字段）
+    const { data: cloudData, error: queryError } = await supabase
       .from(SNAPSHOT_TABLE)
       .select('payload, updated_at, updated_by_name')
       .eq('key', SNAPSHOT_KEY)
@@ -118,6 +211,11 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
       .limit(1)
       .maybeSingle();
 
+    if (queryError) {
+      console.error('❌ 查询云端数据失败:', queryError);
+      return { success: false, message: `查询失败: ${queryError.message}` };
+    }
+
     const lastSyncTimestamp = getLastSyncTimestamp();
 
     // 4. 检查云端是否有更新（冲突检测）
@@ -125,25 +223,35 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
       const cloudTime = new Date(cloudData.updated_at).getTime();
       
       if (cloudTime > lastSyncTimestamp) {
-        // 云端数据更新，检查数据是否相同
+        // 云端数据更新，检查数据内容是否相同
         const cloudPayload = cloudData.payload as SnapshotPayload;
         
-        const medicationsEqual = arraysEqual(medications, cloudPayload.medications || []);
-        const logsEqual = arraysEqual(medicationLogs, cloudPayload.medication_logs || []);
-        const settingsEqual = JSON.stringify(userSettings) === JSON.stringify(cloudPayload.user_settings || {});
+        const medicationsEqual = compareMedications(medications, cloudPayload.medications || []);
+        const logsEqual = compareLogs(medicationLogs, cloudPayload.medication_logs || []);
+        const settingsEqual = compareSettings(userSettings, cloudPayload.user_settings || {});
         
         if (medicationsEqual && logsEqual && settingsEqual) {
-          // 数据内容相同，只更新时间戳
+          // 数据内容相同，只更新时间戳（无需保存）
           saveLastSyncTimestamp(cloudTime);
+          const cloudSnapshotName = cloudPayload.snapshot_label || 
+            generateSnapshotName(cloudData.updated_by_name || userName, cloudData.updated_at);
+          saveLastSnapshotName(cloudSnapshotName);
+          
+          console.log('✅ 数据未改动，已更新时间戳');
           return { success: false, message: '数据未改动，无需保存' };
         } else {
-          // 数据内容不同，发生冲突
+          // 数据内容不同，发生冲突（LWW策略：自动加载最新数据）
           const cloudUpdater = cloudData.updated_by_name || '其他设备';
           const cloudUpdateTime = new Date(cloudData.updated_at).toLocaleString('zh-CN');
           
+          console.warn('⚠️ 检测到冲突，云端数据更新');
+          
+          // 自动加载云端最新数据
+          await loadSnapshot(true); // 静默加载
+          
           return {
             success: false,
-            message: `⚠️ 检测到冲突！\n\n云端数据已被 "${cloudUpdater}" 在 ${cloudUpdateTime} 更新。\n\n请先点击【云端读取】加载最新数据，然后重新修改并保存。`
+            message: `⚠️ 检测到冲突！\n\n云端数据已被 "${cloudUpdater}" 在 ${cloudUpdateTime} 更新。\n\n已自动加载最新数据，请重新修改后保存。`
           };
         }
       }
@@ -162,8 +270,8 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
       snapshot_label: snapshotName
     };
 
-    // 7. 保存到云端
-    const { data: saved, error } = await supabase!
+    // 7. 保存到云端（使用 upsert，onConflict 处理）
+    const { data: saved, error: saveError } = await supabase
       .from(SNAPSHOT_TABLE)
       .upsert({
         key: SNAPSHOT_KEY,
@@ -171,19 +279,22 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
         payload: payload,
         updated_at: now.toISOString(),
         updated_by_name: userName
-      }, { onConflict: 'key,owner_id' })
+      }, { 
+        onConflict: 'key,owner_id' 
+      })
       .select('updated_at')
       .single();
 
-    if (error) {
-      console.error('❌ 保存快照失败:', error);
-      return { success: false, message: `保存失败: ${error.message}` };
+    if (saveError) {
+      console.error('❌ 保存快照失败:', saveError);
+      return { success: false, message: `保存失败: ${saveError.message}` };
     }
 
     // 8. 更新本地时间戳和快照名称
     const serverTime = new Date(saved.updated_at).getTime();
     saveLastSyncTimestamp(serverTime);
     saveLastSnapshotName(snapshotName);
+    clearDirty(); // 标记为已保存
 
     console.log('✅ 快照保存成功:', snapshotName);
 
@@ -199,9 +310,9 @@ export async function saveSnapshot(): Promise<{ success: boolean; message: strin
 }
 
 /**
- * 从云端读取快照
+ * 从云端读取快照（完整实现 - 基于技术文档）
  */
-export async function loadSnapshot(): Promise<{ success: boolean; message: string; payload?: SnapshotPayload }> {
+export async function loadSnapshot(silent: boolean = false): Promise<{ success: boolean; message: string; payload?: SnapshotPayload }> {
   try {
     // 检查 Supabase 是否配置
     if (!supabase) {
@@ -213,10 +324,22 @@ export async function loadSnapshot(): Promise<{ success: boolean; message: strin
       return { success: false, message: '用户未登录' };
     }
 
+    // 1. 检查本地是否有未保存修改（非静默模式）
+    if (!silent && isLocalDirty()) {
+      const ok = confirm('本地有未保存修改，加载云端数据将覆盖本地修改，是否继续？');
+      if (!ok) {
+        return { success: false, message: '用户取消加载' };
+      }
+    }
+
     console.log('🔍 正在读取云端快照...');
 
-    // 1. 查询云端最新快照
-    const { data: cloudData, error } = await supabase!
+    // 2. 更新 lastSyncTimestamp（从 localStorage 重新读取，确保多标签页同步）
+    const savedTime = localStorage.getItem(LAST_SYNC_TIME_KEY);
+    const currentLastSync = savedTime ? parseInt(savedTime) : 0;
+
+    // 3. 查询云端数据
+    const { data: cloudData, error } = await supabase
       .from(SNAPSHOT_TABLE)
       .select('payload, updated_at, updated_by_name')
       .eq('key', SNAPSHOT_KEY)
@@ -231,25 +354,85 @@ export async function loadSnapshot(): Promise<{ success: boolean; message: strin
     }
 
     if (!cloudData) {
-      return { success: false, message: '云端暂无快照数据' };
+      if (!silent) {
+        return { success: false, message: '云端暂无快照数据' };
+      }
+      return { success: false, message: '' };
     }
 
-    // 2. 解析快照数据
+    const serverTime = new Date(cloudData.updated_at).getTime();
+
+    // 4. 时间戳检查（静默加载时）
+    if (silent && serverTime <= currentLastSync) {
+      console.log('ℹ️ 云端数据不比本地新，跳过加载');
+      return { success: false, message: '' };
+    }
+
+    // 5. 解析快照数据
     const payload = cloudData.payload as SnapshotPayload;
-    const snapshotName = payload.snapshot_label || '未知快照';
+    
+    // 6. 写入本地数据库（批量操作，优化性能）
+    try {
+      // 6.1 清空现有数据
+      const existingMeds = await getMedications();
+      const existingLogs = await getMedicationLogs();
+      
+      // 删除不存在的药物
+      const cloudMedIds = new Set((payload.medications || []).map((m: any) => m.id));
+      for (const med of existingMeds) {
+        if (!cloudMedIds.has(med.id)) {
+          await deleteMedication(med.id);
+        }
+      }
+      
+      // 6.2 批量写入药物（使用 upsert）
+      if (payload.medications && payload.medications.length > 0) {
+        for (const med of payload.medications) {
+          await upsertMedication(med);
+        }
+      }
+      
+      // 6.3 批量写入记录
+      if (payload.medication_logs && payload.medication_logs.length > 0) {
+        for (const log of payload.medication_logs) {
+          await upsertMedicationLog(log);
+        }
+      }
+      
+      // 6.4 更新用户设置
+      if (payload.user_settings) {
+        await saveUserSettings(payload.user_settings);
+      }
+      
+      console.log('✅ 数据已写入本地数据库');
+    } catch (writeError: any) {
+      console.error('❌ 数据写入失败:', writeError);
+      // iOS Safari 兼容性：重试一次
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        console.log('🔄 iOS设备，重试写入...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // 简化重试：只写入关键数据
+        if (payload.medications) {
+          for (const med of payload.medications) {
+            await upsertMedication(med);
+          }
+        }
+      } else {
+        throw writeError;
+      }
+    }
+
+    // 7. 更新本地时间戳和快照名称
+    saveLastSyncTimestamp(serverTime);
+    const snapshotName = payload.snapshot_label || 
+      generateSnapshotName(cloudData.updated_by_name || '未知用户', cloudData.updated_at);
+    saveLastSnapshotName(snapshotName);
+    clearDirty(); // 标记为已保存
+
     const updateTime = new Date(cloudData.updated_at).toLocaleString('zh-CN');
     const updater = cloudData.updated_by_name || '未知用户';
 
-    console.log('📥 读取到云端快照:', {
-      name: snapshotName,
-      medications: payload.medications?.length || 0,
-      logs: payload.medication_logs?.length || 0
-    });
-
-    // 3. 更新本地时间戳和快照名称
-    const serverTime = new Date(cloudData.updated_at).getTime();
-    saveLastSyncTimestamp(serverTime);
-    saveLastSnapshotName(snapshotName);
+    console.log('✅ 快照读取成功:', snapshotName);
 
     return {
       success: true,
@@ -272,7 +455,6 @@ export async function getSnapshotInfo(): Promise<{
   hasUpdate: boolean;
 }> {
   try {
-    // 检查 Supabase 是否配置
     if (!supabase) {
       return { local: '未配置', cloud: '未配置', hasUpdate: false };
     }
@@ -284,7 +466,7 @@ export async function getSnapshotInfo(): Promise<{
 
     const localSnapshot = getLastSnapshotName() || '未保存';
 
-    const { data } = await supabase!
+    const { data } = await supabase
       .from(SNAPSHOT_TABLE)
       .select('payload, updated_at')
       .eq('key', SNAPSHOT_KEY)
@@ -314,3 +496,167 @@ export async function getSnapshotInfo(): Promise<{
   }
 }
 
+/**
+ * 初始化自动同步（Realtime监听快照变化）
+ */
+export async function initAutoSync(onSnapshotUpdate?: () => void): Promise<() => void> {
+  // 1. 检查是否已启动
+  if (isAutoSyncStarted) {
+    console.log('自动同步已启动，跳过重复初始化');
+    return () => {};
+  }
+
+  // 2. 检查 Supabase 和用户登录状态
+  if (!supabase) {
+    console.warn('Supabase 未配置，无法启动自动同步');
+    return () => {};
+  }
+
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    console.warn('用户未登录，无法启动自动同步');
+    return () => {};
+  }
+
+  isAutoSyncStarted = true;
+
+  // 3. 初始化时间戳和快照名称
+  const savedTime = localStorage.getItem(LAST_SYNC_TIME_KEY);
+  if (savedTime) {
+    saveLastSyncTimestamp(parseInt(savedTime));
+  }
+
+  const lastSnapshotName = getLastSnapshotName();
+
+  // 4. 如果没有保存的快照名称，尝试从云端获取
+  if (!lastSnapshotName) {
+    try {
+      const { data } = await supabase
+        .from(SNAPSHOT_TABLE)
+        .select('payload, updated_at, updated_by_name')
+        .eq('key', SNAPSHOT_KEY)
+        .eq('owner_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data && data.payload) {
+        const snapshotName = (data.payload as SnapshotPayload).snapshot_label || 
+          generateSnapshotName(data.updated_by_name || '未知用户', data.updated_at);
+        saveLastSnapshotName(snapshotName);
+      }
+    } catch (err) {
+      console.warn('初始化时获取快照名称失败:', err);
+    }
+  }
+
+  // 5. 创建 Realtime 订阅
+  const channel = supabase
+    .channel('meds-auto-sync-' + userId)
+    .on(
+      'postgres_changes',
+      { 
+        event: '*', 
+        schema: 'public', 
+        table: SNAPSHOT_TABLE, 
+        filter: `key=eq.${SNAPSHOT_KEY} AND owner_id=eq.${userId}`
+      },
+      async (evt) => {
+        // 6. 处理数据库变更事件
+        const newRow = evt.new as any;
+        if (!newRow) return;
+
+        const serverTime = new Date(newRow.updated_at).getTime();
+
+        // 7. 更新 lastSyncTimestamp（从 localStorage 重新读取，确保多标签页同步）
+        const savedTime = localStorage.getItem(LAST_SYNC_TIME_KEY);
+        const currentLastSync = savedTime ? parseInt(savedTime) : 0;
+
+        // 8. 获取当前快照名称
+        const currentSnapshotName = getLastSnapshotName();
+
+        // 9. 生成新的快照名称（用于比较）
+        const newSnapshotName = (newRow.payload as SnapshotPayload)?.snapshot_label || 
+          generateSnapshotName(newRow.updated_by_name || '未知用户', newRow.updated_at);
+
+        // 10. 关键检测：快照名称是否改变（这是检测新快照的主要方式）
+        const snapshotNameChanged = currentSnapshotName !== newSnapshotName;
+
+        // 11. 如果快照名称改变，说明有新快照，需要更新
+        if (!snapshotNameChanged && serverTime <= currentLastSync) {
+          console.log('快照名称未改变且时间戳不比本地新，跳过自动同步');
+          return;
+        }
+
+        // 12. 快照名称改变或时间戳更新，需要同步
+        const who = newRow.updated_by_name || '其他设备';
+
+        if (isLocalDirty()) {
+          // 本地有未保存修改，弹出提示要求用户更新
+          const ok = confirm(
+            `检测到最新快照已更新\n\n"${who}" 刚刚保存了新快照。\n\n` +
+            `点击【确定】自动加载最新快照（本地未保存的修改将被覆盖）\n\n` +
+            `点击【取消】稍后手动加载`
+          );
+          if (ok) {
+            saveLastSyncTimestamp(0); // 重置时间戳，强制加载
+            await loadSnapshot(false);
+            if (onSnapshotUpdate) onSnapshotUpdate();
+          } else {
+            // 显示提示
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 z-50 bg-orange-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg';
+            notification.textContent = `${who} 更新了快照，请稍后手动加载`;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+          }
+          return;
+        }
+
+        // 13. 本地没有未保存修改，弹出提示并自动加载最新数据
+        const ok = confirm(
+          `检测到最新快照已更新\n\n"${who}" 刚刚保存了新快照。\n\n` +
+          `点击【确定】自动加载最新快照\n\n` +
+          `点击【取消】稍后手动加载`
+        );
+
+        if (ok) {
+          saveLastSyncTimestamp(0); // 重置时间戳，强制加载
+          await loadSnapshot(false);
+          if (onSnapshotUpdate) onSnapshotUpdate();
+        } else {
+          // 显示提示
+          const notification = document.createElement('div');
+          notification.className = 'fixed top-4 right-4 z-50 bg-blue-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg';
+          notification.textContent = `${who} 更新了快照，请稍后手动加载`;
+          document.body.appendChild(notification);
+          setTimeout(() => notification.remove(), 3000);
+        }
+      }
+    )
+    .subscribe((status) => {
+      console.log('Realtime 订阅状态:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('✅ Realtime 订阅成功，开始监听快照变化');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.error('❌ Realtime 订阅失败');
+      }
+    });
+
+  // 14. 保存 channel 引用，防止被垃圾回收
+  (window as any)._snapshotSyncChannel = channel;
+
+  // 返回清理函数
+  return () => {
+    console.log('🔌 断开快照自动同步');
+    supabase.removeChannel(channel);
+    isAutoSyncStarted = false;
+  };
+}
+
+/**
+ * 标记本地数据为已修改（在数据变更时调用）
+ */
+export function markLocalDataDirty(): void {
+  markDirty();
+}

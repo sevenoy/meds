@@ -9,7 +9,7 @@ import { getTodayMedications, isMedicationTakenToday } from './src/services/medi
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
-import { saveSnapshot, loadSnapshot, getSnapshotInfo } from './src/services/snapshot';
+import { saveSnapshot, loadSnapshot, initAutoSync, markLocalDataDirty } from './src/services/snapshot';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Types ---
@@ -68,27 +68,30 @@ const MedCard: React.FC<{
   med: MedicationUI; 
   onCameraClick: () => void;
 }> = ({ med, onCameraClick }) => {
+  const getAccentClass = () => {
+    switch(med.accent) {
+      case 'berry': return 'bg-berry';
+      case 'lime': return 'bg-lime';
+      case 'mint': return 'bg-mint';
+      default: return 'bg-white';
+    }
+  };
+
   const formatTime = (isoString?: string) => {
     if (!isoString) return '--:--';
     const date = new Date(isoString);
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // 获取背景色（自定义颜色或白色）
-  const backgroundColor = med.status === 'completed' ? '#FFFFFF' : (med.accent || '#BFEFFF');
-
   return (
-    <div 
-      className="group relative p-5 rounded-3xl flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
-      style={{ backgroundColor }}
-    >
+    <div className={`group relative p-8 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${med.status === 'completed' ? 'bg-white' : getAccentClass()}`}>
       <div className="flex flex-col">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-black bg-black text-white px-2.5 py-0.5 rounded-full italic">{med.scheduled_time}</span>
-          {med.status === 'completed' && <Check className="w-4 h-4 text-green-600" strokeWidth={3} />}
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">{med.scheduled_time}</span>
+          {med.status === 'completed' && <Check className="w-5 h-5 text-green-600" strokeWidth={3} />}
         </div>
-        <h3 className="text-xl font-black tracking-tighter uppercase italic text-[#DF4949]">
-          {med.name} <span className="text-gray-600 font-bold text-sm normal-case">{med.dosage}</span>
+        <h3 className="text-2xl font-black tracking-tighter uppercase italic text-[#DF4949]">
+          {med.name} <span className="text-gray-600 font-bold text-base normal-case">{med.dosage}</span>
         </h3>
       </div>
 
@@ -96,16 +99,16 @@ const MedCard: React.FC<{
         {med.status === 'pending' ? (
           <button 
             onClick={onCameraClick}
-            className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center hover:scale-110 transition-transform active:scale-95 shadow-xl"
+            className="w-16 h-16 rounded-full bg-black text-white flex items-center justify-center hover:scale-110 transition-transform active:scale-95 shadow-xl"
           >
-            <Camera className="w-6 h-6" />
+            <Camera className="w-8 h-8" />
           </button>
         ) : (
           <div className="text-right">
-            <p className="text-[9px] font-bold text-gray-400 tracking-widest">已验证</p>
-            <p className="text-xs font-black italic">{formatTime(med.lastTakenAt)}</p>
+            <p className="text-[10px] font-bold text-gray-400 tracking-widest">已验证</p>
+            <p className="text-sm font-black italic">{formatTime(med.lastTakenAt)}</p>
             {med.lastLog?.status === 'suspect' && (
-              <AlertCircle className="w-3.5 h-3.5 text-red-600 mt-0.5 mx-auto" />
+              <AlertCircle className="w-4 h-4 text-red-600 mt-1 mx-auto" />
             )}
           </div>
         )}
@@ -234,6 +237,7 @@ export default function App() {
   // 个人中心状态
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [showReminderSettings, setShowReminderSettings] = useState(false);
+  const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showMedicationManage, setShowMedicationManage] = useState(false);
   
@@ -241,22 +245,13 @@ export default function App() {
   const [userName, setUserName] = useState(localStorage.getItem('userName') || '用户');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(localStorage.getItem('reminderEnabled') === 'true');
-  // 多设备同步功能永远开启，无需用户设置
-  const syncEnabled = true;
+  const [syncEnabled, setSyncEnabled] = useState(localStorage.getItem('syncEnabled') === 'true');
   
   // 药品管理
   const [newMedName, setNewMedName] = useState('');
   const [newMedDosage, setNewMedDosage] = useState('');
   const [newMedTime, setNewMedTime] = useState('');
-  const [newMedAccent, setNewMedAccent] = useState<string>('#BFEFFF'); // 默认薄荷蓝
-  
-  // 编辑药品
-  const [showMedicationEdit, setShowMedicationEdit] = useState(false);
-  const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
-  const [editMedName, setEditMedName] = useState('');
-  const [editMedDosage, setEditMedDosage] = useState('');
-  const [editMedTime, setEditMedTime] = useState('');
-  const [editMedAccent, setEditMedAccent] = useState<string>('#BFEFFF');
+  const [newMedAccent, setNewMedAccent] = useState<'berry' | 'lime' | 'mint'>('lime');
 
   // 加载数据
   const loadData = async () => {
@@ -403,6 +398,12 @@ export default function App() {
       }
     );
     
+    // 初始化快照自动同步
+    const cleanupSnapshot = initAutoSync(() => {
+      // 快照更新后刷新数据
+      loadData();
+    });
+    
     // 初始化用户设置实时同步（参考技术白皮书的多设备同步机制）
     const cleanupSettings = initSettingsRealtimeSync((settings) => {
       console.log('⚙️ 用户设置已更新:', settings);
@@ -424,29 +425,12 @@ export default function App() {
         }, 3000);
       }
       
-      // 自动应用其他设置变更（用户名等）
-      const hasOtherChanges = Object.keys(settings).some(
-        key => key !== 'avatar_url' && settings[key] !== undefined
-      );
-      
-      if (hasOtherChanges) {
-        console.log('⚙️ 检测到其他设置更新，自动应用...');
-        
-        // 显示友好提示
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 z-50 bg-blue-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-        notification.textContent = '✅ 设置已从其他设备同步';
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-          notification.classList.add('animate-fade-out');
-          setTimeout(() => notification.remove(), 300);
-        }, 3000);
-        
-        // 自动刷新页面应用所有设置
-        setTimeout(() => {
+      // 对于其他设置变更，询问用户是否应用
+      if (Object.keys(settings).some(key => key !== 'avatar_url' && settings[key] !== undefined)) {
+        const shouldApply = confirm('其他设备更新了设置，是否立即应用？');
+        if (shouldApply) {
           window.location.reload();
-        }, 1000);
+        }
       }
     });
     
@@ -494,12 +478,14 @@ export default function App() {
     return () => {
       cleanup();
       cleanupSettings();
+      if (cleanupSnapshot) cleanupSnapshot();
       clearInterval(syncInterval);
     };
   }, [isLoggedIn]);
 
   // 处理拍照成功
   const handleRecordSuccess = async () => {
+    markLocalDataDirty(); // 标记为已修改
     await loadData();
   };
 
@@ -587,8 +573,7 @@ export default function App() {
             <h1 className="text-2xl font-black italic tracking-tighter">
               药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{(window as any).APP_VERSION || 'V251219.1'}</span>
             </h1>
-            
-            {/* 云端快照管理按钮 - 移到标题右边 */}
+            {/* 云端快照管理按钮 */}
             {isLoggedIn && (
               <div className="flex gap-2">
                 <button
@@ -596,8 +581,7 @@ export default function App() {
                     const result = await saveSnapshot();
                     alert(result.message);
                     if (result.success) {
-                      // 保存成功后，触发快照信息更新
-                      console.log('✅ 快照已保存到云端');
+                      await loadData(); // 刷新数据
                     }
                   }}
                   className="px-3 py-1.5 bg-blue-500 text-white rounded-full text-xs font-bold hover:bg-blue-600 transition-all shadow-md flex items-center gap-1.5"
@@ -608,30 +592,10 @@ export default function App() {
                 
                 <button
                   onClick={async () => {
-                    const result = await loadSnapshot();
-                    if (result.success && result.payload) {
-                      // 确认是否加载
-                      const confirmLoad = confirm(
-                        result.message + '\n\n⚠️ 加载云端快照将覆盖本地所有数据！\n\n确定要继续吗？'
-                      );
-                      
-                      if (confirmLoad) {
-                        try {
-                          // TODO: 实现数据恢复逻辑
-                          // 1. 清空本地数据
-                          // 2. 写入云端数据
-                          // 3. 刷新界面
-                          console.log('📥 正在恢复云端快照...');
-                          
-                          // 暂时刷新页面
-                          window.location.reload();
-                        } catch (error) {
-                          console.error('❌ 恢复快照失败:', error);
-                          alert('恢复快照失败，请重试');
-                        }
-                      }
-                    } else {
-                      alert(result.message);
+                    const result = await loadSnapshot(false);
+                    alert(result.message);
+                    if (result.success) {
+                      await loadData(); // 刷新数据
                     }
                   }}
                   className="px-3 py-1.5 bg-green-500 text-white rounded-full text-xs font-bold hover:bg-green-600 transition-all shadow-md flex items-center gap-1.5"
@@ -654,7 +618,7 @@ export default function App() {
                 <span className="w-2 h-2 rounded-full bg-lime"></span>
                 待服用药物
               </h4>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {medications.map(med => (
                   <MedCard 
                     key={med.id} 
@@ -799,11 +763,15 @@ export default function App() {
                             {Array.from(new Set(logsOnDate.map(log => {
                               const med = medications.find(m => m.id === log.medication_id);
                               return med?.accent;
-                            }))).filter(Boolean).map((accent, idx) => (
+                            }))).map((accent, idx) => (
                               <div
                                 key={idx}
-                                className="w-2 h-2 rounded-full shadow-md ring-1 ring-white"
-                                style={{ backgroundColor: accent || '#BFEFFF' }}
+                                className={`w-2 h-2 rounded-full shadow-md ring-1 ring-white ${
+                                  accent === 'lime' ? 'bg-lime' :
+                                  accent === 'mint' ? 'bg-mint' :
+                                  accent === 'berry' ? 'bg-berry' :
+                                  'bg-gray-400'
+                                }`}
                               />
                             ))}
                           </div>
@@ -908,10 +876,10 @@ export default function App() {
 
         {activeTab === 'profile' && (
           <div className="max-w-4xl">
-            {/* 用户信息卡片 - 安卓优化版（高度减半）*/}
-            <div className="bg-white rounded-3xl p-3 shadow-sm border border-gray-100 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden flex-shrink-0">
+            {/* 用户信息卡片 */}
+            <div className="bg-white rounded-[40px] p-4 shadow-sm border border-gray-100 mb-6">
+              <div className="flex items-center gap-6">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
                   {avatarUrl ? (
                     <img 
                       src={avatarUrl} 
@@ -919,35 +887,35 @@ export default function App() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User className="w-6 h-6 text-white" strokeWidth={2.5} />
+                    <User className="w-10 h-10 text-white" strokeWidth={2.5} />
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-black italic tracking-tighter mb-0.5 truncate">{userName}</h2>
-                  <p className="text-xs text-gray-500 font-bold tracking-widest truncate">药盒助手用户</p>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-black italic tracking-tighter mb-1">{userName}</h2>
+                  <p className="text-sm text-gray-500 font-bold tracking-widest">药盒助手用户</p>
                 </div>
                 <button 
                   onClick={() => setShowProfileEdit(true)}
-                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all flex-shrink-0"
+                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
                 >
-                  <Edit2 className="w-4 h-4" />
+                  <Edit2 className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* 统计卡片 - 安卓优化版（减少高度和内边距）*/}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="bg-lime rounded-2xl p-3 text-center">
-                <p className="text-2xl font-black italic tracking-tighter mb-0.5">{medications.length}</p>
-                <p className="text-[10px] font-bold text-gray-600 tracking-wider leading-tight">药物总数</p>
+            {/* 统计卡片 */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-lime rounded-3xl p-6 text-center">
+                <p className="text-3xl font-black italic tracking-tighter mb-1">{medications.length}</p>
+                <p className="text-xs font-bold text-gray-600 tracking-widest">药物总数</p>
               </div>
-              <div className="bg-mint rounded-2xl p-3 text-center">
-                <p className="text-2xl font-black italic tracking-tighter mb-0.5">{timelineLogs.length}</p>
-                <p className="text-[10px] font-bold text-gray-600 tracking-wider leading-tight">服药记录</p>
+              <div className="bg-mint rounded-3xl p-6 text-center">
+                <p className="text-3xl font-black italic tracking-tighter mb-1">{timelineLogs.length}</p>
+                <p className="text-xs font-bold text-gray-600 tracking-widest">服药记录</p>
               </div>
-              <div className="bg-berry rounded-2xl p-3 text-center">
-                <p className="text-2xl font-black italic tracking-tighter mb-0.5">{progress}%</p>
-                <p className="text-[10px] font-bold text-gray-600 tracking-wider leading-tight">今日完成</p>
+              <div className="bg-berry rounded-3xl p-6 text-center">
+                <p className="text-3xl font-black italic tracking-tighter mb-1">{progress}%</p>
+                <p className="text-xs font-bold text-gray-600 tracking-widest">今日完成</p>
               </div>
             </div>
 
@@ -997,6 +965,24 @@ export default function App() {
                     <p className="font-black italic tracking-tighter">提醒设置</p>
                     <p className="text-xs text-gray-400 font-bold">
                       {reminderEnabled ? '提醒已开启' : '设置服药提醒时间'}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-gray-400">›</span>
+              </div>
+
+              <div 
+                onClick={() => setShowSyncSettings(true)}
+                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <RefreshCw className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-black italic tracking-tighter">数据同步</p>
+                    <p className="text-xs text-gray-400 font-bold">
+                      {syncEnabled ? '同步已开启' : '多设备数据同步管理'}
                     </p>
                   </div>
                 </div>
@@ -1186,6 +1172,91 @@ export default function App() {
         </div>
       )}
 
+      {/* 数据同步设置 */}
+      {showSyncSettings && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black italic tracking-tighter">数据同步</h3>
+              <button
+                onClick={() => setShowSyncSettings(false)}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <RefreshCw className="w-5 h-5 text-purple-600" />
+                    <span className="font-black italic tracking-tighter">自动同步</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={syncEnabled}
+                      onChange={(e) => {
+                        setSyncEnabled(e.target.checked);
+                        localStorage.setItem('syncEnabled', e.target.checked.toString());
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 font-bold">
+                  开启后，数据会自动在多个设备间同步
+                </p>
+              </div>
+
+              {syncEnabled && (
+                <div className="space-y-3">
+                  <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Check className="w-5 h-5 text-blue-600" />
+                      <span className="font-black italic tracking-tighter text-blue-900">同步状态正常</span>
+                    </div>
+                    <p className="text-xs text-blue-700 font-bold">
+                      最后同步时间: {new Date().toLocaleString('zh-CN')}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={async () => {
+                      try {
+                        await pushLocalChanges();
+                        const logs = await pullRemoteChanges();
+                        for (const log of logs) {
+                          await mergeRemoteLog(log);
+                        }
+                        await loadData();
+                        alert('同步成功！');
+                      } catch (error) {
+                        console.error('同步失败:', error);
+                        alert('同步失败，请检查网络连接');
+                      }
+                    }}
+                    className="w-full px-6 py-3 bg-purple-100 text-purple-700 font-black italic rounded-full tracking-tighter hover:bg-purple-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    立即同步
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowSyncSettings(false)}
+                className="w-full px-6 py-4 bg-black text-white font-black italic rounded-full tracking-tighter hover:bg-gray-800 transition-all"
+              >
+                完成
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 关于应用 */}
       {showAbout && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1306,54 +1377,38 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-2">卡片颜色</label>
-                  <div className="flex items-center gap-4">
-                    {/* 颜色预览 */}
-                    <div 
-                      className="w-24 h-24 rounded-2xl border-4 border-gray-300 shadow-lg transition-all hover:scale-105 cursor-pointer flex-shrink-0"
-                      style={{ backgroundColor: newMedAccent }}
-                      onClick={() => document.getElementById('colorPicker')?.click()}
+                  <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setNewMedAccent('lime')}
+                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                        newMedAccent === 'lime' 
+                          ? 'bg-lime border-2 border-green-600 scale-105' 
+                          : 'bg-lime/50 border-2 border-transparent'
+                      }`}
                     >
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-xs font-bold text-gray-700 bg-white/80 px-2 py-1 rounded-lg">
-                          点击选择
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* 颜色选择器（隐藏原生控件）*/}
-                    <div className="flex-1">
-                      <input
-                        id="colorPicker"
-                        type="color"
-                        value={newMedAccent}
-                        onChange={(e) => setNewMedAccent(e.target.value)}
-                        className="opacity-0 w-0 h-0 absolute"
-                      />
-                      
-                      {/* 显示颜色值 */}
-                      <div className="space-y-2">
-                        <div className="text-lg font-black italic tracking-tighter">
-                          {newMedAccent.toUpperCase()}
-                        </div>
-                        <div className="text-xs text-gray-500 font-bold">
-                          点击左侧色块选择颜色
-                        </div>
-                        
-                        {/* 快捷颜色推荐 */}
-                        <div className="flex gap-2 flex-wrap">
-                          {['#BFEFFF', '#E8F5E9', '#FFE0F0', '#FFF9C4', '#E1BEE7', '#FFCCBC'].map((color) => (
-                            <button
-                              key={color}
-                              onClick={() => setNewMedAccent(color)}
-                              className="w-8 h-8 rounded-full border-2 border-gray-300 hover:scale-110 transition-all"
-                              style={{ backgroundColor: color }}
-                              title={color}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                      柠檬绿
+                    </button>
+                    <button
+                      onClick={() => setNewMedAccent('mint')}
+                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                        newMedAccent === 'mint' 
+                          ? 'bg-mint border-2 border-blue-600 scale-105' 
+                          : 'bg-mint/50 border-2 border-transparent'
+                      }`}
+                    >
+                      薄荷蓝
+                    </button>
+                    <button
+                      onClick={() => setNewMedAccent('berry')}
+                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                        newMedAccent === 'berry' 
+                          ? 'bg-berry border-2 border-pink-600 scale-105' 
+                          : 'bg-berry/50 border-2 border-transparent'
+                      }`}
+                    >
+                      莓果粉
+                    </button>
                   </div>
                 </div>
 
@@ -1373,6 +1428,7 @@ export default function App() {
                     };
 
                     await upsertMedication(newMed);
+                    markLocalDataDirty(); // 标记为已修改
                     await loadData();
                     
                     setNewMedName('');
@@ -1402,11 +1458,11 @@ export default function App() {
                   {medications.map((med) => (
                     <div
                       key={med.id}
-                      className="p-5 rounded-2xl border-2 flex items-center justify-between"
-                      style={{ 
-                        backgroundColor: med.accent ? `${med.accent}33` : '#BFEFFF33',
-                        borderColor: med.accent || '#BFEFFF'
-                      }}
+                      className={`p-5 rounded-2xl border-2 flex items-center justify-between ${
+                        med.accent === 'lime' ? 'bg-lime/20 border-lime' :
+                        med.accent === 'mint' ? 'bg-mint/20 border-mint' :
+                        'bg-berry/20 border-berry'
+                      }`}
                     >
                       <div className="flex-1">
                         <h5 className="font-black italic tracking-tighter text-lg">{med.name}</h5>
@@ -1418,36 +1474,18 @@ export default function App() {
                         </div>
                       </div>
                       
-                      {/* 编辑和删除按钮 */}
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={() => {
-                            setEditingMedication(med);
-                            setEditMedName(med.name);
-                            setEditMedDosage(med.dosage);
-                            setEditMedTime(med.scheduled_time);
-                            setEditMedAccent(med.accent || '#BFEFFF');
-                            setShowMedicationEdit(true);
-                          }}
-                          className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-all"
-                          title="编辑药品"
-                        >
-                          <Edit2 className="w-5 h-5 text-blue-600" />
-                        </button>
-                        
-                        <button
-                          onClick={async () => {
-                            if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-                              await deleteMedication(med.id);
-                              await loadData();
-                            }
-                          }}
-                          className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
-                          title="删除药品"
-                        >
-                          <Trash2 className="w-5 h-5 text-red-600" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={async () => {
+                          if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                            await deleteMedication(med.id);
+                            markLocalDataDirty(); // 标记为已修改
+                            await loadData();
+                          }
+                        }}
+                        className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all ml-4"
+                      >
+                        <Trash2 className="w-5 h-5 text-red-600" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1465,144 +1503,6 @@ export default function App() {
             >
               完成
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* 编辑药品 */}
-      {showMedicationEdit && editingMedication && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-black italic tracking-tighter">编辑药品</h3>
-              <button
-                onClick={() => {
-                  setShowMedicationEdit(false);
-                  setEditingMedication(null);
-                }}
-                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">药品名称</label>
-                <input
-                  type="text"
-                  value={editMedName}
-                  onChange={(e) => setEditMedName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-blue-500 focus:outline-none font-medium"
-                  placeholder="例如：降压药"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">剂量</label>
-                <input
-                  type="text"
-                  value={editMedDosage}
-                  onChange={(e) => setEditMedDosage(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-blue-500 focus:outline-none font-medium"
-                  placeholder="例如：1片"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">服用时间</label>
-                <input
-                  type="time"
-                  value={editMedTime}
-                  onChange={(e) => setEditMedTime(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-blue-500 focus:outline-none font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">卡片颜色</label>
-                <div className="flex items-center gap-4">
-                  {/* 颜色预览 */}
-                  <div 
-                    className="w-20 h-20 rounded-2xl border-4 border-gray-300 shadow-lg transition-all hover:scale-105 cursor-pointer flex-shrink-0"
-                    style={{ backgroundColor: editMedAccent }}
-                    onClick={() => document.getElementById('editColorPicker')?.click()}
-                  >
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-xs font-bold text-gray-700 bg-white/80 px-2 py-1 rounded-lg">
-                        点击
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* 颜色选择器 */}
-                  <div className="flex-1">
-                    <input
-                      id="editColorPicker"
-                      type="color"
-                      value={editMedAccent}
-                      onChange={(e) => setEditMedAccent(e.target.value)}
-                      className="opacity-0 w-0 h-0 absolute"
-                    />
-                    
-                    <div className="space-y-2">
-                      <div className="text-base font-black italic tracking-tighter">
-                        {editMedAccent.toUpperCase()}
-                      </div>
-                      
-                      {/* 快捷颜色 */}
-                      <div className="flex gap-2 flex-wrap">
-                        {['#BFEFFF', '#E8F5E9', '#FFE0F0', '#FFF9C4', '#E1BEE7', '#FFCCBC'].map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => setEditMedAccent(color)}
-                            className="w-7 h-7 rounded-full border-2 border-gray-300 hover:scale-110 transition-all"
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={async () => {
-                  if (!editMedName || !editMedDosage || !editMedTime) {
-                    alert('请填写完整信息');
-                    return;
-                  }
-
-                  const updatedMed: Medication = {
-                    ...editingMedication,
-                    name: editMedName,
-                    dosage: editMedDosage,
-                    scheduled_time: editMedTime,
-                    accent: editMedAccent
-                  };
-
-                  await upsertMedication(updatedMed);
-                  await syncMedications();
-                  await loadData();
-                  setShowMedicationEdit(false);
-                  setEditingMedication(null);
-
-                  // 显示成功提示
-                  const notification = document.createElement('div');
-                  notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-                  notification.textContent = '✅ 药品信息已更新';
-                  document.body.appendChild(notification);
-                  setTimeout(() => {
-                    notification.classList.add('animate-fade-out');
-                    setTimeout(() => notification.remove(), 300);
-                  }, 2000);
-                }}
-                className="w-full px-6 py-4 bg-blue-600 text-white font-black italic rounded-full tracking-tighter hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
-              >
-                <Save className="w-5 h-5" />
-                保存修改
-              </button>
-            </div>
           </div>
         </div>
       )}
