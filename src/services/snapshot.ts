@@ -287,8 +287,8 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
       updated_by: updatedState.updated_by
     });
 
-    // 【2】在 cloudSaveV2 成功后，更新 currentSnapshotPayload
-    currentSnapshotPayload = payload;
+    // 【2】在 cloudSaveV2 成功后，更新 currentSnapshotPayload（deep clone）
+    currentSnapshotPayload = JSON.parse(JSON.stringify(payload));
 
     return {
       success: true,
@@ -364,8 +364,8 @@ export async function cloudLoadV2(): Promise<{
       console.log('✅ 新记录已创建，返回空 payload');
       const payload = newState.payload || {};
       
-      // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload
-      currentSnapshotPayload = payload as SnapshotPayload;
+      // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload（deep clone）
+      currentSnapshotPayload = JSON.parse(JSON.stringify(payload)) as SnapshotPayload;
       
       return {
         success: true,
@@ -384,8 +384,8 @@ export async function cloudLoadV2(): Promise<{
 
     const payload = existingState.payload || {};
     
-    // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload
-    currentSnapshotPayload = payload as SnapshotPayload;
+      // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload（deep clone）
+      currentSnapshotPayload = JSON.parse(JSON.stringify(payload)) as SnapshotPayload;
 
     return {
       success: true,
@@ -420,50 +420,38 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
   }
 
   try {
-    // 1. 清空现有数据（整体替换）
-    const existingMeds = await getMedications();
-    const existingLogs = await getMedicationLogs();
-
-    // 删除不存在的药物
-    const cloudMedIds = new Set((payload.medications || []).map((m: any) => m.id));
-    for (const med of existingMeds) {
-      if (!cloudMedIds.has(med.id)) {
-        await deleteMedication(med.id);
-      }
-    }
-
-    // 2. 批量写入药物（整体替换，不使用 push）
+    // 【A】全量覆盖写入：先清空，后 bulkAdd
+    console.log('🔄 开始全量覆盖写入（清空后 bulkAdd）');
+    
+    // 1. 清空所有现有数据（全量覆盖）
+    await db.medications.clear();
+    await db.medicationLogs.clear();
+    console.log('✅ 已清空所有本地数据');
+    
+    // 2. 批量写入药物（全量覆盖，使用 bulkAdd）
     if (payload.medications && payload.medications.length > 0) {
-      for (const med of payload.medications) {
-        await upsertMedication(med);
-      }
-    } else {
-      // 如果云端没有药物，清空本地
-      for (const med of existingMeds) {
-        await deleteMedication(med.id);
-      }
+      const medsToAdd = payload.medications.map((med: any) => ({
+        ...med,
+        sync_state: 'clean' // 从云端加载的记录标记为已同步
+      }));
+      await db.medications.bulkAdd(medsToAdd);
+      console.log(`✅ 已批量添加 ${medsToAdd.length} 条药品记录`);
     }
-
-    // 3. 批量写入记录（整体替换）
-    // 删除不存在的记录
-    const cloudLogIds = new Set((payload.medication_logs || []).map((l: any) => l.id));
-    for (const log of existingLogs) {
-      if (!cloudLogIds.has(log.id)) {
-        await db.medicationLogs.delete(log.id);
-      }
-    }
-    // 然后写入新记录（使用 put 实现 upsert）
+    
+    // 3. 批量写入记录（全量覆盖，使用 bulkAdd）
     if (payload.medication_logs && payload.medication_logs.length > 0) {
-      for (const log of payload.medication_logs) {
+      const logsToAdd = payload.medication_logs.map((log: any) => {
         // 确保有 id
         if (!log.id) {
           log.id = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         }
-        await db.medicationLogs.put({
+        return {
           ...log,
           sync_state: 'clean' // 从云端加载的记录标记为已同步
-        });
-      }
+        };
+      });
+      await db.medicationLogs.bulkAdd(logsToAdd);
+      console.log(`✅ 已批量添加 ${logsToAdd.length} 条服药记录`);
     }
 
     // 4. 更新用户设置
@@ -473,8 +461,8 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
 
     console.log('✅ 云端快照已应用到本地数据库（全量替换）');
     
-    // 【2】在 applySnapshot 成功后，正确赋值 currentSnapshotPayload
-    currentSnapshotPayload = payload;
+    // 【2】在 applySnapshot 成功后，正确赋值 currentSnapshotPayload（deep clone）
+    currentSnapshotPayload = JSON.parse(JSON.stringify(payload));
   } catch (error: any) {
     console.error('❌ 应用云端快照失败:', error);
     throw error;
@@ -498,6 +486,13 @@ export function getCurrentSnapshotPayload(): SnapshotPayload | null {
  * 检查是否正在应用云端快照（用于防止循环调用）
  */
 export function isApplyingSnapshot(): boolean {
+  return isApplyingRemoteSnapshot;
+}
+
+/**
+ * 检查是否正在应用云端回放（用于防止监听触发保存）
+ */
+export function isApplyingRemote(): boolean {
   return isApplyingRemoteSnapshot;
 }
 

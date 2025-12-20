@@ -2,6 +2,7 @@
 
 import { supabase, isMockMode, getCurrentUserId } from '../lib/supabase';
 import { db, getUnsyncedLogs, markLogSynced, updateMedicationLog, getDeviceId, getMedications, upsertMedication } from '../db/localDB';
+import { isApplyingRemote } from './snapshot';
 import type { MedicationLog, ConflictInfo, Medication } from '../types';
 
 /**
@@ -39,6 +40,12 @@ function sanitizePayload(payload: any): any {
  * 同步medications到云端
  */
 export async function syncMedications(): Promise<void> {
+  // 【B】在所有监听入口加 guard
+  if (isApplyingRemote()) {
+    console.log('⏭ 忽略云端回放引起的本地变化（syncMedications）');
+    return;
+  }
+  
   if (isMockMode) return;
   
   const userId = await getCurrentUserId();

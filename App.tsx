@@ -9,7 +9,7 @@ import { getTodayMedications, isMedicationTakenToday } from './src/services/medi
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
-import { saveSnapshot, loadSnapshot, initAutoSync, markLocalDataDirty } from './src/services/snapshot';
+import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote } from './src/services/snapshot';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Types ---
@@ -363,6 +363,12 @@ export default function App() {
     const cleanup = initRealtimeSync(
       // 处理服药记录更新
       (log) => {
+        // 【B】在所有监听入口加 guard
+        if (isApplyingRemote()) {
+          console.log('⏭ 忽略云端回放引起的本地变化（服药记录）');
+          return;
+        }
+        
         console.log('🔔 收到其他设备的服药记录更新');
         // 自动合并远程记录
         mergeRemoteLog(log).then(() => {
@@ -372,6 +378,12 @@ export default function App() {
       },
       // 处理药品列表更新（自动同步，无需确认）
       async () => {
+        // 【B】在所有监听入口加 guard
+        if (isApplyingRemote()) {
+          console.log('⏭ 忽略云端回放引起的本地变化（药品列表）');
+          return;
+        }
+        
         console.log('🔔 收到药品列表更新，自动同步...');
         
         try {
@@ -400,7 +412,13 @@ export default function App() {
     
     // 初始化快照自动同步
     let cleanupSnapshot: (() => void) | null = null;
-    initAutoSync(() => {
+    initAutoSyncLegacy(() => {
+      // 【B】在所有监听入口加 guard
+      if (isApplyingRemote()) {
+        console.log('⏭ 忽略云端回放引起的本地变化（快照更新）');
+        return;
+      }
+      
       // 快照更新后刷新数据
       loadData();
     }).then(cleanup => {
@@ -439,21 +457,17 @@ export default function App() {
     
     // 定期同步（缩短到3秒，更快速的多设备同步）
     const syncInterval = setInterval(async () => {
-      console.log('⏰ 定时同步...');
-      
-      let hasChanges = false;
-      
-      // 1. 同步medications（双向同步）
-      const oldMeds = await getMedications().catch(() => []);
-      await syncMedications().catch(console.error);
-      const newMeds = await getMedications().catch(() => []);
-      
-      if (JSON.stringify(oldMeds) !== JSON.stringify(newMeds)) {
-        console.log('📊 检测到药品列表变化');
-        hasChanges = true;
+      // 【B】在所有监听入口加 guard
+      if (isApplyingRemote()) {
+        console.log('⏭ 忽略云端回放引起的本地变化（定时同步）');
+        return;
       }
       
-      // 2. 同步medication_logs
+      console.log('⏰ 定时同步...');
+      
+      // 【B】定时同步只负责数据同步，不触发刷新/保存
+      // 删除所有变化检测和刷新逻辑，避免触发 cloudSaveV2
+      await syncMedications().catch(console.error);
       await pushLocalChanges().catch(console.error);
       const logs = await pullRemoteChanges().catch(() => []);
       if (logs && logs.length > 0) {
@@ -461,21 +475,17 @@ export default function App() {
         for (const log of logs) {
           await mergeRemoteLog(log).catch(console.error);
         }
-        hasChanges = true;
       }
       
-      // 3. 同步用户设置（包括头像）
+      // 同步用户设置（包括头像）
       const settings = await getUserSettings().catch(() => ({} as any));
       if (settings && (settings as any).avatar_url && (settings as any).avatar_url !== avatarUrl) {
         console.log('👤 检测到头像更新（定时同步）');
         setAvatarUrl((settings as any).avatar_url);
       }
       
-      // 4. 如果有变化，刷新界面
-      if (hasChanges) {
-        console.log('🔄 数据已变化，刷新界面...');
-        await loadData();
-      }
+      // 【B】禁止定时同步触发刷新/保存
+      // 删除所有 loadData() / cloudSaveV2() 调用
     }, 3000); // 每3秒同步一次
     
     return () => {
@@ -488,7 +498,10 @@ export default function App() {
 
   // 处理拍照成功
   const handleRecordSuccess = async () => {
-    markLocalDataDirty(); // 标记为已修改
+    // 【C】拍照记录已由 recordMedicationIntake 写入 Dexie
+    // 但需要同步到 payload，这里只刷新 UI
+    // 注意：recordMedicationIntake 会调用 pushLocalChanges，但不会触发 cloudSaveV2
+    // 真正的 payload 同步应该在用户操作时统一处理
     await loadData();
   };
 
@@ -1417,27 +1430,49 @@ export default function App() {
 
                 <button
                   onClick={async () => {
-                    if (!newMedName || !newMedDosage || !newMedTime) {
-                      alert('请填写完整信息');
-                      return;
-                    }
+                    // 【C】统一用户操作写路径：修改 payload → cloudSaveV2
+                    runWithUserAction(async () => {
+                      if (!newMedName || !newMedDosage || !newMedTime) {
+                        alert('请填写完整信息');
+                        return;
+                      }
 
-                    const newMed: Medication = {
-                      id: `med_${Date.now()}`,
-                      name: newMedName,
-                      dosage: newMedDosage,
-                      scheduled_time: newMedTime,
-                      accent: newMedAccent
-                    };
+                      const payload = getCurrentSnapshotPayload();
+                      if (!payload) {
+                        alert('系统未初始化，请刷新页面后重试');
+                        return;
+                      }
 
-                    await upsertMedication(newMed);
-                    markLocalDataDirty(); // 标记为已修改
-                    await loadData();
-                    
-                    setNewMedName('');
-                    setNewMedDosage('');
-                    setNewMedTime('');
-                    setNewMedAccent('lime');
+                      const newMedication = {
+                        id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        name: newMedName,
+                        dosage: newMedDosage,
+                        scheduled_time: newMedTime,
+                        accent: newMedAccent
+                      };
+
+                      payload.medications = payload.medications || [];
+                      payload.medications.push(newMedication);
+
+                      const result = await cloudSaveV2(payload);
+                      if (!result.success) {
+                        if (result.conflict) {
+                          alert('版本冲突，正在重新加载...');
+                          await cloudLoadV2();
+                        } else {
+                          alert(`添加药品失败: ${result.message}`);
+                        }
+                        return;
+                      }
+
+                      console.log('✅ 新药品已成功写入 payload 并同步到云端');
+                      await loadData();
+                      
+                      setNewMedName('');
+                      setNewMedDosage('');
+                      setNewMedTime('');
+                      setNewMedAccent('lime');
+                    });
                   }}
                   className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
@@ -1479,11 +1514,35 @@ export default function App() {
                       
                       <button
                         onClick={async () => {
-                          if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-                            await deleteMedication(med.id);
-                            markLocalDataDirty(); // 标记为已修改
-                            await loadData();
-                          }
+                          // 【C】统一用户操作写路径：修改 payload → cloudSaveV2
+                          runWithUserAction(async () => {
+                            if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                              const payload = getCurrentSnapshotPayload();
+                              if (!payload) {
+                                alert('系统未初始化，请刷新页面后重试');
+                                return;
+                              }
+
+                              // 从 payload 中删除药品
+                              payload.medications = (payload.medications || []).filter((m: any) => m.id !== med.id);
+                              // 删除相关的服药记录
+                              payload.medication_logs = (payload.medication_logs || []).filter((l: any) => l.medication_id !== med.id);
+
+                              const result = await cloudSaveV2(payload);
+                              if (!result.success) {
+                                if (result.conflict) {
+                                  alert('版本冲突，正在重新加载...');
+                                  await cloudLoadV2();
+                                } else {
+                                  alert(`删除药品失败: ${result.message}`);
+                                }
+                                return;
+                              }
+
+                              console.log('✅ 药品已成功从 payload 删除并同步到云端');
+                              await loadData();
+                            }
+                          });
                         }}
                         className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all ml-4"
                       >

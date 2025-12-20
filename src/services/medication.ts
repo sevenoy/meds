@@ -69,7 +69,7 @@ export async function recordMedicationIntake(
     image_hash: log.image_hash?.substring(0, 20) + '...'
   });
   
-  // 6. 保存到本地数据库
+  // 6. 保存到本地数据库（仅用于 UI 展示，不会触发同步）
   const savedId = await addMedicationLog(log);
   console.log('💾 记录已保存到本地数据库，ID:', savedId);
   
@@ -86,8 +86,22 @@ export async function recordMedicationIntake(
     console.warn('⚠️ 保存的记录未找到，可能有问题');
   }
   
-  // 7. 尝试同步（后台）
-  pushLocalChanges().catch(console.error);
+  // 【C】拍照记录需要同步到 payload
+  // 这里不调用 pushLocalChanges，而是由用户操作统一处理
+  // 或者在这里直接同步到 payload（但需要确保 isApplyingRemote 检查）
+  const { isApplyingRemote, getCurrentSnapshotPayload, cloudSaveV2 } = await import('./snapshot');
+  if (!isApplyingRemote()) {
+    const payload = getCurrentSnapshotPayload();
+    if (payload) {
+      payload.medication_logs = payload.medication_logs || [];
+      payload.medication_logs.push({
+        ...log,
+        id: savedId
+      });
+      // 异步保存，不阻塞 UI
+      cloudSaveV2(payload).catch(console.error);
+    }
+  }
   
   return log;
 }
