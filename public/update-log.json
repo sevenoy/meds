@@ -1,4 +1,17 @@
 {
+  "V251219.37": {
+    "version": "V251219.37",
+    "date": "2025-12-20",
+    "title": "彻底修复添加新药品后不出现在列表的问题",
+    "content": [
+      "✅ 添加新药品改为写入 payload.medications 并调用 cloudSaveV2",
+      "✅ 新增 currentSnapshotPayload 内存变量和 getCurrentSnapshotPayload 函数",
+      "✅ 在 cloudLoadV2 / applySnapshot / cloudSaveV2 成功后更新 currentSnapshotPayload",
+      "✅ 删除所有直接修改 UI state 或 Dexie 的旧逻辑",
+      "🛡️ payload 是唯一真相，UI state 和 Dexie 由 payload 驱动",
+      "📝 添加/编辑/删除药品只能修改 payload + cloudSaveV2"
+    ]
+  },
   "V251219.36": {
     "version": "V251219.36",
     "date": "2025-12-20",

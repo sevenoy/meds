@@ -37,6 +37,9 @@ let isApplyingRemoteSnapshot = false;
 // 【2】显式用户操作标志（最终修复）
 let isUserAction = false;
 
+// 【当前快照 payload 的内存变量】
+let currentSnapshotPayload: SnapshotPayload | null = null;
+
 /**
  * 在用户操作上下文中执行函数
  * 用于标记用户触发的操作，防止状态变化误判
@@ -284,6 +287,9 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
       updated_by: updatedState.updated_by
     });
 
+    // 【2】在 cloudSaveV2 成功后，更新 currentSnapshotPayload
+    currentSnapshotPayload = payload;
+
     return {
       success: true,
       version: updatedState.version || (currentVersion + 1),
@@ -356,9 +362,14 @@ export async function cloudLoadV2(): Promise<{
       }
 
       console.log('✅ 新记录已创建，返回空 payload');
+      const payload = newState.payload || {};
+      
+      // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload
+      currentSnapshotPayload = payload as SnapshotPayload;
+      
       return {
         success: true,
-        payload: newState.payload || {},
+        payload: payload,
         version: newState.version || 1,
         updated_at: newState.updated_at
       };
@@ -371,9 +382,14 @@ export async function cloudLoadV2(): Promise<{
       updated_by: existingState.updated_by
     });
 
+    const payload = existingState.payload || {};
+    
+    // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload
+    currentSnapshotPayload = payload as SnapshotPayload;
+
     return {
       success: true,
-      payload: existingState.payload || {},
+      payload: payload,
       version: existingState.version || 1,
       updated_at: existingState.updated_at
     };
@@ -456,6 +472,9 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
     }
 
     console.log('✅ 云端快照已应用到本地数据库（全量替换）');
+    
+    // 【2】在 applySnapshot 成功后，正确赋值 currentSnapshotPayload
+    currentSnapshotPayload = payload;
   } catch (error: any) {
     console.error('❌ 应用云端快照失败:', error);
     throw error;
@@ -466,6 +485,13 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
       console.log('🛡 云端快照应用完成，解除保护');
     }, 0);
   }
+}
+
+/**
+ * 获取当前快照 payload（用于添加/编辑/删除药品）
+ */
+export function getCurrentSnapshotPayload(): SnapshotPayload | null {
+  return currentSnapshotPayload;
 }
 
 /**

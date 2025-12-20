@@ -9,7 +9,7 @@ import { getTodayMedications, isMedicationTakenToday } from './src/services/medi
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
-import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered } from './src/services/snapshot';
+import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload } from './src/services/snapshot';
 // 注意：旧函数名（saveSnapshot, loadSnapshot, initAutoSync）已改为 Legacy 版本
 // 新版本占位函数：cloudSaveV2, cloudLoadV2（待实现）
 import { checkStorageBucket } from './src/services/storage';
@@ -1056,23 +1056,46 @@ export default function App() {
 
                 <button
                   onClick={async () => {
-                    // 【3】所有用户操作必须包裹 runWithUserAction
+                    // 【统一替换代码】添加新药品的唯一正确流程
                     runWithUserAction(async () => {
+                      console.log('➕ 用户添加新药品');
+
                       if (!newMedName || !newMedDosage || !newMedTime) {
                         alert('请填写完整信息');
                         return;
                       }
 
-                      const newMed: Medication = {
-                        id: `med_${Date.now()}`,
+                      const payload = getCurrentSnapshotPayload();
+
+                      if (!payload) {
+                        console.error('❌ 当前 payload 不存在，无法添加药品');
+                        alert('系统未初始化，请刷新页面后重试');
+                        return;
+                      }
+
+                      const newMedication = {
+                        id: `med_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                         name: newMedName,
                         dosage: newMedDosage,
                         scheduled_time: newMedTime,
-                        accent: newMedAccent
+                        accent: newMedAccent,
+                        created_at: new Date().toISOString()
                       };
 
-                      await upsertMedication(newMed);
-                      markLocalDataDirty(); // 标记为已修改
+                      payload.medications = payload.medications || [];
+                      payload.medications.push(newMedication);
+
+                      const result = await cloudSaveV2(payload);
+
+                      if (!result.success) {
+                        console.error('❌ 添加药品失败（cloudSaveV2）', result);
+                        alert(`添加药品失败: ${result.message}`);
+                        return;
+                      }
+
+                      console.log('✅ 新药品已成功写入 payload 并同步到云端');
+                      
+                      // 刷新界面（从 payload 驱动）
                       await loadData();
                       
                       setNewMedName('');
