@@ -52,3 +52,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE app_state;
 -- - version: INT (版本号，默认 1)
 -- - updated_at: TIMESTAMPTZ (更新时间，自动更新)
 -- - updated_by: TEXT (更新者名称，可选)
+

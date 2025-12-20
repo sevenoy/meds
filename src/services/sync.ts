@@ -51,11 +51,11 @@ export async function syncMedications(): Promise<void> {
     for (const med of localMeds) {
       // 只发送数据库真实存在的字段（根据 supabase-schema.sql）
       const medData: any = {
-        user_id: userId,
-        name: med.name,
-        dosage: med.dosage,
-        scheduled_time: med.scheduled_time,
-        updated_at: new Date().toISOString()
+          user_id: userId,
+          name: med.name,
+          dosage: med.dosage,
+          scheduled_time: med.scheduled_time,
+          updated_at: new Date().toISOString()
       };
       
       // 注意：不发送 accent 字段（数据库中可能不存在）
@@ -157,17 +157,17 @@ export async function pushLocalChanges(): Promise<void> {
       if (log.image_hash) {
         try {
           const { data: existing, error: queryError } = await supabase!
-            .from('medication_logs')
-            .select('id')
-            .eq('image_hash', log.image_hash)
+          .from('medication_logs')
+          .select('id')
+          .eq('image_hash', log.image_hash)
             .maybeSingle();
-          
+        
           // 406 错误通常表示查询格式问题，跳过检查继续插入
           if (queryError && queryError.code !== 'PGRST116') {
             console.warn('⚠️ 查询 image_hash 失败，继续插入:', queryError);
           } else if (existing) {
-            // 已存在，更新本地记录
-            await markLogSynced(log.id, { ...log, id: existing.id });
+          // 已存在，更新本地记录
+          await markLogSynced(log.id, { ...log, id: existing.id });
             continue;
           }
         } catch (err) {

@@ -9,10 +9,7 @@ import { getTodayMedications, isMedicationTakenToday } from './src/services/medi
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
-import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload } from './src/services/snapshot';
-// 注意：旧函数名（saveSnapshot, loadSnapshot, initAutoSync）已改为 Legacy 版本
-// 新版本占位函数：cloudSaveV2, cloudLoadV2（待实现）
-import { checkStorageBucket } from './src/services/storage';
+import { saveSnapshot, loadSnapshot, initAutoSync, markLocalDataDirty } from './src/services/snapshot';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Types ---
@@ -71,15 +68,12 @@ const MedCard: React.FC<{
   med: MedicationUI; 
   onCameraClick: () => void;
 }> = ({ med, onCameraClick }) => {
-  const getAccentStyle = () => {
-    if (typeof med.accent === 'string' && med.accent.startsWith('#')) {
-      return { backgroundColor: med.accent };
-    }
+  const getAccentClass = () => {
     switch(med.accent) {
-      case 'berry': return { backgroundColor: '#FFE0F0' };
-      case 'lime': return { backgroundColor: '#E8F5E9' };
-      case 'mint': return { backgroundColor: '#BFEFFF' };
-      default: return { backgroundColor: '#FFFFFF' };
+      case 'berry': return 'bg-berry';
+      case 'lime': return 'bg-lime';
+      case 'mint': return 'bg-mint';
+      default: return 'bg-white';
     }
   };
 
@@ -90,10 +84,7 @@ const MedCard: React.FC<{
   };
 
   return (
-    <div 
-      className={`group relative p-8 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${med.status === 'completed' ? 'bg-white' : ''}`}
-      style={med.status === 'completed' ? {} : getAccentStyle()}
-    >
+    <div className={`group relative p-8 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${med.status === 'completed' ? 'bg-white' : getAccentClass()}`}>
       <div className="flex flex-col">
         <div className="flex items-center gap-3 mb-2">
           <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">{med.scheduled_time}</span>
@@ -197,41 +188,21 @@ const TimelineItem: React.FC<{
                 <Clock className="w-4 h-4 text-black" />
                 <span className="font-black italic">{formatTime(log.taken_at)}</span>
                 </div>
-                {log.image_path ? (
-                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-200 rounded-xl overflow-hidden group relative cursor-pointer ml-auto flex-shrink-0">
+                {log.image_path && (
+                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-200 rounded-xl overflow-hidden group relative cursor-pointer ml-auto">
                     <img 
                       src={log.image_path} 
                       alt="验证凭证" 
                       className="w-full h-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
-                      onError={(e) => {
-                        console.error('❌ 图片加载失败:', log.image_path);
-                        // 图片加载失败时显示占位符
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        const parent = (e.target as HTMLImageElement).parentElement;
-                        if (parent && !parent.querySelector('.image-error')) {
-                          const placeholder = document.createElement('div');
-                          placeholder.className = 'image-error w-full h-full flex items-center justify-center bg-gray-300';
-                          placeholder.innerHTML = '<span class="text-xs text-gray-500">图片</span>';
-                          parent.appendChild(placeholder);
-                        }
-                      }}
                     />
                     <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-64 h-64 md:w-80 md:h-80">
                       <img 
                         src={log.image_path} 
                         alt="预览" 
                         className="w-full h-full object-cover rounded-2xl shadow-2xl border-4 border-white"
-                        onError={(e) => {
-                          console.error('❌ 预览图片加载失败:', log.image_path);
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
                       />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-200 rounded-xl flex items-center justify-center ml-auto flex-shrink-0">
-                    <span className="text-xs text-gray-400 font-bold">无图</span>
-                  </div>
+              </div>
+            </div>
                 )}
               </div>
             </div>
@@ -249,7 +220,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'timeline' | 'medications' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'timeline' | 'profile'>('dashboard');
   const [medications, setMedications] = useState<MedicationUI[]>([]);
   const [timelineLogs, setTimelineLogs] = useState<MedicationLog[]>([]);
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -280,91 +251,49 @@ export default function App() {
   const [newMedName, setNewMedName] = useState('');
   const [newMedDosage, setNewMedDosage] = useState('');
   const [newMedTime, setNewMedTime] = useState('');
-  const [newMedAccent, setNewMedAccent] = useState<string>('#E8F5E9'); // 默认浅绿色
-  
-  // 编辑药品
-  const [showMedicationEdit, setShowMedicationEdit] = useState(false);
-  const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
-  const [editMedName, setEditMedName] = useState('');
-  const [editMedDosage, setEditMedDosage] = useState('');
-  const [editMedTime, setEditMedTime] = useState('');
-  const [editMedAccent, setEditMedAccent] = useState<string>('#E8F5E9'); // 默认浅绿色
-
-  // 创建默认药品（一次性）
-  const createDefaultMedications = (): Medication[] => {
-    return [
-      { 
-        id: `med_${Date.now()}_1`, 
-        name: '降压药', 
-        dosage: '1片', 
-        scheduled_time: '08:00', 
-        accent: '#E8F5E9' 
-      },
-      { 
-        id: `med_${Date.now()}_2`, 
-        name: '降糖药', 
-        dosage: '1片', 
-        scheduled_time: '12:00', 
-        accent: '#E0F2F1' 
-      },
-      { 
-        id: `med_${Date.now()}_3`, 
-        name: '钙片', 
-        dosage: '2片', 
-        scheduled_time: '20:00', 
-        accent: '#FCE4EC' 
-      },
-    ];
-  };
+  const [newMedAccent, setNewMedAccent] = useState<'berry' | 'lime' | 'mint'>('lime');
 
   // 加载数据
   const loadData = async () => {
     try {
       setLoading(true);
       
-      // 【4】修复默认药品初始化（幂等）
-      // 从云端检查初始化状态
-      const loadResult = await cloudLoadV2();
-      if (loadResult.success && loadResult.payload) {
-        const payload = loadResult.payload as any;
-        
-        // 如果未初始化，执行一次性初始化
-        if (!payload.__initialized) {
-          console.log('🆕 执行一次性默认药品初始化');
-          
-          const defaultMeds = createDefaultMedications();
-          
-          // 构建新的 payload
-          const newPayload = {
-            ver: 1,
-            medications: defaultMeds,
-            medication_logs: payload.medication_logs ?? [],
-            user_settings: payload.user_settings ?? {},
-            snapshot_label: `初始化 ${new Date().toLocaleString('zh-CN')}`,
-            __initialized: true
-          };
-          
-          // 保存到云端
-          const saveResult = await cloudSaveV2(newPayload);
-          if (saveResult.success) {
-            console.log('✅ 默认药品已保存到云端');
-          } else {
-            console.error('❌ 保存默认药品到云端失败:', saveResult.message);
-          }
-          
-          // 应用到本地数据库
-          await applySnapshot(newPayload);
-        } else {
-          // 已初始化，应用云端快照（整体替换）
-          await applySnapshot(payload);
-        }
-      } else {
-        // 如果 cloudLoadV2 失败，使用本地数据
-        console.warn('⚠️ cloudLoadV2 失败，使用本地数据');
-      }
-      
       // 加载药物列表
       const meds = await getTodayMedications();
+      
+      // 如果没有药物，初始化一些示例数据
+      if (meds.length === 0) {
+        const defaultMeds: Medication[] = [
+          { 
+            id: '1', 
+            name: '降压药', 
+            dosage: '1片', 
+            scheduled_time: '08:00', 
+            accent: 'lime' 
+          },
+          { 
+            id: '2', 
+            name: '降糖药', 
+            dosage: '1片', 
+            scheduled_time: '12:00', 
+            accent: 'mint' 
+          },
+          { 
+            id: '3', 
+            name: '钙片', 
+            dosage: '2片', 
+            scheduled_time: '20:00', 
+            accent: 'berry' 
+          },
+        ];
+        
+        // 保存到本地数据库
+        for (const med of defaultMeds) {
+          await upsertMedication(med);
+        }
+        
+        meds.push(...defaultMeds);
+      }
       
       // 转换药物列表并检查状态
       const medsWithStatus: MedicationUI[] = await Promise.all(
@@ -392,20 +321,6 @@ export default function App() {
       
       // 加载时间线数据（最近7天）
       const allLogs = await getMedicationLogs();
-      console.log('📊 加载所有记录:', allLogs.length);
-      
-      // 调试：打印每条记录的 image_path
-      allLogs.forEach((log, idx) => {
-        console.log(`记录 ${idx + 1}:`, {
-          id: log.id,
-          medication_id: log.medication_id,
-          taken_at: log.taken_at,
-          has_image_path: !!log.image_path,
-          image_path_type: log.image_path ? (log.image_path.startsWith('data:') ? 'DataURL' : 'URL') : 'null',
-          image_path_length: log.image_path?.length || 0
-        });
-      });
-      
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       
@@ -413,7 +328,6 @@ export default function App() {
         .filter(log => new Date(log.taken_at) >= sevenDaysAgo)
         .sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime());
       
-      console.log('📅 最近7天的记录:', recentLogs.length);
       setTimelineLogs(recentLogs);
     } catch (error) {
       console.error('加载数据失败:', error);
@@ -434,19 +348,6 @@ export default function App() {
     if (!isLoggedIn) return;
     
     loadData();
-    
-    // 检查 Storage bucket
-    checkStorageBucket().then(exists => {
-      if (!exists) {
-        console.warn('⚠️ Storage bucket 不存在，图片将保存在本地');
-        // 显示提示（可选，避免打扰用户）
-        // const notification = document.createElement('div');
-        // notification.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-orange-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg';
-        // notification.textContent = '💡 提示：请在 Supabase 中创建 medication-images bucket';
-        // document.body.appendChild(notification);
-        // setTimeout(() => notification.remove(), 5000);
-      }
-    }).catch(console.error);
     
     // 加载用户设置
     getUserSettings().then(settings => {
@@ -471,18 +372,37 @@ export default function App() {
       },
       // 处理药品列表更新（自动同步，无需确认）
       async () => {
-        // 【1】删除所有"药品列表变化监听"中的自动行为
-        // 状态变化 ≠ 用户操作，禁止自动触发刷新
-        console.log('🔔 收到药品列表更新（Realtime），但不自动刷新（等待用户操作）');
+        console.log('🔔 收到药品列表更新，自动同步...');
+        
+        try {
+          // 先同步medications
+          await syncMedications();
+          // 然后重新加载数据
+          await loadData();
+          
+          console.log('✅ 药品列表已自动同步');
+          
+          // 显示友好提示
+          const notification = document.createElement('div');
+          notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+          notification.textContent = '✅ 药品列表已从其他设备同步';
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            notification.classList.add('animate-fade-out');
+            setTimeout(() => notification.remove(), 300);
+          }, 3000);
+        } catch (error) {
+          console.error('❌ 药品列表同步失败:', error);
+        }
       }
     );
     
-    // 初始化快照自动同步（Legacy）
+    // 初始化快照自动同步
     let cleanupSnapshot: (() => void) | null = null;
-    initAutoSyncLegacy(() => {
-      // 【1】删除所有"快照更新监听"中的自动行为
-      // 状态变化 ≠ 用户操作，禁止自动触发刷新
-      console.log('🔔 收到快照更新（Realtime），但不自动刷新（等待用户操作）');
+    initAutoSync(() => {
+      // 快照更新后刷新数据
+      loadData();
     }).then(cleanup => {
       cleanupSnapshot = cleanup;
     }).catch(console.error);
@@ -524,7 +444,14 @@ export default function App() {
       let hasChanges = false;
       
       // 1. 同步medications（双向同步）
+      const oldMeds = await getMedications().catch(() => []);
       await syncMedications().catch(console.error);
+      const newMeds = await getMedications().catch(() => []);
+      
+      if (JSON.stringify(oldMeds) !== JSON.stringify(newMeds)) {
+        console.log('📊 检测到药品列表变化');
+        hasChanges = true;
+      }
       
       // 2. 同步medication_logs
       await pushLocalChanges().catch(console.error);
@@ -534,6 +461,7 @@ export default function App() {
         for (const log of logs) {
           await mergeRemoteLog(log).catch(console.error);
         }
+        hasChanges = true;
       }
       
       // 3. 同步用户设置（包括头像）
@@ -543,9 +471,11 @@ export default function App() {
         setAvatarUrl((settings as any).avatar_url);
       }
       
-      // 【1】删除所有"定时同步监听"中的自动刷新行为
-      // 状态变化 ≠ 用户操作，禁止自动触发刷新
-      // 定时同步只负责数据同步，不触发界面刷新
+      // 4. 如果有变化，刷新界面
+      if (hasChanges) {
+        console.log('🔄 数据已变化，刷新界面...');
+        await loadData();
+      }
     }, 3000); // 每3秒同步一次
     
     return () => {
@@ -558,41 +488,17 @@ export default function App() {
 
   // 处理拍照成功
   const handleRecordSuccess = async () => {
-    // 【3】所有用户操作必须包裹 runWithUserAction
-    runWithUserAction(async () => {
-      console.log('📸 拍照成功，刷新数据...');
-      markLocalDataDirty(); // 标记为已修改
-      
-      // 延迟一下确保数据已保存
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      await loadData();
-      
-      // 验证数据是否加载
-      const allLogs = await getMedicationLogs();
-      console.log('📊 当前所有记录数:', allLogs.length);
-      allLogs.forEach((log, idx) => {
-        console.log(`记录 ${idx + 1}:`, {
-          id: log.id,
-          medication_id: log.medication_id,
-          taken_at: log.taken_at,
-          has_image: !!log.image_path,
-          image_path_preview: log.image_path ? log.image_path.substring(0, 50) + '...' : 'null'
-        });
-      });
-    });
+    markLocalDataDirty(); // 标记为已修改
+    await loadData();
   };
 
   // 处理同步提示接受
   const handleSyncAccept = async () => {
-    // 【3】所有用户操作必须包裹 runWithUserAction
-    runWithUserAction(async () => {
-      if (syncPrompt) {
-        await mergeRemoteLog(syncPrompt);
-        setSyncPrompt(null);
-        await loadData();
-      }
-    });
+    if (syncPrompt) {
+      await mergeRemoteLog(syncPrompt);
+      setSyncPrompt(null);
+      await loadData();
+    }
   };
 
   // 计算进度
@@ -647,9 +553,9 @@ export default function App() {
           <Clock className="w-6 h-6 text-white" />
           <span className="text-[8px] font-black text-white">记录</span>
         </button>
-        <button
-          onClick={() => setActiveTab('medications')}
-          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'medications' ? 'scale-110' : ''}`}
+        <button 
+          onClick={() => setShowMedicationManage(true)}
+          className="flex flex-col items-center gap-1 transition-all hover:scale-110"
         >
           <Pill className="w-6 h-6 text-white" />
           <span className="text-[8px] font-black text-white">药品</span>
@@ -675,8 +581,7 @@ export default function App() {
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
-                    // 暂时使用 Legacy 版本，待 V2 实现后切换
-                    const result = await saveSnapshotLegacy();
+                    const result = await saveSnapshot();
                     alert(result.message);
                     if (result.success) {
                       await loadData(); // 刷新数据
@@ -690,8 +595,7 @@ export default function App() {
                 
                 <button
                   onClick={async () => {
-                    // 暂时使用 Legacy 版本，待 V2 实现后切换
-                    const result = await loadSnapshotLegacy(false);
+                    const result = await loadSnapshot(false);
                     alert(result.message);
                     if (result.success) {
                       await loadData(); // 刷新数据
@@ -973,226 +877,6 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'medications' && (
-          <div className="max-w-4xl">
-            {/* 添加新药品 */}
-            <div className="mb-6 p-6 bg-gradient-to-br from-pink-50 to-purple-50 rounded-3xl border-2 border-pink-100">
-              <h4 className="text-lg font-black italic tracking-tighter mb-4 flex items-center gap-2">
-                <Plus className="w-5 h-5" />
-                添加新药品
-              </h4>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-2">药品名称</label>
-                  <input
-                    type="text"
-                    value={newMedName}
-                    onChange={(e) => setNewMedName(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
-                    placeholder="例如：降压药"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-2">剂量</label>
-                  <input
-                    type="text"
-                    value={newMedDosage}
-                    onChange={(e) => setNewMedDosage(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
-                    placeholder="例如：1片"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-2">服用时间</label>
-                  <input
-                    type="time"
-                    value={newMedTime}
-                    onChange={(e) => setNewMedTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-600 mb-2">卡片颜色</label>
-                  <div className="flex items-center gap-4">
-                    {/* 颜色预览 */}
-                    <div 
-                      className="w-24 h-24 rounded-2xl border-4 border-gray-300 shadow-lg transition-all hover:scale-105 cursor-pointer flex-shrink-0"
-                      style={{ backgroundColor: newMedAccent }}
-                      onClick={() => document.getElementById('colorPicker')?.click()}
-                    >
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-xs font-bold text-gray-700 bg-white/80 px-2 py-1 rounded-lg">
-                          点击选择
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* 颜色选择器（隐藏原生控件）*/}
-                    <div className="flex-1">
-                      <input
-                        id="colorPicker"
-                        type="color"
-                        value={newMedAccent}
-                        onChange={(e) => setNewMedAccent(e.target.value)}
-                        className="opacity-0 w-0 h-0 absolute"
-                      />
-                      
-                      {/* 显示颜色值 */}
-                      <div className="space-y-2">
-                        <div className="text-lg font-black italic tracking-tighter">
-                          {newMedAccent.toUpperCase()}
-                        </div>
-                        <div className="text-xs text-gray-500 font-bold">
-                          点击左侧色块选择颜色
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={async () => {
-                    // 【统一替换代码】添加新药品的唯一正确流程
-                    runWithUserAction(async () => {
-                      console.log('➕ 用户添加新药品');
-
-                      if (!newMedName || !newMedDosage || !newMedTime) {
-                        alert('请填写完整信息');
-                        return;
-                      }
-
-                      const payload = getCurrentSnapshotPayload();
-
-                      if (!payload) {
-                        console.error('❌ 当前 payload 不存在，无法添加药品');
-                        alert('系统未初始化，请刷新页面后重试');
-                        return;
-                      }
-
-                      const newMedication = {
-                        id: `med_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                        name: newMedName,
-                        dosage: newMedDosage,
-                        scheduled_time: newMedTime,
-                        accent: newMedAccent,
-                        created_at: new Date().toISOString()
-                      };
-
-                      payload.medications = payload.medications || [];
-                      payload.medications.push(newMedication);
-
-                      const result = await cloudSaveV2(payload);
-
-                      if (!result.success) {
-                        console.error('❌ 添加药品失败（cloudSaveV2）', result);
-                        alert(`添加药品失败: ${result.message}`);
-                        return;
-                      }
-
-                      console.log('✅ 新药品已成功写入 payload 并同步到云端');
-                      
-                      // 刷新界面（从 payload 驱动）
-                      await loadData();
-                      
-                      setNewMedName('');
-                      setNewMedDosage('');
-                      setNewMedTime('');
-                      setNewMedAccent('#E8F5E9');
-                    });
-                  }}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  添加药品
-                </button>
-              </div>
-            </div>
-
-            {/* 现有药品列表 */}
-            <div>
-              <h4 className="text-lg font-black italic tracking-tighter mb-4">当前药品列表</h4>
-              
-              {medications.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <Pill className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p className="font-bold">暂无药品</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {medications.map((med) => (
-                    <div
-                      key={med.id}
-                      className="p-5 rounded-2xl border-2 flex items-center justify-between"
-                      style={{ 
-                        backgroundColor: typeof med.accent === 'string' && med.accent.startsWith('#') ? `${med.accent}33` : 
-                          med.accent === 'lime' ? 'rgba(232, 245, 233, 0.2)' :
-                          med.accent === 'mint' ? 'rgba(191, 239, 255, 0.2)' :
-                          'rgba(255, 224, 240, 0.2)',
-                        borderColor: typeof med.accent === 'string' && med.accent.startsWith('#') ? med.accent :
-                          med.accent === 'lime' ? '#E8F5E9' :
-                          med.accent === 'mint' ? '#BFEFFF' :
-                          '#FFE0F0'
-                      }}
-                    >
-                      <div className="flex-1">
-                        <h5 className="font-black italic tracking-tighter text-lg">{med.name}</h5>
-                        <div className="flex items-center gap-4 mt-1">
-                          <span className="text-sm font-bold text-gray-600">{med.dosage}</span>
-                          <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">
-                            {med.scheduled_time}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {/* 编辑和删除按钮 */}
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={() => {
-                            setEditingMedication(med);
-                            setEditMedName(med.name);
-                            setEditMedDosage(med.dosage);
-                            setEditMedTime(med.scheduled_time);
-                            setEditMedAccent(typeof med.accent === 'string' && med.accent.startsWith('#') ? med.accent : 
-                              med.accent === 'lime' ? '#E8F5E9' :
-                              med.accent === 'mint' ? '#BFEFFF' :
-                              '#FFE0F0');
-                            setShowMedicationEdit(true);
-                          }}
-                          className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-all"
-                          title="编辑药品"
-                        >
-                          <Edit2 className="w-5 h-5 text-blue-600" />
-                        </button>
-                        
-                        <button
-                          onClick={async () => {
-                            // 【3】所有用户操作必须包裹 runWithUserAction
-                            runWithUserAction(async () => {
-                              if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-                                await deleteMedication(med.id);
-                                markLocalDataDirty(); // 标记为已修改
-                                await loadData();
-                              }
-                            });
-                          }}
-                          className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
-                          title="删除药品"
-                        >
-                          <Trash2 className="w-5 h-5 text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {activeTab === 'profile' && (
           <div className="max-w-4xl">
             {/* 用户信息卡片 */}
@@ -1256,8 +940,8 @@ export default function App() {
                 <span className="text-gray-400">›</span>
               </div>
 
-              <div
-                onClick={() => setActiveTab('medications')}
+              <div 
+                onClick={() => setShowMedicationManage(true)}
                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
               >
                 <div className="flex items-center gap-4">
@@ -1636,17 +1320,18 @@ export default function App() {
         </div>
       )}
 
-
-      {/* 编辑药品 */}
-      {showMedicationEdit && editingMedication && (
+      {/* 药品管理 */}
+      {showMedicationManage && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
+          <div className="bg-white rounded-[40px] p-8 max-w-2xl w-full shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-black italic tracking-tighter">编辑药品</h3>
+              <h3 className="text-2xl font-black italic tracking-tighter">药品管理</h3>
               <button
                 onClick={() => {
-                  setShowMedicationEdit(false);
-                  setEditingMedication(null);
+                  setShowMedicationManage(false);
+                  setNewMedName('');
+                  setNewMedDosage('');
+                  setNewMedTime('');
                 }}
                 className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
               >
@@ -1654,114 +1339,173 @@ export default function App() {
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">药品名称</label>
-                <input
-                  type="text"
-                  value={editMedName}
-                  onChange={(e) => setEditMedName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-blue-500 focus:outline-none font-medium"
-                  placeholder="例如：降压药"
-                />
-              </div>
+            {/* 添加新药品 */}
+            <div className="mb-6 p-6 bg-gradient-to-br from-pink-50 to-purple-50 rounded-3xl border-2 border-pink-100">
+              <h4 className="text-lg font-black italic tracking-tighter mb-4 flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                添加新药品
+              </h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">药品名称</label>
+                  <input
+                    type="text"
+                    value={newMedName}
+                    onChange={(e) => setNewMedName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                    placeholder="例如：降压药"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">剂量</label>
-                <input
-                  type="text"
-                  value={editMedDosage}
-                  onChange={(e) => setEditMedDosage(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-blue-500 focus:outline-none font-medium"
-                  placeholder="例如：1片"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">剂量</label>
+                  <input
+                    type="text"
+                    value={newMedDosage}
+                    onChange={(e) => setNewMedDosage(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                    placeholder="例如：1片"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">服用时间</label>
-                <input
-                  type="time"
-                  value={editMedTime}
-                  onChange={(e) => setEditMedTime(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-blue-500 focus:outline-none font-medium"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">服用时间</label>
+                  <input
+                    type="time"
+                    value={newMedTime}
+                    onChange={(e) => setNewMedTime(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">卡片颜色</label>
-                <div className="flex items-center gap-4">
-                  {/* 颜色预览 */}
-                  <div 
-                    className="w-20 h-20 rounded-2xl border-4 border-gray-300 shadow-lg transition-all hover:scale-105 cursor-pointer flex-shrink-0"
-                    style={{ backgroundColor: editMedAccent }}
-                    onClick={() => document.getElementById('editColorPicker')?.click()}
-                  >
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-xs font-bold text-gray-700 bg-white/80 px-2 py-1 rounded-lg">
-                        点击
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* 颜色选择器 */}
-                  <div className="flex-1">
-                    <input
-                      id="editColorPicker"
-                      type="color"
-                      value={editMedAccent}
-                      onChange={(e) => setEditMedAccent(e.target.value)}
-                      className="opacity-0 w-0 h-0 absolute"
-                    />
-                    
-                    <div className="space-y-2">
-                      <div className="text-base font-black italic tracking-tighter">
-                        {editMedAccent.toUpperCase()}
-                      </div>
-                    </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setNewMedAccent('lime')}
+                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                        newMedAccent === 'lime' 
+                          ? 'bg-lime border-2 border-green-600 scale-105' 
+                          : 'bg-lime/50 border-2 border-transparent'
+                      }`}
+                    >
+                      柠檬绿
+                    </button>
+                    <button
+                      onClick={() => setNewMedAccent('mint')}
+                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                        newMedAccent === 'mint' 
+                          ? 'bg-mint border-2 border-blue-600 scale-105' 
+                          : 'bg-mint/50 border-2 border-transparent'
+                      }`}
+                    >
+                      薄荷蓝
+                    </button>
+                    <button
+                      onClick={() => setNewMedAccent('berry')}
+                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
+                        newMedAccent === 'berry' 
+                          ? 'bg-berry border-2 border-pink-600 scale-105' 
+                          : 'bg-berry/50 border-2 border-transparent'
+                      }`}
+                    >
+                      莓果粉
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              <button
-                onClick={async () => {
-                  // 【3】所有用户操作必须包裹 runWithUserAction
-                  runWithUserAction(async () => {
-                    if (!editMedName || !editMedDosage || !editMedTime) {
+                <button
+                  onClick={async () => {
+                    if (!newMedName || !newMedDosage || !newMedTime) {
                       alert('请填写完整信息');
                       return;
                     }
 
-                    const updatedMed: Medication = {
-                      ...editingMedication,
-                      name: editMedName,
-                      dosage: editMedDosage,
-                      scheduled_time: editMedTime,
-                      accent: editMedAccent
+                    const newMed: Medication = {
+                      id: `med_${Date.now()}`,
+                      name: newMedName,
+                      dosage: newMedDosage,
+                      scheduled_time: newMedTime,
+                      accent: newMedAccent
                     };
 
-                    await upsertMedication(updatedMed);
+                    await upsertMedication(newMed);
                     markLocalDataDirty(); // 标记为已修改
                     await loadData();
-                    setShowMedicationEdit(false);
-                    setEditingMedication(null);
-
-                    // 显示成功提示
-                    const notification = document.createElement('div');
-                    notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-                    notification.textContent = '✅ 药品信息已更新';
-                    document.body.appendChild(notification);
-                    setTimeout(() => {
-                      notification.classList.add('animate-fade-out');
-                      setTimeout(() => notification.remove(), 300);
-                    }, 2000);
-                  });
-                }}
-                className="w-full px-6 py-4 bg-blue-600 text-white font-black italic rounded-full tracking-tighter hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
-              >
-                <Save className="w-5 h-5" />
-                保存修改
-              </button>
+                    
+                    setNewMedName('');
+                    setNewMedDosage('');
+                    setNewMedTime('');
+                    setNewMedAccent('lime');
+                  }}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  添加药品
+                </button>
+              </div>
             </div>
+
+            {/* 现有药品列表 */}
+            <div>
+              <h4 className="text-lg font-black italic tracking-tighter mb-4">当前药品列表</h4>
+              
+              {medications.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Pill className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="font-bold">暂无药品</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {medications.map((med) => (
+                    <div
+                      key={med.id}
+                      className={`p-5 rounded-2xl border-2 flex items-center justify-between ${
+                        med.accent === 'lime' ? 'bg-lime/20 border-lime' :
+                        med.accent === 'mint' ? 'bg-mint/20 border-mint' :
+                        'bg-berry/20 border-berry'
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <h5 className="font-black italic tracking-tighter text-lg">{med.name}</h5>
+                        <div className="flex items-center gap-4 mt-1">
+                          <span className="text-sm font-bold text-gray-600">{med.dosage}</span>
+                          <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">
+                            {med.scheduled_time}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={async () => {
+                          if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                            await deleteMedication(med.id);
+                            markLocalDataDirty(); // 标记为已修改
+                            await loadData();
+                          }
+                        }}
+                        className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all ml-4"
+                      >
+                        <Trash2 className="w-5 h-5 text-red-600" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                setShowMedicationManage(false);
+                setNewMedName('');
+                setNewMedDosage('');
+                setNewMedTime('');
+              }}
+              className="w-full mt-6 px-6 py-4 bg-black text-white font-black italic rounded-full tracking-tighter hover:bg-gray-800 transition-all"
+            >
+              完成
+            </button>
           </div>
         </div>
       )}

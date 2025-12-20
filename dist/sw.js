@@ -2,14 +2,25 @@
  * Service Worker - 缓存管理和版本更新
  */
 
-const VERSION = 'V251219.36';
+const VERSION = 'V251219.37';
 const CACHE_NAME = `meds-cache-${VERSION}`;
 
-// 需要缓存的关键资源
+// 获取 base 路径（从 Service Worker 的 location 推断）
+const getBasePath = () => {
+  // 从 Service Worker 脚本的路径推断 base
+  // 例如：如果 sw.js 在 /meds/sw.js，则 base 是 /meds/
+  const swPath = self.location.pathname;
+  const baseMatch = swPath.match(/^(.+\/)/);
+  return baseMatch ? baseMatch[1] : '/';
+};
+
+const BASE_PATH = getBasePath();
+
+// 需要缓存的关键资源（使用 base 路径）
 const CRITICAL_RESOURCES = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  BASE_PATH,
+  BASE_PATH + 'index.html',
+  BASE_PATH + 'manifest.json'
 ];
 
 // 安装 Service Worker

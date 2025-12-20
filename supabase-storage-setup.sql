@@ -54,3 +54,4 @@ USING (bucket_id = 'medication-images');
 -- 2. 路径结构：{userId}/{medicationId}/{timestamp}_{filename}
 -- 3. 文件大小限制：5MB
 -- 4. 支持的图片格式：JPEG, PNG, WebP, HEIC, HEIF
+

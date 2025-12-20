@@ -45,3 +45,4 @@ BEGIN
   
   RAISE NOTICE '✅ 所有字段已成功添加';
 END $$;
+

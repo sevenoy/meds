@@ -26,7 +26,7 @@
     
     <!-- 版本号配置 -->
     <script>
-      const APP_VERSION = 'V251219.36';
+      const APP_VERSION = 'V251219.37';
       window.APP_VERSION = APP_VERSION; // 暴露到全局window对象
       console.log('📦 当前版本:', APP_VERSION);
       
@@ -94,16 +94,20 @@
         
         window.addEventListener('load', async () => {
           try {
-            // 注册 Service Worker（使用多个缓存破坏参数）
-            const swUrl = '/sw.js?v=' + APP_VERSION + '&t=' + Date.now() + 
-                          '&nocache=' + Math.random() + '&force=' + Math.random();
+            // 获取 base 路径（GitHub Pages 部署路径）
+            // 从当前路径推断 base（例如 /meds/ 或 /）
+            const pathParts = window.location.pathname.split('/').filter(p => p);
+            const base = pathParts.length > 0 && pathParts[0] === 'meds' 
+              ? '/meds/' 
+              : (window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/');
+            const swUrl = `${base}sw.js?v=${APP_VERSION}&t=${Date.now()}&nocache=${Math.random()}&force=${Math.random()}`;
             
             registration = await navigator.serviceWorker.register(swUrl, {
-              scope: '/',
+              scope: base,
               updateViaCache: 'none' // 禁用 Service Worker 脚本的 HTTP 缓存
             });
             
-            console.log('✅ Service Worker 注册成功，版本:', APP_VERSION);
+            console.log('✅ Service Worker 注册成功:', swUrl, 'scope:', base);
             
             // 立即检查更新
             checkForUpdate(registration);
@@ -359,7 +363,7 @@
             animation: fadeOut 0.3s ease-out;
         }
     </style>
-  <script type="module" crossorigin src="/meds/assets/index-MBe_-X5b.js"></script>
+  <script type="module" crossorigin src="/meds/assets/index-7jcwLkFy.js"></script>
 </head>
 <body>
     <div id="root"></div>
