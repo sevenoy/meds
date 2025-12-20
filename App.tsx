@@ -195,21 +195,41 @@ const TimelineItem: React.FC<{
                 <Clock className="w-4 h-4 text-black" />
                 <span className="font-black italic">{formatTime(log.taken_at)}</span>
                 </div>
-                {log.image_path && (
-                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-200 rounded-xl overflow-hidden group relative cursor-pointer ml-auto">
+                {log.image_path ? (
+                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-200 rounded-xl overflow-hidden group relative cursor-pointer ml-auto flex-shrink-0">
                     <img 
                       src={log.image_path} 
                       alt="验证凭证" 
                       className="w-full h-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
+                      onError={(e) => {
+                        console.error('❌ 图片加载失败:', log.image_path);
+                        // 图片加载失败时显示占位符
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        const parent = (e.target as HTMLImageElement).parentElement;
+                        if (parent && !parent.querySelector('.image-error')) {
+                          const placeholder = document.createElement('div');
+                          placeholder.className = 'image-error w-full h-full flex items-center justify-center bg-gray-300';
+                          placeholder.innerHTML = '<span class="text-xs text-gray-500">图片</span>';
+                          parent.appendChild(placeholder);
+                        }
+                      }}
                     />
                     <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-64 h-64 md:w-80 md:h-80">
                       <img 
                         src={log.image_path} 
                         alt="预览" 
                         className="w-full h-full object-cover rounded-2xl shadow-2xl border-4 border-white"
+                        onError={(e) => {
+                          console.error('❌ 预览图片加载失败:', log.image_path);
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
                       />
-              </div>
-            </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-200 rounded-xl flex items-center justify-center ml-auto flex-shrink-0">
+                    <span className="text-xs text-gray-400 font-bold">无图</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -336,6 +356,20 @@ export default function App() {
       
       // 加载时间线数据（最近7天）
       const allLogs = await getMedicationLogs();
+      console.log('📊 加载所有记录:', allLogs.length);
+      
+      // 调试：打印每条记录的 image_path
+      allLogs.forEach((log, idx) => {
+        console.log(`记录 ${idx + 1}:`, {
+          id: log.id,
+          medication_id: log.medication_id,
+          taken_at: log.taken_at,
+          has_image_path: !!log.image_path,
+          image_path_type: log.image_path ? (log.image_path.startsWith('data:') ? 'DataURL' : 'URL') : 'null',
+          image_path_length: log.image_path?.length || 0
+        });
+      });
+      
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       
@@ -343,6 +377,7 @@ export default function App() {
         .filter(log => new Date(log.taken_at) >= sevenDaysAgo)
         .sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime());
       
+      console.log('📅 最近7天的记录:', recentLogs.length);
       setTimelineLogs(recentLogs);
     } catch (error) {
       console.error('加载数据失败:', error);
@@ -516,8 +551,26 @@ export default function App() {
 
   // 处理拍照成功
   const handleRecordSuccess = async () => {
+    console.log('📸 拍照成功，刷新数据...');
     markLocalDataDirty(); // 标记为已修改
+    
+    // 延迟一下确保数据已保存
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     await loadData();
+    
+    // 验证数据是否加载
+    const allLogs = await getMedicationLogs();
+    console.log('📊 当前所有记录数:', allLogs.length);
+    allLogs.forEach((log, idx) => {
+      console.log(`记录 ${idx + 1}:`, {
+        id: log.id,
+        medication_id: log.medication_id,
+        taken_at: log.taken_at,
+        has_image: !!log.image_path,
+        image_path_preview: log.image_path ? log.image_path.substring(0, 50) + '...' : 'null'
+      });
+    });
   };
 
   // 处理同步提示接受

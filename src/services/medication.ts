@@ -43,7 +43,9 @@ export async function recordMedicationIntake(
   const imageHash = await calculateImageHash(imageFile);
   
   // 4. 上传图片
+  console.log('📸 开始上传图片...', { userId, medicationId, fileName: imageFile.name });
   const imagePath = await uploadImage(imageFile, userId!, medicationId);
+  console.log('✅ 图片上传成功，路径:', imagePath?.substring(0, 100) + '...');
   
   // 5. 创建记录
   const log: MedicationLog = {
@@ -54,14 +56,35 @@ export async function recordMedicationIntake(
     uploaded_at: uploadedAt.toISOString(),
     time_source: source,
     status,
-    image_path: imagePath,
+    image_path: imagePath, // 确保 image_path 被正确设置
     image_hash: imageHash,
     source_device: deviceId,
     sync_state: 'dirty'
   };
   
+  console.log('📝 创建记录:', {
+    id: log.id,
+    medication_id: log.medication_id,
+    image_path: log.image_path ? log.image_path.substring(0, 50) + '...' : 'null',
+    image_hash: log.image_hash?.substring(0, 20) + '...'
+  });
+  
   // 6. 保存到本地数据库
-  await addMedicationLog(log);
+  const savedId = await addMedicationLog(log);
+  console.log('💾 记录已保存到本地数据库，ID:', savedId);
+  
+  // 验证保存的数据
+  const savedLog = await getMedicationLogs(medicationId);
+  const justSaved = savedLog.find(l => l.id === savedId);
+  if (justSaved) {
+    console.log('✅ 验证保存的数据:', {
+      id: justSaved.id,
+      has_image_path: !!justSaved.image_path,
+      image_path_length: justSaved.image_path?.length || 0
+    });
+  } else {
+    console.warn('⚠️ 保存的记录未找到，可能有问题');
+  }
   
   // 7. 尝试同步（后台）
   pushLocalChanges().catch(console.error);
