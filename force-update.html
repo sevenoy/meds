@@ -168,7 +168,7 @@
     </div>
 
     <script>
-        const TARGET_VERSION = 'V251219.39';
+        const TARGET_VERSION = 'V251219.40';
         
         function log(message, color = '#00ff00') {
             const logDiv = document.getElementById('log');
@@ -274,7 +274,7 @@
                 
                 setTimeout(() => {
                     log('🔄 正在跳转...', '#00ff00');
-                    window.location.href = '/meds/?v=' + TARGET_VERSION + '&t=' + Date.now();
+                    window.location.href = '/meds/';
                 }, 3000);
                 
             } catch (error) {
@@ -286,7 +286,7 @@
         // 打开应用
         function openApp() {
             log('✨ 正在打开应用...', '#00bfff');
-            window.location.href = '/meds/?v=' + TARGET_VERSION + '&t=' + Date.now();
+            window.location.href = '/meds/';
         }
 
         // 页面加载时自动检查

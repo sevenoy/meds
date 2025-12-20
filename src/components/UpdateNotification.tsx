@@ -36,10 +36,9 @@ export const UpdateNotification: React.FC = () => {
       
       setRegistration(event.detail.registration);
       
-      // 获取更新日志（使用强缓存控制）
+      // 获取更新日志（不修改 URL）
       try {
-        const cacheBuster = Date.now() + Math.random();
-        const response = await fetch(`/update-log.json?v=${currentVersion}&t=${cacheBuster}&nocache=${Math.random()}`, {
+        const response = await fetch('/update-log.json', {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',

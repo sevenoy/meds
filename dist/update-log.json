@@ -1,4 +1,17 @@
 {
+  "V251219.39": {
+    "version": "V251219.39",
+    "date": "2025-12-20",
+    "title": "修复 GitHub Pages 下 Service Worker 404 导致 iOS Safari 一直 loading 的问题（使用 import.meta.env.BASE_URL）",
+    "content": [
+      "✅ 创建 src/sw-register.ts 使用 import.meta.env.BASE_URL",
+      "✅ 在 index.tsx 中导入 sw-register.ts",
+      "✅ 删除 index.html 中所有旧的 Service Worker 注册代码",
+      "✅ 确保 vite.config.ts 中 base 设置为 '/meds/'",
+      "✅ public/sw.js 已使用 BASE_PATH 适配子路径部署",
+      "🚀 解决 iOS Safari 卡在 loading 的问题"
+    ]
+  },
   "V251219.38": {
     "version": "V251219.38",
     "date": "2025-12-20",

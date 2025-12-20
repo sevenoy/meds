@@ -1,4 +1,18 @@
 {
+  "V251219.40": {
+    "version": "V251219.40",
+    "date": "2025-12-20",
+    "title": "彻底修复 URL 被反复追加版本号的问题",
+    "content": [
+      "✅ 删除所有运行时修改 URL 的代码",
+      "✅ 创建 src/config/version.ts 作为版本号常量",
+      "✅ 修复 index.html 中的强制刷新逻辑（不再修改 URL）",
+      "✅ 修复 force-update.html 中的跳转逻辑（不再追加版本号）",
+      "✅ 修复 UpdateNotification.tsx 中的 fetch URL（删除版本号参数）",
+      "✅ 在 index.tsx 中添加一次性清理 URL 的代码",
+      "🚫 运行时不允许修改 URL，版本号只用于展示和调试"
+    ]
+  },
   "V251219.39": {
     "version": "V251219.39",
     "date": "2025-12-20",

@@ -1,3 +1,13 @@
+// 【四】一次性清理污染的 URL 参数
+(function cleanUrlOnce() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('v') || url.searchParams.has('t')) {
+    url.searchParams.delete('v');
+    url.searchParams.delete('t');
+    window.history.replaceState({}, '', url.pathname);
+    console.log('🧹 已清理污染的 URL 参数');
+  }
+})();
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
