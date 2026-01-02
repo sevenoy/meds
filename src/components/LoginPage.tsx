@@ -1,8 +1,8 @@
 // 登录页面组件
 
 import React, { useState } from 'react';
-import { User, Lock, LogIn, AlertCircle } from 'lucide-react';
-import { signIn } from '../lib/supabase';
+import { User, Lock, LogIn, AlertCircle, UserPlus } from 'lucide-react';
+import { signIn, signUp } from '../lib/cloudbase';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -13,6 +13,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,50 +27,49 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setError(null);
 
     try {
-      // 将用户名转换为邮箱格式
-      const email = `${username}@gmail.com`;
-      console.log('🔐 尝试登录:', email);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:34',message:'Before signIn call',data:{email:email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
-      // #endregion
-      
-      // 调用 Supabase 登录
-      const { data, error: loginError } = await signIn(email, password);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:42',message:'After signIn call',data:{hasData:!!data,hasError:!!loginError,errorMsg:loginError?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
-      // #endregion
-      
-      console.log('📋 登录结果:', { data, error: loginError });
-      
-      if (loginError) {
-        console.error('❌ 登录失败:', loginError);
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:51',message:'Login error details',data:{message:loginError.message,status:loginError.status,name:loginError.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G,H,I'})}).catch(()=>{});
-        // #endregion
-        setError(`登录失败：${loginError.message || '用户名或密码错误'}`);
+      if (isRegisterMode) {
+        // 注册模式
+        console.log('📝 尝试注册:', username);
+        const { data, error: registerError } = await signUp(username, password);
+        
+        if (registerError) {
+          console.error('❌ 注册失败:', registerError);
+          setError(`注册失败：${registerError.message || '请重试'}`);
+          setLoading(false);
+          return;
+        }
+        
+        console.log('✅ 注册成功，自动登录');
+        // 注册成功后自动登录
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('username', username);
         setLoading(false);
-        return;
+        onLoginSuccess();
+      } else {
+        // 登录模式
+        console.log('🔐 尝试登录:', username);
+        const { data, error: loginError } = await signIn(username, password);
+        
+        console.log('📋 登录结果:', { data, error: loginError });
+        
+        if (loginError) {
+          console.error('❌ 登录失败:', loginError);
+          setError(`登录失败：${loginError.message || '用户名或密码错误'}`);
+          setLoading(false);
+          return;
+        }
+
+        // 登录成功
+        console.log('✅ 登录成功');
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('username', username);
+        setLoading(false);
+        onLoginSuccess();
       }
-
-      // 登录成功
-      console.log('✅ 登录成功');
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:62',message:'Login success',data:{userId:data?.user?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
-      // #endregion
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('username', username);
-      setLoading(false);
-      onLoginSuccess();
     } catch (err) {
-      console.error('❌ 登录异常:', err);
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:72',message:'Login exception caught',data:{error:err instanceof Error ? err.message : String(err),errorType:err instanceof Error ? err.constructor.name : typeof err},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H,I'})}).catch(()=>{});
-      // #endregion
+      console.error('❌ 操作异常:', err);
       const errorMessage = err instanceof Error ? err.message : '请重试';
-      setError(`登录失败：${errorMessage}`);
-
+      setError(`${isRegisterMode ? '注册' : '登录'}失败：${errorMessage}`);
       setLoading(false);
     }
   };
@@ -147,20 +147,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </div>
           )}
 
-          {/* 登录按钮 */}
+          {/* 登录/注册按钮 */}
           <button
             type="submit"
             disabled={loading}
             className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
             {loading ? (
-              <>正在登录...</>
+              <>{isRegisterMode ? '注册中...' : '登录中...'}</>
             ) : (
               <>
-                <LogIn className="w-5 h-5" />
-                登录
+                {isRegisterMode ? <UserPlus className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
+                {isRegisterMode ? '注册' : '登录'}
               </>
             )}
+          </button>
+          
+          {/* 切换登录/注册模式 */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegisterMode(!isRegisterMode);
+              setError(null);
+            }}
+            className="w-full text-center text-sm text-gray-600 hover:text-gray-800 transition-colors mt-2"
+          >
+            {isRegisterMode ? '已有账号？去登录' : '没有账号？去注册'}
           </button>
         </form>
 
