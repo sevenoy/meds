@@ -70,13 +70,27 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
           isMatch: newData?.device_id === deviceId
         });
         
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate',message:'Received UPDATE event',data:{payloadDeviceId:newData?.device_id,currentDeviceId:deviceId,isApplyingRemote:isApplyingRemote,medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C,D'})}).catch(()=>{});
+        // #endregion
+        
         if (newData && newData.device_id === deviceId) {
           console.log('[Realtime] 忽略自己设备的药品更新');
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate:ignored',message:'Ignored own device update',data:{medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           return;
         }
         
         if (!isApplyingRemote && callbacks.onMedicationChange) {
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate:callback',message:'Calling onMedicationChange callback',data:{medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{});
+          // #endregion
           callbacks.onMedicationChange();
+        } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate:skipped',message:'Skipped callback',data:{isApplyingRemote:isApplyingRemote,hasCallback:!!callbacks.onMedicationChange},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+          // #endregion
         }
       })
       // 订阅服药记录表变更
@@ -180,6 +194,9 @@ export function getConnectionStatus(): 'connected' | 'disconnected' | 'connectin
  * 用于标记远程触发的更新，防止循环
  */
 export async function runWithRemoteFlag(fn: () => Promise<void>): Promise<void> {
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:runWithRemoteFlag:entry',message:'Setting isApplyingRemote=true',data:{wasApplyingRemote:isApplyingRemote},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+  // #endregion
   isApplyingRemote = true;
   try {
     await fn();
@@ -187,6 +204,9 @@ export async function runWithRemoteFlag(fn: () => Promise<void>): Promise<void> 
     // 延迟重置标志，确保所有同步操作完成
     // 使用 2000ms 延迟以确保 Realtime 事件有足够时间到达
     setTimeout(() => {
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:runWithRemoteFlag:reset',message:'Resetting isApplyingRemote=false after 2000ms',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       isApplyingRemote = false;
     }, 2000);
   }

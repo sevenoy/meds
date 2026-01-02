@@ -13,13 +13,24 @@ import type { MedicationLog, ConflictInfo, Medication } from '../types';
  */
 export async function fixLegacyDeviceIds(): Promise<void> {
   const userId = await getCurrentUserId();
-  if (!userId) return;
+  if (!userId) {
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:16',message:'No userId, skipping fix',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    return;
+  }
   
   const deviceId = getDeviceId();
   console.log('🔧 开始修复所有药品的 device_id...', { deviceId });
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:20',message:'Starting fixLegacyDeviceIds',data:{userId:userId,deviceId:deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   
   // 使用 runWithRemoteFlag 包裹，防止触发 Realtime 回调
   await runWithRemoteFlag(async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:24',message:'Inside runWithRemoteFlag',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     try {
       // 修复所有不属于当前设备的药品（包括 null 和其他设备的 device_id）
       const { data, error } = await supabase!
@@ -29,6 +40,10 @@ export async function fixLegacyDeviceIds(): Promise<void> {
         .neq('device_id', deviceId)  // 修复所有不等于当前设备 ID 的药品
         .select();
       
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:34',message:'Update completed',data:{count:data?.length||0,hasError:!!error,errorMsg:error?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+      // #endregion
+      
       if (error) {
         console.error('❌ 修复药品 device_id 失败:', error);
       } else {
@@ -36,8 +51,14 @@ export async function fixLegacyDeviceIds(): Promise<void> {
       }
     } catch (error) {
       console.error('❌ 修复药品 device_id 异常:', error);
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:43',message:'Exception in fixLegacyDeviceIds',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     }
   });
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:47',message:'fixLegacyDeviceIds completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 }
 
 /**

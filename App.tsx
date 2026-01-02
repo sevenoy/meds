@@ -375,11 +375,17 @@ export default function App() {
     let newRealtimeCleanup: (() => void) | null = null;
     initNewRealtimeSync({
       onMedicationChange: async () => {
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange',message:'onMedicationChange called',data:{isApplyingRemoteChange:isApplyingRemoteChange()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         if (isApplyingRemoteChange()) {
           console.log('⏭ 忽略远程触发的药品变更');
           return;
         }
         console.log('🔔 检测到药品变更（新Realtime），自动刷新...');
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange:loadData',message:'Calling loadData',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         await loadData();
         
         // 显示提示
