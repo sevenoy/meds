@@ -754,3 +754,26 @@
 {"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339762094,"sessionId":"debug-session","hypothesisId":"A,B"}
 {"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339762094,"sessionId":"debug-session","hypothesisId":"A"}
 {"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339762094,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:23","message":"Supabase config","data":{"url":"https://ptmgncjechjprxtndqon.supabase.co","hasKey":true,"keyLength":208},"timestamp":1767340418125,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767340418145,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"LoginPage.tsx:34","message":"Before signIn call","data":{"email":"sevenoy@gmail.com"},"timestamp":1767340423474,"sessionId":"debug-session","hypothesisId":"I"}
+{"location":"supabase.ts:55","message":"signIn called","data":{"email":"sevenoy@gmail.com","hasPassword":true},"timestamp":1767340423475,"sessionId":"debug-session","hypothesisId":"G,H,I"}
+{"location":"supabase.ts:62","message":"signIn result","data":{"hasData":true,"hasError":true,"errorMessage":"Failed to fetch","errorStatus":0},"timestamp":1767340423614,"sessionId":"debug-session","hypothesisId":"G,H,I"}
+{"location":"LoginPage.tsx:42","message":"After signIn call","data":{"hasData":true,"hasError":true,"errorMsg":"Failed to fetch"},"timestamp":1767340423615,"sessionId":"debug-session","hypothesisId":"I"}
+{"location":"LoginPage.tsx:51","message":"Login error details","data":{"message":"Failed to fetch","status":0,"name":"AuthRetryableFetchError"},"timestamp":1767340423615,"sessionId":"debug-session","hypothesisId":"G,H,I"}
+{"location":"supabase.ts:23","message":"Supabase config","data":{"url":"https://ptmgncjechjprxtndqon.supabase.co","hasKey":true,"keyLength":208},"timestamp":1767340543058,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767340543060,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:23","message":"Supabase config","data":{"url":"https://ptmgncjechjprxtndqon.supabase.co","hasKey":true,"keyLength":208},"timestamp":1767340569126,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767340569141,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"LoginPage.tsx:34","message":"Before signIn call","data":{"email":"sevenoy@gmail.com"},"timestamp":1767340576271,"sessionId":"debug-session","hypothesisId":"I"}
+{"location":"supabase.ts:55","message":"signIn called","data":{"email":"sevenoy@gmail.com","hasPassword":true},"timestamp":1767340576272,"sessionId":"debug-session","hypothesisId":"G,H,I"}
+{"location":"supabase.ts:62","message":"signIn result","data":{"hasData":true,"hasError":true,"errorMessage":"Failed to fetch","errorStatus":0},"timestamp":1767340576338,"sessionId":"debug-session","hypothesisId":"G,H,I"}
+{"location":"LoginPage.tsx:42","message":"After signIn call","data":{"hasData":true,"hasError":true,"errorMsg":"Failed to fetch"},"timestamp":1767340576338,"sessionId":"debug-session","hypothesisId":"I"}
+{"location":"LoginPage.tsx:51","message":"Login error details","data":{"message":"Failed to fetch","status":0,"name":"AuthRetryableFetchError"},"timestamp":1767340576338,"sessionId":"debug-session","hypothesisId":"G,H,I"}
+{"location":"supabase.ts:23","message":"Supabase config","data":{"url":"https://ptmgncjechjprxtndqon.supabase.co","hasKey":true,"keyLength":208},"timestamp":1767340581628,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767340581629,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"LoginPage.tsx:34","message":"Before signIn call","data":{"email":"sevenoy@gmail.com"},"timestamp":1767340585874,"sessionId":"debug-session","hypothesisId":"I"}
+{"location":"supabase.ts:55","message":"signIn called","data":{"email":"sevenoy@gmail.com","hasPassword":true},"timestamp":1767340585875,"sessionId":"debug-session","hypothesisId":"G,H,I"}
+{"location":"supabase.ts:62","message":"signIn result","data":{"hasData":true,"hasError":true,"errorMessage":"Failed to fetch","errorStatus":0},"timestamp":1767340585910,"sessionId":"debug-session","hypothesisId":"G,H,I"}
+{"location":"LoginPage.tsx:42","message":"After signIn call","data":{"hasData":true,"hasError":true,"errorMsg":"Failed to fetch"},"timestamp":1767340585910,"sessionId":"debug-session","hypothesisId":"I"}
+{"location":"LoginPage.tsx:51","message":"Login error details","data":{"message":"Failed to fetch","status":0,"name":"AuthRetryableFetchError"},"timestamp":1767340585910,"sessionId":"debug-session","hypothesisId":"G,H,I"}
