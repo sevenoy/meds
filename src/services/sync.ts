@@ -53,6 +53,19 @@ export async function syncMedications(): Promise<void> {
     const localMeds = await getMedications();
     const deviceId = getDeviceId();
     
+    // 【修复】一次性修复：更新所有 device_id 为 null 的药品
+    const fixResult = await supabase!
+      .from('medications')
+      .update({ device_id: deviceId })
+      .eq('user_id', userId)
+      .is('device_id', null);
+    
+    if (fixResult.error) {
+      console.warn('⚠️ 修复旧药品 device_id 失败:', fixResult.error);
+    } else {
+      console.log('✅ 已修复旧药品的 device_id');
+    }
+    
     // 推送本地medications到云端
     for (const med of localMeds) {
       // 只发送数据库真实存在的字段（根据 supabase-schema.sql）
