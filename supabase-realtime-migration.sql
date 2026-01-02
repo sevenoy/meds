@@ -187,3 +187,5 @@ BEGIN
     RAISE NOTICE '3. 重启应用以测试多设备同步功能';
 END $$;
 
+
+

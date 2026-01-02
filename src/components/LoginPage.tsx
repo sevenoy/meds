@@ -2,14 +2,14 @@
 
 import React, { useState } from 'react';
 import { User, Lock, LogIn, AlertCircle, UserPlus } from 'lucide-react';
-import { signIn, signUp } from '../lib/cloudbase';
+import { signIn, signUp } from '../lib/supabase';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,8 +18,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!username || !password) {
-      setError('请输入用户名和密码');
+    if (!email || !password) {
+      setError('请输入邮箱和密码');
       return;
     }
 
@@ -29,8 +29,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     try {
       if (isRegisterMode) {
         // 注册模式
-        console.log('📝 尝试注册:', username);
-        const { data, error: registerError } = await signUp(username, password);
+        console.log('📝 尝试注册:', email);
+        const { data, error: registerError } = await signUp(email, password);
         
         if (registerError) {
           console.error('❌ 注册失败:', registerError);
@@ -42,19 +42,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         console.log('✅ 注册成功，自动登录');
         // 注册成功后自动登录
         localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('username', username);
+        localStorage.setItem('userEmail', email);
         setLoading(false);
         onLoginSuccess();
       } else {
         // 登录模式
-        console.log('🔐 尝试登录:', username);
-        const { data, error: loginError } = await signIn(username, password);
+        console.log('🔐 尝试登录:', email);
+        const { data, error: loginError } = await signIn(email, password);
         
         console.log('📋 登录结果:', { data, error: loginError });
         
         if (loginError) {
           console.error('❌ 登录失败:', loginError);
-          setError(`登录失败：${loginError.message || '用户名或密码错误'}`);
+          setError(`登录失败：${loginError.message || '邮箱或密码错误'}`);
           setLoading(false);
           return;
         }
@@ -62,7 +62,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         // 登录成功
         console.log('✅ 登录成功');
         localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('username', username);
+        localStorage.setItem('userEmail', email);
         setLoading(false);
         onLoginSuccess();
       }
@@ -103,18 +103,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
         {/* 登录表单 */}
         <form onSubmit={handleLogin} className="space-y-4">
-          {/* 用户名 */}
+          {/* 邮箱 */}
           <div>
             <label className="block text-sm font-bold text-gray-600 mb-2">
-              用户名
+              邮箱
             </label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="请输入用户名"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="请输入邮箱"
                 className="w-full pl-12 pr-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none font-medium transition-all"
                 disabled={loading}
               />
