@@ -1,0 +1,496 @@
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339475954,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339475958,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"realtime.ts:27","message":"initRealtimeSync called","data":{"hasCallbacks":true},"timestamp":1767339475954,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339475958,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339475954,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339475955,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339475955,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"realtime.ts:32","message":"getCurrentUserId result","data":{"userId":null,"isNull":true},"timestamp":1767339475958,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"realtime.ts:38","message":"No userId - returning early","data":{},"timestamp":1767339475958,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:429","message":"initNewRealtimeSync resolved","data":{"hasCleanup":true},"timestamp":1767339475958,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339475959,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339475959,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339478957,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339478958,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339478958,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339478958,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339478958,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339478958,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339478958,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339478959,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339491744,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339491753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"realtime.ts:27","message":"initRealtimeSync called","data":{"hasCallbacks":true},"timestamp":1767339491745,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"realtime.ts:38","message":"No userId - returning early","data":{},"timestamp":1767339491753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339491745,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"realtime.ts:32","message":"getCurrentUserId result","data":{"userId":null,"isNull":true},"timestamp":1767339491753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339491746,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339491747,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:429","message":"initNewRealtimeSync resolved","data":{"hasCleanup":true},"timestamp":1767339491753,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339491754,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339491754,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339491750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339494748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339494748,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339494748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339494749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339494749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339494750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339494750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339494750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339497749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339497752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339497750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339497751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339497751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339497751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339497752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339497752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339500748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339500750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339500750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339500751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339500752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339500752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339500752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339500753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339503748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339503773,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339503771,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339503771,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339503772,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339503772,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339503772,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339503772,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339506748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339506750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339506750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339506751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339506751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339506752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339506752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339506753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339509748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339509750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339509750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339509751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339509752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339509752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339509753,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339509753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339512748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339512749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339512749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339512749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339512750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339512750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339512750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339512750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339515749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339515752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339515750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339515750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339515751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339515751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339515752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339515752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339518749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339518751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339518751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339518752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339518753,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339518753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339518754,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339518754,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339521747,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339521750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339521748,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339521748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339521749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339521749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339521749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339521750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339524748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339524749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339524749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339524750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339524750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339524750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339524750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339524751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339527749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339527750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339527751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339527752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339527753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339527752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339527753,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339527754,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339530749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339530751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339530751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339530752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339530752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339530753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339530753,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339530754,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339533749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339533750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339533750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339533751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339533751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339533752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339533752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339533753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339536749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339536750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339536750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339536750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339536750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339536751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339536751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339536751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339539749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339539754,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339539751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339539751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339539752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339539752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339539753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339539753,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339542749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339542750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339542750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339542751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339542751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339542752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339542752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339542753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339545749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339545751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339545751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339545752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339545753,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339545754,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339545753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339545754,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339548748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339548749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339548749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339548749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339548749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339548750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339548750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339548750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339551749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339551751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339551750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339551750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339551750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339551750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339551751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339551751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339554749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339554749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339554750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339554751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339554751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339554751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339554751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339554752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339557749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339557752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339557752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339557750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339557751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339557750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339557751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339557752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339560749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339560749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339560750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339560750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339560750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339560750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339560751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339560751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339563749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339563751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339563749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339563750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339563750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339563750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339563750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339563750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339566749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339566749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339566749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339566750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339566750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339566751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339566751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339566751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339569749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339569750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339569750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339569751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339569751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339569752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339569752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339569753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339572749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339572750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339572750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339572751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339572751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339572751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339572751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339572752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339575749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339575751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339575749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339575749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339575750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339575750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339575750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339575750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339578749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339578750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339578750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339578750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339578750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339578750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339578750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339578751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339581748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339581751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339581749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339581749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339581750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339581750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339581750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339581750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339584748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339584749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339584749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339584750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339584750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339584750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339584750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339584750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339587749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339587751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339587750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339587750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339587750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339587750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339587751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339587751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339590748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339590749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339590749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339590750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339590750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339590750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339590751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339590751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339593752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339593749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339593750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339593750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339593751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339593751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339593751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339593751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339596748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339596749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339596749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339596750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339596750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339596750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339596750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339596751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339599749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339599751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339599750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339599750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339599750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339599750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339599750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339599751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339602749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339602750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339602750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339602751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339602751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339602752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339602752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339602752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339605749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339605750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339605749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339605749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339605750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339605750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339605750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339605750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339608749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339608750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339608750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339608750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339608750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339608750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339608750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339608750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339611749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339611751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339611751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339611751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339611752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339611752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339611753,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339611753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339614749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339614750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339614750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339614750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339614750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339614751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339614751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339614751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339617749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339617751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339617750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339617750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339617750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339617750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339617751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339617751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339620748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339620749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339620749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339620750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339620750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339620750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339620750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339620751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339623749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339623752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339623750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339623750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339623751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339623751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339623751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339623752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339626748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339626749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339626749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339626750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339626751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339626751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339626751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339626752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339629749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339629751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339629750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339629750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339629750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339629751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339629751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339629751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339632749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339632750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339632750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339632751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339632751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339632751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339632751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339632752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339635749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339635751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339635750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339635750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339635750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339635750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339635751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339635751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339638749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339638750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339638750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339638750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339638750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339638751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339638751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339638751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339641748,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339641748,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339641749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339641749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339641749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339641749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339641750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339641750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339644749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339644750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339644750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339644750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339644750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339644751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339644751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339644752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339647749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339647750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339647749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339647749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339647749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339647750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339647750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339647750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339650749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339650751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339650751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339650751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339650752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339650752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339650752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339650752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339653749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339653751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339653749,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339653750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339653750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339653750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339653751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339653751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339656749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339656750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339656750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339656751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339656751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339656751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339656752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339656752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339659749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339659750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339659751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339659751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339659751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339659752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339659752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339659752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339662749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339662750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339662751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339662752,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339662752,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339662753,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339662753,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339662754,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339665749,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339665750,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339665750,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339665751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339665751,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339665751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:40","message":"getCurrentUserId called","data":{"isMockMode":false,"supabaseIsNull":false},"timestamp":1767339665751,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:59","message":"Supabase mode - got user","data":{"userId":null},"timestamp":1767339665751,"sessionId":"debug-session","hypothesisId":"A"}

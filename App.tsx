@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight, ChevronDown, Database } from 'lucide-react';
 import { CameraModal } from './src/components/CameraModal';
 import { SyncPrompt } from './src/components/SyncPrompt';
 import { LoginPage } from './src/components/LoginPage';
@@ -1098,6 +1098,44 @@ export default function App() {
                     <p className="text-xs text-gray-400 font-bold">
                       {syncEnabled ? '同步已开启' : '多设备数据同步管理'}
                     </p>
+                  </div>
+                </div>
+                <span className="text-gray-400">›</span>
+              </div>
+
+              <div 
+                onClick={async () => {
+                  if (confirm('⚠️ 确定要清除 PWA 缓存吗？\n\n这将清除所有缓存的资源，应用将重新加载。\n你的数据不会丢失。')) {
+                    try {
+                      // 清除所有缓存
+                      const cacheNames = await caches.keys();
+                      await Promise.all(cacheNames.map(name => caches.delete(name)));
+                      
+                      // 注销 Service Worker
+                      const registrations = await navigator.serviceWorker.getRegistrations();
+                      await Promise.all(registrations.map(reg => reg.unregister()));
+                      
+                      alert('✅ PWA 缓存已清除！\n\n应用将在 2 秒后重新加载...');
+                      
+                      // 延迟重新加载
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 2000);
+                    } catch (error) {
+                      console.error('清除缓存失败:', error);
+                      alert('❌ 清除缓存失败，请重试');
+                    }
+                  }
+                }}
+                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                    <Database className="w-5 h-5 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="font-black italic tracking-tighter">清除缓存</p>
+                    <p className="text-xs text-gray-400 font-bold">清除 PWA 缓存和 Service Worker</p>
                   </div>
                 </div>
                 <span className="text-gray-400">›</span>
