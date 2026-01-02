@@ -30,13 +30,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       const email = `${username}@gmail.com`;
       console.log('🔐 尝试登录:', email);
       
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:34',message:'Before signIn call',data:{email:email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+      // #endregion
+      
       // 调用 Supabase 登录
       const { data, error: loginError } = await signIn(email, password);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:42',message:'After signIn call',data:{hasData:!!data,hasError:!!loginError,errorMsg:loginError?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+      // #endregion
       
       console.log('📋 登录结果:', { data, error: loginError });
       
       if (loginError) {
         console.error('❌ 登录失败:', loginError);
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:51',message:'Login error details',data:{message:loginError.message,status:loginError.status,name:loginError.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G,H,I'})}).catch(()=>{});
+        // #endregion
         setError(`登录失败：${loginError.message || '用户名或密码错误'}`);
         setLoading(false);
         return;
@@ -44,12 +55,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
       // 登录成功
       console.log('✅ 登录成功');
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:62',message:'Login success',data:{userId:data?.user?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'I'})}).catch(()=>{});
+      // #endregion
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('username', username);
       setLoading(false);
       onLoginSuccess();
     } catch (err) {
       console.error('❌ 登录异常:', err);
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:72',message:'Login exception caught',data:{error:err instanceof Error ? err.message : String(err),errorType:err instanceof Error ? err.constructor.name : typeof err},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H,I'})}).catch(()=>{});
+      // #endregion
       const errorMessage = err instanceof Error ? err.message : '请重试';
       setError(`登录失败：${errorMessage}`);
 
