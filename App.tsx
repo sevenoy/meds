@@ -5,11 +5,13 @@ import { SyncPrompt } from './src/components/SyncPrompt';
 import { LoginPage } from './src/components/LoginPage';
 import { UpdateNotification } from './src/components/UpdateNotification';
 import { AvatarUpload } from './src/components/AvatarUpload';
+import { SyncStatusIndicator } from './src/components/SyncStatusIndicator';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote } from './src/services/snapshot';
+import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Types ---
@@ -227,6 +229,9 @@ export default function App() {
   const [syncPrompt, setSyncPrompt] = useState<MedicationLog | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // Realtime 同步状态
+  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
+  
   // 日期筛选
   const [selectedDate, setSelectedDate] = useState<string | null>(null); // YYYY-MM-DD
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
@@ -359,7 +364,65 @@ export default function App() {
       }
     }).catch(console.error);
     
-    // 初始化 Realtime 同步
+    // 【新增】初始化新的 Realtime 服务（基于 Supabase Realtime）
+    let newRealtimeCleanup: (() => void) | null = null;
+    initNewRealtimeSync({
+      onMedicationChange: async () => {
+        if (isApplyingRemoteChange()) {
+          console.log('⏭ 忽略远程触发的药品变更');
+          return;
+        }
+        console.log('🔔 检测到药品变更（新Realtime），自动刷新...');
+        await loadData();
+        
+        // 显示提示
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+        notification.textContent = '✅ 药品数据已同步';
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.classList.add('animate-fade-out');
+          setTimeout(() => notification.remove(), 300);
+        }, 2000);
+      },
+      onLogChange: async () => {
+        if (isApplyingRemoteChange()) {
+          console.log('⏭ 忽略远程触发的记录变更');
+          return;
+        }
+        console.log('🔔 检测到服药记录变更（新Realtime），自动刷新...');
+        await loadData();
+        
+        // 显示提示
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 z-50 bg-blue-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+        notification.textContent = '✅ 服药记录已同步';
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.classList.add('animate-fade-out');
+          setTimeout(() => notification.remove(), 300);
+        }, 2000);
+      },
+      onSettingsChange: async () => {
+        if (isApplyingRemoteChange()) {
+          console.log('⏭ 忽略远程触发的设置变更');
+          return;
+        }
+        console.log('🔔 检测到设置变更（新Realtime），自动刷新...');
+        const settings = await getUserSettings();
+        if (settings.avatar_url) {
+          setAvatarUrl(settings.avatar_url);
+        }
+      },
+      onConnectionStatusChange: (status) => {
+        console.log('🔗 Realtime 连接状态变更:', status);
+        setRealtimeStatus(status);
+      }
+    }).then(cleanup => {
+      newRealtimeCleanup = cleanup;
+    }).catch(console.error);
+    
+    // 初始化旧的 Realtime 同步（保留兼容性）
     const cleanup = initRealtimeSync(
       // 处理服药记录更新
       (log) => {
@@ -492,6 +555,7 @@ export default function App() {
       cleanup();
       cleanupSettings();
       if (cleanupSnapshot) cleanupSnapshot();
+      if (newRealtimeCleanup) newRealtimeCleanup();
       clearInterval(syncInterval);
     };
   }, [isLoggedIn]);
@@ -587,9 +651,36 @@ export default function App() {
             <h1 className="text-2xl font-black italic tracking-tighter">
               药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{(window as any).APP_VERSION || 'V251219.1'}</span>
             </h1>
-            {/* 云端快照管理按钮 */}
+            {/* 云端快照管理按钮和同步状态 */}
             {isLoggedIn && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                {/* Realtime 同步状态指示器 */}
+                <SyncStatusIndicator 
+                  status={realtimeStatus}
+                  onReconnect={async () => {
+                    await reconnectRealtime({
+                      onMedicationChange: async () => {
+                        if (isApplyingRemoteChange()) return;
+                        await loadData();
+                      },
+                      onLogChange: async () => {
+                        if (isApplyingRemoteChange()) return;
+                        await loadData();
+                      },
+                      onSettingsChange: async () => {
+                        if (isApplyingRemoteChange()) return;
+                        const settings = await getUserSettings();
+                        if (settings.avatar_url) {
+                          setAvatarUrl(settings.avatar_url);
+                        }
+                      },
+                      onConnectionStatusChange: (status) => {
+                        setRealtimeStatus(status);
+                      }
+                    });
+                  }}
+                />
+                
                 <button
                   onClick={async () => {
                     const result = await saveSnapshotLegacy();

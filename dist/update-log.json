@@ -1,4 +1,19 @@
 {
+  "V251219.42": {
+    "version": "V251219.42",
+    "date": "2025-12-20",
+    "title": "强制 payload.medications 幂等去重，彻底阻止药品自动增长",
+    "content": [
+      "✅ 新增统一去重工具 dedupeMedications（系统级幂等）",
+      "✅ applySnapshot 强制幂等：先去重，再应用（全量覆盖）",
+      "✅ cloudSaveV2 保存前强制去重（第二道闸）",
+      "✅ cloudLoadV2 返回去重后的数据",
+      "✅ 所有监听加云端回放锁（initRealtimeV2、initAutoSyncLegacy）",
+      "✅ 新药品创建路径锁死（唯一合法入口：runWithUserAction）",
+      "✅ 拍照记录同步到 payload（检查 isApplyingRemote）",
+      "🛡️ 即使未来代码写错，也必须涨不起来（强制去重）"
+    ]
+  },
   "V251219.41": {
     "version": "V251219.41",
     "date": "2025-12-20",
