@@ -17,8 +17,16 @@ export async function fixLegacyDeviceIds(): Promise<void> {
   const deviceId = getDeviceId();
   console.log('🔧 开始修复旧药品的 device_id...', { deviceId });
   
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:fixLegacyDeviceIds:start',message:'Before runWithRemoteFlag',data:{userId:userId,deviceId:deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
+  // #endregion
+  
   // 使用 runWithRemoteFlag 包裹，防止触发 Realtime 回调
   await runWithRemoteFlag(async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:fixLegacyDeviceIds:inside',message:'Inside runWithRemoteFlag, before update',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,C'})}).catch(()=>{});
+    // #endregion
+    
     try {
       const { data, error } = await supabase!
         .from('medications')
@@ -26,6 +34,10 @@ export async function fixLegacyDeviceIds(): Promise<void> {
         .eq('user_id', userId)
         .is('device_id', null)
         .select();
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:fixLegacyDeviceIds:after',message:'After update, still inside runWithRemoteFlag',data:{count:data?.length||0,hasError:!!error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       
       if (error) {
         console.error('❌ 修复旧药品 device_id 失败:', error);
@@ -36,6 +48,10 @@ export async function fixLegacyDeviceIds(): Promise<void> {
       console.error('❌ 修复旧药品 device_id 异常:', error);
     }
   });
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:fixLegacyDeviceIds:end',message:'After runWithRemoteFlag completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,C'})}).catch(()=>{});
+  // #endregion
 }
 
 /**

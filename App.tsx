@@ -352,8 +352,15 @@ export default function App() {
   useEffect(() => {
     if (!isLoggedIn) return;
     
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:useEffect:start',message:'Starting initialization sequence',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    
     // 【修复】一次性修复旧药品的 device_id
     fixLegacyDeviceIds().then(() => {
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:fixLegacyDeviceIds:complete',message:'fixLegacyDeviceIds completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       console.log('🔧 device_id 修复完成，开始加载数据');
       loadData();
     }).catch(error => {
@@ -373,6 +380,9 @@ export default function App() {
     
     // 【新增】初始化新的 Realtime 服务（基于 Supabase Realtime）
     let newRealtimeCleanup: (() => void) | null = null;
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:initNewRealtimeSync:before',message:'About to initialize Realtime',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     initNewRealtimeSync({
       onMedicationChange: async () => {
         if (isApplyingRemoteChange()) {
