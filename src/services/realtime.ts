@@ -83,6 +83,12 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         
         // 检查是否是自己设备的更新
         const newData = payload.new as any;
+        console.log('[Realtime] 检查 device_id:', {
+          payloadDeviceId: newData?.device_id,
+          currentDeviceId: deviceId,
+          isMatch: newData?.device_id === deviceId
+        });
+        
         if (newData && newData.device_id === deviceId) {
           console.log('[Realtime] 忽略自己设备的药品更新');
           return;
