@@ -37,6 +37,10 @@ if (import.meta.env.VITE_SUPABASE_URL) {
  * 获取当前用户 ID
  */
 export async function getCurrentUserId(): Promise<string | null> {
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase.ts:40',message:'getCurrentUserId called',data:{isMockMode:isMockMode,supabaseIsNull:supabase===null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+  // #endregion
+  
   if (isMockMode) {
     // Mock 模式：返回本地存储的用户 ID
     let userId = localStorage.getItem('mock_user_id');
@@ -44,10 +48,16 @@ export async function getCurrentUserId(): Promise<string | null> {
       userId = `mock_user_${Date.now()}`;
       localStorage.setItem('mock_user_id', userId);
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase.ts:52',message:'Mock mode - returning userId',data:{userId:userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+    // #endregion
     return userId;
   }
   
   const { data: { user } } = await supabase!.auth.getUser();
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase.ts:59',message:'Supabase mode - got user',data:{userId:user?.id||null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   return user?.id || null;
 }
 

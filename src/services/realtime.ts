@@ -27,14 +27,29 @@ interface RealtimeCallbacks {
  */
 export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<() => void> {
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:27',message:'initRealtimeSync called',data:{hasCallbacks:!!callbacks},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     const userId = await getCurrentUserId();
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:32',message:'getCurrentUserId result',data:{userId:userId,isNull:userId===null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     if (!userId) {
       console.warn('[Realtime] 未登录，跳过 Realtime 初始化');
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:38',message:'No userId - returning early',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       return () => {};
     }
     
     const deviceId = getDeviceId();
     console.log('[Realtime] 初始化同步服务', { userId, deviceId });
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:47',message:'Before supabase check',data:{supabaseExists:!!supabase,deviceId:deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
     
     // 如果已有连接，先清理
     if (realtimeChannel) {
@@ -44,7 +59,13 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
     // 更新连接状态
     updateConnectionStatus('connecting', callbacks);
     
+    // #endregion
+    
     // 创建唯一频道
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:56',message:'Creating channel',data:{channelName:`meds_sync_${deviceId}`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
     realtimeChannel = supabase
       .channel(`meds_sync_${deviceId}`, {
         config: {
@@ -90,9 +111,19 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
       .subscribe((status) => {
         console.log('[Realtime] 订阅状态:', status);
         
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:107',message:'Subscribe callback fired',data:{status:status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
+        // #endregion
+        
         if (status === 'SUBSCRIBED') {
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:113',message:'Calling updateConnectionStatus with connected',data:{hasCallback:!!callbacks.onConnectionStatusChange},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           updateConnectionStatus('connected', callbacks);
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:119',message:'Error status received',data:{status:status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           updateConnectionStatus('disconnected', callbacks);
           // 自动重连
           setTimeout(() => {
@@ -130,8 +161,15 @@ function updateConnectionStatus(
   status: 'connected' | 'disconnected' | 'connecting',
   callbacks: RealtimeCallbacks
 ): void {
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:152',message:'updateConnectionStatus called',data:{status:status,hasCallback:!!callbacks.onConnectionStatusChange},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D,E'})}).catch(()=>{});
+  // #endregion
+  
   connectionStatus = status;
   if (callbacks.onConnectionStatusChange) {
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:159',message:'Calling onConnectionStatusChange callback',data:{status:status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     callbacks.onConnectionStatusChange(status);
   }
 }

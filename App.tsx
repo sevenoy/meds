@@ -416,9 +416,18 @@ export default function App() {
       },
       onConnectionStatusChange: (status) => {
         console.log('🔗 Realtime 连接状态变更:', status);
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:418',message:'onConnectionStatusChange callback in App',data:{status:status,currentRealtimeStatus:realtimeStatus},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         setRealtimeStatus(status);
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:423',message:'After setRealtimeStatus',data:{newStatus:status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
       }
     }).then(cleanup => {
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:429',message:'initNewRealtimeSync resolved',data:{hasCleanup:!!cleanup},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+      // #endregion
       newRealtimeCleanup = cleanup;
     }).catch(console.error);
     
