@@ -7,7 +7,7 @@ import { UpdateNotification } from './src/components/UpdateNotification';
 import { AvatarUpload } from './src/components/AvatarUpload';
 import { SyncStatusIndicator } from './src/components/SyncStatusIndicator';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
-import { getMedicationLogs, upsertMedication, deleteMedication, getMedications } from './src/db/localDB';
+import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote } from './src/services/snapshot';
@@ -1585,7 +1585,8 @@ export default function App() {
                         name: newMedName,
                         dosage: newMedDosage,
                         scheduled_time: newMedTime,
-                        accent: newMedAccent
+                        accent: newMedAccent,
+                        device_id: getDeviceId()
                       };
 
                       payload.medications = payload.medications || [];

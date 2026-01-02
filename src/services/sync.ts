@@ -51,6 +51,7 @@ export async function syncMedications(): Promise<void> {
   
   try {
     const localMeds = await getMedications();
+    const deviceId = getDeviceId();
     
     // 推送本地medications到云端
     for (const med of localMeds) {
@@ -60,6 +61,7 @@ export async function syncMedications(): Promise<void> {
           name: med.name,
           dosage: med.dosage,
           scheduled_time: med.scheduled_time,
+          device_id: deviceId,
           updated_at: new Date().toISOString()
       };
       
