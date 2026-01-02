@@ -3,10 +3,12 @@
 import { supabase, getCurrentUserId } from '../lib/supabase';
 import { db, getUnsyncedLogs, markLogSynced, updateMedicationLog, getDeviceId, getMedications, upsertMedication } from '../db/localDB';
 import { isApplyingRemote } from './snapshot';
+import { runWithRemoteFlag } from './realtime';
 import type { MedicationLog, ConflictInfo, Medication } from '../types';
 
 /**
  * 一次性修复：更新所有 device_id 为 null 的药品
+ * 使用 runWithRemoteFlag 防止触发 Realtime 回调导致无限循环
  */
 export async function fixLegacyDeviceIds(): Promise<void> {
   const userId = await getCurrentUserId();
@@ -15,22 +17,25 @@ export async function fixLegacyDeviceIds(): Promise<void> {
   const deviceId = getDeviceId();
   console.log('🔧 开始修复旧药品的 device_id...', { deviceId });
   
-  try {
-    const { data, error } = await supabase!
-      .from('medications')
-      .update({ device_id: deviceId })
-      .eq('user_id', userId)
-      .is('device_id', null)
-      .select();
-    
-    if (error) {
-      console.error('❌ 修复旧药品 device_id 失败:', error);
-    } else {
-      console.log('✅ 已修复旧药品的 device_id，共', data?.length || 0, '条');
+  // 使用 runWithRemoteFlag 包裹，防止触发 Realtime 回调
+  await runWithRemoteFlag(async () => {
+    try {
+      const { data, error } = await supabase!
+        .from('medications')
+        .update({ device_id: deviceId })
+        .eq('user_id', userId)
+        .is('device_id', null)
+        .select();
+      
+      if (error) {
+        console.error('❌ 修复旧药品 device_id 失败:', error);
+      } else {
+        console.log('✅ 已修复旧药品的 device_id，共', data?.length || 0, '条');
+      }
+    } catch (error) {
+      console.error('❌ 修复旧药品 device_id 异常:', error);
     }
-  } catch (error) {
-    console.error('❌ 修复旧药品 device_id 异常:', error);
-  }
+  });
 }
 
 /**
