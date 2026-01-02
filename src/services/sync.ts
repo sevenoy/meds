@@ -6,6 +6,34 @@ import { isApplyingRemote } from './snapshot';
 import type { MedicationLog, ConflictInfo, Medication } from '../types';
 
 /**
+ * 一次性修复：更新所有 device_id 为 null 的药品
+ */
+export async function fixLegacyDeviceIds(): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+  
+  const deviceId = getDeviceId();
+  console.log('🔧 开始修复旧药品的 device_id...', { deviceId });
+  
+  try {
+    const { data, error } = await supabase!
+      .from('medications')
+      .update({ device_id: deviceId })
+      .eq('user_id', userId)
+      .is('device_id', null)
+      .select();
+    
+    if (error) {
+      console.error('❌ 修复旧药品 device_id 失败:', error);
+    } else {
+      console.log('✅ 已修复旧药品的 device_id，共', data?.length || 0, '条');
+    }
+  } catch (error) {
+    console.error('❌ 修复旧药品 device_id 异常:', error);
+  }
+}
+
+/**
  * UUID v4 正则表达式
  */
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -52,19 +80,6 @@ export async function syncMedications(): Promise<void> {
   try {
     const localMeds = await getMedications();
     const deviceId = getDeviceId();
-    
-    // 【修复】一次性修复：更新所有 device_id 为 null 的药品
-    const fixResult = await supabase!
-      .from('medications')
-      .update({ device_id: deviceId })
-      .eq('user_id', userId)
-      .is('device_id', null);
-    
-    if (fixResult.error) {
-      console.warn('⚠️ 修复旧药品 device_id 失败:', fixResult.error);
-    } else {
-      console.log('✅ 已修复旧药品的 device_id');
-    }
     
     // 推送本地medications到云端
     for (const med of localMeds) {

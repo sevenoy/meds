@@ -8,7 +8,7 @@ import { AvatarUpload } from './src/components/AvatarUpload';
 import { SyncStatusIndicator } from './src/components/SyncStatusIndicator';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId } from './src/db/localDB';
-import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications } from './src/services/sync';
+import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications, fixLegacyDeviceIds } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote } from './src/services/snapshot';
 import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
@@ -352,7 +352,14 @@ export default function App() {
   useEffect(() => {
     if (!isLoggedIn) return;
     
-    loadData();
+    // 【修复】一次性修复旧药品的 device_id
+    fixLegacyDeviceIds().then(() => {
+      console.log('🔧 device_id 修复完成，开始加载数据');
+      loadData();
+    }).catch(error => {
+      console.error('❌ device_id 修复失败:', error);
+      loadData(); // 即使失败也继续加载
+    });
     
     // 加载用户设置
     getUserSettings().then(settings => {
