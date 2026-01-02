@@ -8,3 +8,13 @@
 {"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767373804540,"sessionId":"debug-session","hypothesisId":"F"}
 {"location":"supabase.ts:23","message":"Supabase config","data":{"url":"https://ptmgncjechjprxtndqon.supabase.co","hasKey":true,"keyLength":208},"timestamp":1767373819507,"sessionId":"debug-session","hypothesisId":"F"}
 {"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767373819508,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:23","message":"Supabase config","data":{"url":"https://ptmgncjechjprxtndqon.supabase.co","hasKey":true,"keyLength":208},"timestamp":1767374111345,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767374111346,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:23","message":"Supabase config","data":{"url":"https://ptmgncjechjprxtndqon.supabase.co","hasKey":true,"keyLength":208},"timestamp":1767374129819,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767374129820,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:23","message":"Supabase config","data":{"url":"https://ptmgncjechjprxtndqon.supabase.co","hasKey":true,"keyLength":208},"timestamp":1767374131152,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767374131152,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:23","message":"Supabase config","data":{"url":"https://ptmgncjechjprxtndqon.supabase.co","hasKey":true,"keyLength":208},"timestamp":1767374143828,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:35","message":"Supabase client created","data":{"clientExists":true},"timestamp":1767374143847,"sessionId":"debug-session","hypothesisId":"F"}
+{"location":"supabase.ts:55","message":"signIn called","data":{"email":"sevenoy@gmail.com","hasPassword":true},"timestamp":1767374147574,"sessionId":"debug-session","hypothesisId":"G,H,I"}
+{"location":"supabase.ts:62","message":"signIn result","data":{"hasData":true,"hasError":true,"errorMessage":"Failed to fetch","errorStatus":0},"timestamp":1767374147728,"sessionId":"debug-session","hypothesisId":"G,H,I"}

@@ -3,8 +3,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // 默认配置（生产环境使用）
-const DEFAULT_SUPABASE_URL = 'https://ptmgncjechjprxtndqon.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB0bWduY2plY2hqcHJ4dG5kcW9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMzA2NjIsImV4cCI6MjA4MTcwNjY2Mn0.vN58E7gBVxZXfhL_qEUfYkX7ihMjMUr5z1_KQAul5Hg';
+const DEFAULT_SUPABASE_URL = 'https://vcoioqystzyztgrgesjw.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjb2lvcXlzdHp5enRncmdlc2p3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MzI2NzIsImV4cCI6MjA4MTIwODY3Mn0.vhuogI_SkNOrJCL_Zf72XWjYk29ZGXvIn2-GJBMAocI';
 
 // 从环境变量、localStorage 或默认配置读取
 // 优先级：环境变量 > localStorage > 默认配置
