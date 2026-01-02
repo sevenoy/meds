@@ -239,12 +239,13 @@ export async function runWithRemoteFlag(fn: () => Promise<void>): Promise<void> 
     // #endregion
     
     // 延迟重置标志，确保所有同步操作完成
+    // 增加到 2000ms 以确保 Realtime 事件有足够时间到达
     setTimeout(() => {
       // #region agent log
       fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:runWithRemoteFlag:reset',message:'Resetting isApplyingRemote to false',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
       // #endregion
       isApplyingRemote = false;
-    }, 100);
+    }, 2000);
   }
 }
 

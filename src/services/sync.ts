@@ -7,7 +7,8 @@ import { runWithRemoteFlag } from './realtime';
 import type { MedicationLog, ConflictInfo, Medication } from '../types';
 
 /**
- * 一次性修复：更新所有 device_id 为 null 的药品
+ * 一次性修复：更新所有药品的 device_id 为当前设备
+ * 包括 null 和其他设备的 device_id
  * 使用 runWithRemoteFlag 防止触发 Realtime 回调导致无限循环
  */
 export async function fixLegacyDeviceIds(): Promise<void> {
@@ -15,7 +16,7 @@ export async function fixLegacyDeviceIds(): Promise<void> {
   if (!userId) return;
   
   const deviceId = getDeviceId();
-  console.log('🔧 开始修复旧药品的 device_id...', { deviceId });
+  console.log('🔧 开始修复所有药品的 device_id...', { deviceId });
   
   // #region agent log
   fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:fixLegacyDeviceIds:start',message:'Before runWithRemoteFlag',data:{userId:userId,deviceId:deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
@@ -28,11 +29,12 @@ export async function fixLegacyDeviceIds(): Promise<void> {
     // #endregion
     
     try {
+      // 修复所有不属于当前设备的药品（包括 null 和其他设备的 device_id）
       const { data, error } = await supabase!
         .from('medications')
         .update({ device_id: deviceId })
         .eq('user_id', userId)
-        .is('device_id', null)
+        .neq('device_id', deviceId)  // 修复所有不等于当前设备 ID 的药品
         .select();
       
       // #region agent log
@@ -40,12 +42,12 @@ export async function fixLegacyDeviceIds(): Promise<void> {
       // #endregion
       
       if (error) {
-        console.error('❌ 修复旧药品 device_id 失败:', error);
+        console.error('❌ 修复药品 device_id 失败:', error);
       } else {
-        console.log('✅ 已修复旧药品的 device_id，共', data?.length || 0, '条');
+        console.log('✅ 已修复所有药品的 device_id，共', data?.length || 0, '条');
       }
     } catch (error) {
-      console.error('❌ 修复旧药品 device_id 异常:', error);
+      console.error('❌ 修复药品 device_id 异常:', error);
     }
   });
   
