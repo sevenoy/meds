@@ -80,6 +80,14 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         filter: `user_id=eq.${userId}`
       }, (payload) => {
         console.log('[Realtime] 药品变更', payload);
+        
+        // 检查是否是自己设备的更新
+        const newData = payload.new as any;
+        if (newData && newData.device_id === deviceId) {
+          console.log('[Realtime] 忽略自己设备的药品更新');
+          return;
+        }
+        
         if (!isApplyingRemote && callbacks.onMedicationChange) {
           callbacks.onMedicationChange();
         }
@@ -92,6 +100,14 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         filter: `user_id=eq.${userId}`
       }, (payload) => {
         console.log('[Realtime] 服药记录变更', payload);
+        
+        // 检查是否是自己设备的更新
+        const newData = payload.new as any;
+        if (newData && newData.device_id === deviceId) {
+          console.log('[Realtime] 忽略自己设备的记录更新');
+          return;
+        }
+        
         if (!isApplyingRemote && callbacks.onLogChange) {
           callbacks.onLogChange();
         }
@@ -104,6 +120,14 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         filter: `user_id=eq.${userId}`
       }, (payload) => {
         console.log('[Realtime] 用户设置变更', payload);
+        
+        // 检查是否是自己设备的更新
+        const newData = payload.new as any;
+        if (newData && newData.device_id === deviceId) {
+          console.log('[Realtime] 忽略自己设备的设置更新');
+          return;
+        }
+        
         if (!isApplyingRemote && callbacks.onSettingsChange) {
           callbacks.onSettingsChange();
         }
