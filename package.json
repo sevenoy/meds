@@ -10,6 +10,7 @@
     "update-version": "node update-version.js"
   },
   "dependencies": {
+    "@cloudbase/js-sdk": "^2.24.3",
     "@supabase/supabase-js": "^2.39.0",
     "crypto-js": "^4.2.0",
     "dexie": "^3.2.4",
