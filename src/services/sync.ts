@@ -1,6 +1,6 @@
 // 同步控制器 - 多设备同步核心逻辑
 
-import { supabase, isMockMode, getCurrentUserId } from '../lib/supabase';
+import { supabase, getCurrentUserId } from '../lib/supabase';
 import { db, getUnsyncedLogs, markLogSynced, updateMedicationLog, getDeviceId, getMedications, upsertMedication } from '../db/localDB';
 import { isApplyingRemote } from './snapshot';
 import type { MedicationLog, ConflictInfo, Medication } from '../types';
@@ -45,8 +45,6 @@ export async function syncMedications(): Promise<void> {
     console.log('⏭ 忽略云端回放引起的本地变化（syncMedications）');
     return;
   }
-  
-  if (isMockMode) return;
   
   const userId = await getCurrentUserId();
   if (!userId) return;
@@ -144,15 +142,6 @@ export async function syncMedications(): Promise<void> {
  * 推送本地未同步的记录到服务器
  */
 export async function pushLocalChanges(): Promise<void> {
-  if (isMockMode) {
-    // Mock 模式：标记为已同步
-    const unsynced = await getUnsyncedLogs();
-    for (const log of unsynced) {
-      await markLogSynced(log.id, log);
-    }
-    return;
-  }
-  
   const userId = await getCurrentUserId();
   if (!userId) return;
   
@@ -261,11 +250,6 @@ export async function pushLocalChanges(): Promise<void> {
  * 从服务器拉取最新记录
  */
 export async function pullRemoteChanges(lastSyncTime?: string): Promise<MedicationLog[]> {
-  if (isMockMode) {
-    // Mock 模式：返回空数组
-    return [];
-  }
-  
   const userId = await getCurrentUserId();
   if (!userId) return [];
   
@@ -365,11 +349,6 @@ export function initRealtimeSync(
   onMedicationLogSync: (log: MedicationLog) => void,
   onMedicationSync: () => void
 ): () => void {
-  if (isMockMode) {
-    console.log('🔧 Mock模式：跳过Realtime同步');
-    return () => {};
-  }
-  
   const currentDeviceId = getDeviceId();
   console.log('🔄 启动增强版 Realtime 同步... (device_id:', currentDeviceId, ')');
   

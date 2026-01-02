@@ -2,7 +2,7 @@
  * 用户设置云端同步服务
  */
 
-import { supabase, isMockMode, getCurrentUserId } from '../lib/supabase';
+import { supabase, getCurrentUserId } from '../lib/supabase';
 
 export interface UserSettings {
   theme?: 'light' | 'dark';
@@ -24,18 +24,12 @@ const LAST_SYNC_KEY = 'settings_last_sync';
  * 获取用户设置
  */
 export async function getUserSettings(): Promise<UserSettings> {
-  if (isMockMode) {
-    // Mock模式：从localStorage读取
-    const stored = localStorage.getItem(SETTINGS_KEY);
-    return stored ? JSON.parse(stored) : {};
-  }
-
   try {
     const userId = await getCurrentUserId();
     if (!userId) return {};
 
     // 从Supabase获取设置
-    const { data, error } = await supabase!
+    const { data, error } = await supabase
       .from('user_settings')
       .select('settings')
       .eq('user_id', userId)
@@ -71,11 +65,6 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
   // 先保存到本地
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 
-  if (isMockMode) {
-    console.log('🔧 Mock模式：设置已保存到本地');
-    return;
-  }
-
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
@@ -86,7 +75,7 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
     console.log('☁️ 同步用户设置到云端...');
 
     // Step 1: 获取云端最新数据（LWW冲突检测）
-    const { data: cloudData } = await supabase!
+    const { data: cloudData } = await supabase
       .from('user_settings')
       .select('settings, updated_at')
       .eq('user_id', userId)
@@ -195,11 +184,6 @@ export async function updateUserSettings(partialSettings: Partial<UserSettings>)
  * 初始化设置实时监听（增强版 - 基于云端同步技术文档）
  */
 export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettings) => void): () => void {
-  if (isMockMode) {
-    console.log('🔧 Mock模式：跳过设置实时同步');
-    return () => {};
-  }
-
   let cleanup: (() => void) | null = null;
 
   getCurrentUserId().then(userId => {
@@ -210,7 +194,7 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
 
     console.log('🔄 启动增强版用户设置实时监听... (user_id:', userId, ')');
 
-    const channel = supabase!
+    const channel = supabase
       .channel('user-settings-sync-' + userId) // 使用唯一的channel名称
       .on(
         'postgres_changes',

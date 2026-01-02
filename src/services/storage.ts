@@ -1,6 +1,6 @@
-// 存储服务 - 照片上传（Supabase Storage 或 Mock）
+// 存储服务 - 照片上传到 Supabase Storage
 
-import { supabase, isMockMode } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { fileToDataURL } from '../utils/crypto';
 
 /**
@@ -12,12 +12,6 @@ export async function uploadImage(
   userId: string,
   medicationId: string
 ): Promise<string> {
-  if (isMockMode) {
-    // Mock 模式：返回 DataURL
-    console.log('🔧 Mock模式：使用DataURL存储图片');
-    return await fileToDataURL(file);
-  }
-  
   try {
     const fileName = `${userId}/${medicationId}/${Date.now()}_${file.name}`;
     const { data, error } = await supabase!.storage
@@ -67,10 +61,6 @@ export async function uploadImage(
  * 检查 Storage bucket 是否存在
  */
 export async function checkStorageBucket(): Promise<boolean> {
-  if (isMockMode || !supabase) {
-    return false;
-  }
-  
   try {
     // 尝试列出 bucket（即使为空也会成功）
     const { data, error } = await supabase.storage
@@ -97,15 +87,15 @@ export async function checkStorageBucket(): Promise<boolean> {
  * 删除照片
  */
 export async function deleteImage(imagePath: string): Promise<void> {
-  if (isMockMode) {
-    // Mock 模式：无需删除
+  // 如果是 DataURL，无需删除
+  if (imagePath.startsWith('data:')) {
     return;
   }
   
   // 从 URL 中提取路径
   const path = imagePath.split('/storage/v1/object/public/medication-images/')[1];
   if (path) {
-    await supabase!.storage
+    await supabase.storage
       .from('medication-images')
       .remove([path]);
   }

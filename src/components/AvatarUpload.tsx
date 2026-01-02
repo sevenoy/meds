@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Upload, Trash2, Loader } from 'lucide-react';
-import { supabase, isMockMode, getCurrentUserId } from '../lib/supabase';
+import { supabase, getCurrentUserId } from '../lib/supabase';
 import { getUserSettings, updateUserSettings } from '../services/userSettings';
 
 interface AvatarUploadProps {
@@ -61,38 +61,6 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
    * 上传头像到 Supabase Storage
    */
   const uploadAvatar = async (file: File) => {
-    if (isMockMode) {
-      // Mock 模式：使用本地 Data URL
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUrl = e.target?.result as string;
-        
-        // 立即更新本地显示
-        setAvatarUrl(dataUrl);
-        
-        // 保存到用户设置
-        await updateUserSettings({ avatar_url: dataUrl });
-        
-        // 通知父组件更新
-        onAvatarUpdated?.(dataUrl);
-        
-        console.log('🔧 Mock模式：头像已保存到本地');
-        
-        // 显示成功提示
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-        notification.textContent = '✅ 头像上传成功（Mock模式）';
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-          notification.classList.add('animate-fade-out');
-          setTimeout(() => notification.remove(), 300);
-        }, 3000);
-      };
-      reader.readAsDataURL(file);
-      return;
-    }
-
     setUploading(true);
 
     try {
@@ -182,8 +150,8 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
     setError(null);
 
     try {
-      // 删除云端文件（仅在Supabase模式）
-      if (!isMockMode && avatarUrl.includes('user-avatars')) {
+      // 删除云端文件
+      if (avatarUrl && avatarUrl.includes('user-avatars')) {
         const filePath = avatarUrl.split('/user-avatars/')[1];
         if (filePath) {
           const { error: deleteError } = await supabase!.storage
@@ -297,8 +265,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
 
       {/* 提示文本 */}
       <p className="text-xs text-gray-500 text-center max-w-xs">
-        支持 JPG、PNG、GIF 格式，最大 2MB
-        {!isMockMode && <><br />头像会自动同步到所有设备</>}
+        支持 JPG、PNG、GIF 格式，最大 2MB<br />头像会自动同步到所有设备
       </p>
     </div>
   );
