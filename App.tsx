@@ -592,7 +592,7 @@ export default function App() {
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
-                    const result = await saveSnapshot();
+                    const result = await saveSnapshotLegacy();
                     alert(result.message);
                     if (result.success) {
                       await loadData(); // 刷新数据
@@ -606,7 +606,7 @@ export default function App() {
                 
                 <button
                   onClick={async () => {
-                    const result = await loadSnapshot(false);
+                    const result = await loadSnapshotLegacy(false);
                     alert(result.message);
                     if (result.success) {
                       await loadData(); // 刷新数据

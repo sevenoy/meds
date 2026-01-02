@@ -26,6 +26,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setError(null);
 
     try {
+      // 检查是否启用本地测试模式
+      const useLocalMode = localStorage.getItem('USE_LOCAL_MODE') === 'true';
+      
+      if (useLocalMode) {
+        // 🔧 本地测试模式：直接登录成功
+        console.log('🔧 本地测试模式：跳过 Supabase 认证');
+        console.log('✅ 本地登录成功');
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('username', username);
+        localStorage.setItem('mock_user_id', `local_${username}_${Date.now()}`);
+        setLoading(false);
+        onLoginSuccess();
+        return;
+      }
+      
       // 将用户名转换为邮箱格式
       const email = `${username}@gmail.com`;
       console.log('🔐 尝试登录:', email);
@@ -37,7 +52,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       
       if (loginError) {
         console.error('❌ 登录失败:', loginError);
-        setError(`登录失败：${loginError.message || '用户名或密码错误'}`);
+        
+        // 如果是网络错误，提示用户可以使用本地模式
+        if (loginError.message?.includes('fetch') || loginError.message?.includes('network')) {
+          setError('网络连接失败。提示：你可以启用本地测试模式（在控制台输入: localStorage.setItem("USE_LOCAL_MODE", "true") 然后刷新页面）');
+        } else {
+          setError(`登录失败：${loginError.message || '用户名或密码错误'}`);
+        }
         setLoading(false);
         return;
       }
@@ -50,7 +71,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       onLoginSuccess();
     } catch (err) {
       console.error('❌ 登录异常:', err);
-      setError(`登录失败：${err instanceof Error ? err.message : '请重试'}`);
+      
+      // 如果是网络错误，提示用户可以使用本地模式
+      const errorMessage = err instanceof Error ? err.message : '请重试';
+      if (errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
+        setError('⚠️ 无法连接到服务器。点击下方"本地测试模式"按钮继续测试');
+      } else {
+        setError(`登录失败：${errorMessage}`);
+      }
       setLoading(false);
     }
   };
@@ -143,6 +171,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </>
             )}
           </button>
+          
+          {/* 本地测试模式按钮 */}
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.setItem('USE_LOCAL_MODE', 'true');
+              console.log('🔧 已启用本地测试模式');
+              alert('✅ 已启用本地测试模式！\n\n现在可以使用任意用户名和密码登录进行测试。\n数据将保存在浏览器本地存储中。');
+              window.location.reload();
+            }}
+            className="w-full px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-full tracking-tight hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+          >
+            🔧 启用本地测试模式
+          </button>
         </form>
 
         {/* 提示信息 */}
@@ -150,6 +192,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           <p className="text-xs text-gray-400 font-medium">
             © 2025 药盒助手 · 智能服药追踪
           </p>
+          {localStorage.getItem('USE_LOCAL_MODE') === 'true' && (
+            <p className="text-xs text-green-600 font-bold mt-2">
+              🔧 本地测试模式已启用
+            </p>
+          )}
         </div>
       </div>
     </div>
