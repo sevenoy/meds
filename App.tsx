@@ -401,7 +401,9 @@ export default function App() {
     }).catch(console.error);
     
     // 【新增】初始化新的 Realtime 服务（基于 Supabase Realtime）
+    // 【本地认证模式】禁用 Realtime，避免无效连接
     let newRealtimeCleanup: (() => void) | null = null;
+    /*
     initNewRealtimeSync({
       onMedicationChange: async () => {
         // #region agent log
@@ -469,7 +471,10 @@ export default function App() {
     }).then(cleanup => {
       newRealtimeCleanup = cleanup;
     }).catch(console.error);
+    */
     
+    // 【本地认证模式】禁用旧的 Realtime 同步
+    /*
     // 初始化旧的 Realtime 同步（保留兼容性）
     const cleanup = initRealtimeSync(
       // 处理服药记录更新
@@ -520,7 +525,10 @@ export default function App() {
         }
       }
     );
+    */
     
+    // 【本地认证模式】禁用快照自动同步
+    /*
     // 初始化快照自动同步
     let cleanupSnapshot: (() => void) | null = null;
     initAutoSyncLegacy(() => {
@@ -535,7 +543,10 @@ export default function App() {
     }).then(cleanup => {
       cleanupSnapshot = cleanup;
     }).catch(console.error);
+    */
     
+    // 【本地认证模式】禁用用户设置实时同步
+    /*
     // 初始化用户设置实时同步（参考技术白皮书的多设备同步机制）
     const cleanupSettings = initSettingsRealtimeSync((settings) => {
       console.log('⚙️ 用户设置已更新:', settings);
@@ -565,53 +576,59 @@ export default function App() {
         }
       }
     });
+    */
     
+    // 【本地认证模式】定时同步已禁用（见上方注释）
     // 定期同步（缩短到3秒，更快速的多设备同步）
-    const syncInterval = setInterval(async () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:syncInterval',message:'Sync interval triggered',data:{isApplyingRemote:isApplyingRemote()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      // 【B】在所有监听入口加 guard
-      if (isApplyingRemote()) {
-        console.log('⏭ 忽略云端回放引起的本地变化（定时同步）');
-        return;
-      }
-      
-      console.log('⏰ 定时同步...');
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:syncInterval:executing',message:'Starting sync operations',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      
-      // 【B】定时同步只负责数据同步，不触发刷新/保存
-      // 删除所有变化检测和刷新逻辑，避免触发 cloudSaveV2
-      await syncMedications().catch(console.error);
-      await pushLocalChanges().catch(console.error);
-      const logs = await pullRemoteChanges().catch(() => []);
-      if (logs && logs.length > 0) {
-        console.log(`📥 拉取到 ${logs.length} 条新记录`);
-        for (const log of logs) {
-          await mergeRemoteLog(log).catch(console.error);
-        }
-      }
-      
-      // 同步用户设置（包括头像）
-      const settings = await getUserSettings().catch(() => ({} as any));
-      if (settings && (settings as any).avatar_url && (settings as any).avatar_url !== avatarUrl) {
-        console.log('👤 检测到头像更新（定时同步）');
-        setAvatarUrl((settings as any).avatar_url);
-      }
-      
-      // 【B】禁止定时同步触发刷新/保存
-      // 删除所有 loadData() / cloudSaveV2() 调用
-    }, 3000); // 每3秒同步一次
+    // 【本地认证模式】禁用定时同步，避免无效的 Supabase 调用
+    // const syncInterval = setInterval(async () => {
+    //   // #region agent log
+    //   fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:syncInterval',message:'Sync interval triggered',data:{isApplyingRemote:isApplyingRemote()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    //   // #endregion
+    //   // 【B】在所有监听入口加 guard
+    //   if (isApplyingRemote()) {
+    //     console.log('⏭ 忽略云端回放引起的本地变化（定时同步）');
+    //     return;
+    //   }
+    //   
+    //   console.log('⏰ 定时同步...');
+    //   // #region agent log
+    //   fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:syncInterval:executing',message:'Starting sync operations',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    //   // #endregion
+    //   
+    //   // 【B】定时同步只负责数据同步，不触发刷新/保存
+    //   // 删除所有变化检测和刷新逻辑，避免触发 cloudSaveV2
+    //   await syncMedications().catch(console.error);
+    //   await pushLocalChanges().catch(console.error);
+    //   const logs = await pullRemoteChanges().catch(() => []);
+    //   if (logs && logs.length > 0) {
+    //     console.log(`📥 拉取到 ${logs.length} 条新记录`);
+    //     for (const log of logs) {
+    //       await mergeRemoteLog(log).catch(console.error);
+    //     }
+    //   }
+    //   
+    //   // 同步用户设置（包括头像）
+    //   const settings = await getUserSettings().catch(() => ({} as any));
+    //   if (settings && (settings as any).avatar_url && (settings as any).avatar_url !== avatarUrl) {
+    //     console.log('👤 检测到头像更新（定时同步）');
+    //     setAvatarUrl((settings as any).avatar_url);
+    //   }
+    //   
+    //   // 【B】禁止定时同步触发刷新/保存
+    //   // 删除所有 loadData() / cloudSaveV2() 调用
+    // }, 3000); // 每3秒同步一次
     
-    return () => {
-      cleanup();
-      cleanupSettings();
-      if (cleanupSnapshot) cleanupSnapshot();
-      if (newRealtimeCleanup) newRealtimeCleanup();
-      clearInterval(syncInterval);
-    };
+    // 【本地认证模式】不需要清理定时器
+    // return () => {
+    // 【本地认证模式】不需要清理定时器
+    // return () => {
+    //   cleanup();
+    //   cleanupSettings();
+    //   if (cleanupSnapshot) cleanupSnapshot();
+    //   if (newRealtimeCleanup) newRealtimeCleanup();
+    //   clearInterval(syncInterval);
+    // };
   }, [isLoggedIn]);
 
   // 处理拍照成功
