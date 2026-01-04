@@ -343,7 +343,16 @@ export default function App() {
 
   // 检查登录状态
   useEffect(() => {
-    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    // 🔧 本地测试模式：如果没有配置 Supabase，自动跳过登录
+    const skipLogin = localStorage.getItem('SKIP_LOGIN') === 'true';
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true' || skipLogin;
+    
+    if (skipLogin && !localStorage.getItem('isLoggedIn')) {
+      // 自动设置登录状态
+      localStorage.setItem('isLoggedIn', 'true');
+      console.log('🔧 自动跳过登录（测试模式）');
+    }
+    
     setIsLoggedIn(loggedIn);
     setCheckingAuth(false);
   }, []);
