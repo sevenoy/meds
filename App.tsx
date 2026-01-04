@@ -93,7 +93,7 @@ const MedCard: React.FC<{
 
   return (
     <div 
-      className={`group relative p-8 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${med.status === 'completed' ? 'bg-white' : ''}`}
+      className={`group relative p-4 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${med.status === 'completed' ? 'bg-white' : ''}`}
       style={{ backgroundColor: med.status !== 'completed' ? accentColor : undefined }}
     >
       <div className="flex flex-col">
@@ -231,7 +231,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'timeline' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'timeline' | 'profile' | 'medications'>('dashboard');
   const [medications, setMedications] = useState<MedicationUI[]>([]);
   const [timelineLogs, setTimelineLogs] = useState<MedicationLog[]>([]);
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -676,8 +676,8 @@ export default function App() {
           <span className="text-[8px] font-black text-white">记录</span>
         </button>
         <button 
-          onClick={() => setShowMedicationManage(true)}
-          className="flex flex-col items-center gap-1 transition-all hover:scale-110"
+          onClick={() => setActiveTab('medications')}
+          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'medications' ? 'scale-110' : ''}`}
         >
           <Pill className="w-6 h-6 text-white" />
           <span className="text-[8px] font-black text-white">药品</span>
@@ -692,9 +692,9 @@ export default function App() {
       </nav>
 
       {/* Header */}
-      <header className="px-6 md:px-24 pt-4 pb-8 md:pt-8 md:pb-16 flex flex-col md:flex-row md:items-end justify-between gap-4 relative z-10">
+      <header className="px-6 md:px-24 pt-4 pb-2 md:pt-8 md:pb-4 flex flex-col md:flex-row md:items-end justify-between gap-4 relative z-10">
         <div className="flex-1">
-          <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center justify-between gap-4 mb-2">
             <h1 className="text-2xl font-black italic tracking-tighter">
               药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{(window as any).APP_VERSION || 'V251219.1'}</span>
             </h1>
@@ -706,12 +706,12 @@ export default function App() {
       <main className="px-6 md:px-24 relative z-10">
         {activeTab === 'dashboard' && (
           <div className="grid grid-cols-1 gap-8 max-w-4xl">
-            <div className="mb-8">
-              <h4 className="text-sm font-black italic tracking-tighter mb-6 flex items-center gap-2">
+            <div className="mb-4">
+              <h4 className="text-sm font-black italic tracking-tighter mb-3 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-lime"></span>
                 待服用药物
               </h4>
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {medications.map(med => (
                   <MedCard 
                     key={med.id} 
@@ -998,15 +998,15 @@ export default function App() {
 
             {/* 统计卡片 */}
             <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-lime rounded-3xl p-6 text-center">
+              <div className="bg-lime rounded-3xl p-3 text-center">
                 <p className="text-3xl font-black italic tracking-tighter mb-1">{medications.length}</p>
                 <p className="text-xs font-bold text-gray-600 tracking-widest">药物总数</p>
               </div>
-              <div className="bg-mint rounded-3xl p-6 text-center">
+              <div className="bg-mint rounded-3xl p-3 text-center">
                 <p className="text-3xl font-black italic tracking-tighter mb-1">{timelineLogs.length}</p>
                 <p className="text-xs font-bold text-gray-600 tracking-widest">服药记录</p>
               </div>
-              <div className="bg-berry rounded-3xl p-6 text-center">
+              <div className="bg-berry rounded-3xl p-3 text-center">
                 <p className="text-3xl font-black italic tracking-tighter mb-1">{progress}%</p>
                 <p className="text-xs font-bold text-gray-600 tracking-widest">今日完成</p>
               </div>
@@ -1031,7 +1031,7 @@ export default function App() {
               </div>
 
               <div 
-                onClick={() => setShowMedicationManage(true)}
+                onClick={() => setActiveTab('medications')}
                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
               >
                 <div className="flex items-center gap-4">
@@ -1062,6 +1062,45 @@ export default function App() {
                   </div>
                 </div>
                 <span className="text-gray-400">›</span>
+              </div>
+
+              <div 
+                onClick={async () => {
+                  if (confirm('⚠️ 警告：确定要清除所有药品数据吗？\n\n这将删除：\n- 所有药品记录\n- 所有服药记录\n- 云端数据也会被清除\n\n此操作不可恢复！')) {
+                    if (confirm('⚠️ 最后确认：真的要删除所有数据吗？')) {
+                      try {
+                        // 清除本地数据库中的所有药品和记录
+                        const allMeds = await getMedications();
+                        for (const med of allMeds) {
+                          await deleteMedication(med.id);
+                        }
+                        
+                        // 同步到云端（清空云端数据）
+                        await cloudSaveV2();
+                        
+                        // 重新加载药品列表
+                        await loadMedications();
+                        
+                        alert('✅ 所有药品数据已清除！');
+                      } catch (error) {
+                        console.error('清除数据失败:', error);
+                        alert('❌ 清除数据失败，请重试');
+                      }
+                    }
+                  }
+                }}
+                className="bg-red-50 rounded-2xl p-5 shadow-sm border border-red-200 flex items-center justify-between hover:bg-red-100 transition-all cursor-pointer active:scale-98"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center">
+                    <Trash2 className="w-5 h-5 text-red-700" />
+                  </div>
+                  <div>
+                    <p className="font-black italic tracking-tighter text-red-700">清除所有药品</p>
+                    <p className="text-xs text-red-500 font-bold">删除所有药品和服药记录</p>
+                  </div>
+                </div>
+                <span className="text-red-400">›</span>
               </div>
 
               <div 
@@ -1139,6 +1178,213 @@ export default function App() {
                 </div>
                 <span className="text-red-400">›</span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'medications' && (
+          <div className="max-w-4xl">
+            <h2 className="text-3xl font-black italic tracking-tighter mb-6">药品管理</h2>
+            
+            {/* 添加新药品 */}
+            <div className="mb-6 p-6 bg-gradient-to-br from-pink-50 to-purple-50 rounded-3xl border-2 border-pink-100">
+              <h4 className="text-lg font-black italic tracking-tighter mb-4 flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                添加新药品
+              </h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">药品名称</label>
+                  <input
+                    type="text"
+                    value={newMedName}
+                    onChange={(e) => setNewMedName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                    placeholder="例如：降压药"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">剂量</label>
+                  <input
+                    type="text"
+                    value={newMedDosage}
+                    onChange={(e) => setNewMedDosage(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                    placeholder="例如：1片"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">服用时间</label>
+                  <input
+                    type="time"
+                    value={newMedTime}
+                    onChange={(e) => setNewMedTime(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={newMedAccent}
+                      onChange={(e) => setNewMedAccent(e.target.value)}
+                      className="w-16 h-16 rounded-2xl border-2 border-gray-300 cursor-pointer"
+                      title="选择颜色"
+                    />
+                    <div className="flex-1">
+                      <div 
+                        className="w-full h-12 rounded-2xl border-2 border-gray-200"
+                        style={{ backgroundColor: newMedAccent }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 font-mono">{newMedAccent}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    runWithUserAction(async () => {
+                      if (!newMedName || !newMedDosage || !newMedTime) {
+                        alert('请填写完整信息');
+                        return;
+                      }
+
+                      const payload = getCurrentSnapshotPayload();
+                      if (!payload) {
+                        alert('系统未初始化，请刷新页面后重试');
+                        return;
+                      }
+
+                      const newMedication = {
+                        id: `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                        name: newMedName,
+                        dosage: newMedDosage,
+                        scheduled_time: newMedTime,
+                        accent: newMedAccent,
+                        device_id: getDeviceId()
+                      };
+
+                      payload.medications = payload.medications || [];
+                      payload.medications.push(newMedication);
+
+                      const result = await cloudSaveV2(payload);
+                      if (!result.success) {
+                        if (result.conflict) {
+                          alert('版本冲突，正在重新加载...');
+                          await cloudLoadV2();
+                        } else {
+                          alert(`添加药品失败: ${result.message}`);
+                        }
+                        return;
+                      }
+
+                      console.log('✅ 新药品已成功写入 payload 并同步到云端');
+                      await loadData();
+                      
+                      setNewMedName('');
+                      setNewMedDosage('');
+                      setNewMedTime('');
+                      setNewMedAccent('#E0F3A2');
+                    });
+                  }}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  添加药品
+                </button>
+              </div>
+            </div>
+
+            {/* 现有药品列表 */}
+            <div>
+              <h4 className="text-lg font-black italic tracking-tighter mb-4">当前药品列表</h4>
+              
+              {medications.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <Pill className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="font-bold">暂无药品</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {medications.map((med) => {
+                    const medColor = (med.accent?.startsWith('#') ? med.accent : 
+                      med.accent === 'lime' ? '#E0F3A2' : 
+                      med.accent === 'mint' ? '#BFEFFF' :
+                      med.accent === 'berry' ? '#FFD1DC' : '#FFFFFF');
+                    
+                    return (
+                      <div
+                        key={med.id}
+                        className="p-5 rounded-2xl border-2 flex items-center justify-between bg-white"
+                        style={{ borderColor: medColor }}
+                      >
+                        <div className="flex-1">
+                          <h5 className="font-black italic tracking-tighter text-lg">{med.name}</h5>
+                          <div className="flex items-center gap-4 mt-1">
+                            <span className="text-sm font-bold text-gray-600">{med.dosage}</span>
+                            <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">
+                              {med.scheduled_time}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 ml-4">
+                          <button
+                            onClick={() => {
+                              setEditingMed(med);
+                              setEditMedName(med.name);
+                              setEditMedDosage(med.dosage);
+                              setEditMedTime(med.scheduled_time);
+                              setEditMedAccent(medColor);
+                            }}
+                            className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-all"
+                          >
+                            <Edit2 className="w-5 h-5 text-blue-600" />
+                          </button>
+                          
+                          <button
+                            onClick={async () => {
+                              runWithUserAction(async () => {
+                                if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                                  const payload = getCurrentSnapshotPayload();
+                                  if (!payload) {
+                                    alert('系统未初始化，请刷新页面后重试');
+                                    return;
+                                  }
+
+                                  payload.medications = (payload.medications || []).filter((m: any) => m.id !== med.id);
+                                  payload.medication_logs = (payload.medication_logs || []).filter((l: any) => l.medication_id !== med.id);
+
+                                  const result = await cloudSaveV2(payload);
+                                  if (!result.success) {
+                                    if (result.conflict) {
+                                      alert('版本冲突，正在重新加载...');
+                                      await cloudLoadV2();
+                                    } else {
+                                      alert(`删除失败: ${result.message}`);
+                                    }
+                                    return;
+                                  }
+
+                                  await loadData();
+                                }
+                              });
+                            }}
+                            className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
+                          >
+                            <Trash2 className="w-5 h-5 text-red-600" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1448,8 +1694,8 @@ export default function App() {
         </div>
       )}
 
-      {/* 药品管理 */}
-      {showMedicationManage && (
+      {/* 药品管理模态窗口已改为独立标签页 */}
+      {/* {showMedicationManage && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] p-8 max-w-2xl w-full shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
@@ -1687,7 +1933,7 @@ export default function App() {
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* 版本更新提示 */}
       <UpdateNotification />
