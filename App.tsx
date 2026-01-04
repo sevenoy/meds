@@ -276,17 +276,11 @@ export default function App() {
 
   // 加载数据
   const loadData = async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:entry',message:'loadData called',data:{stackTrace:new Error().stack?.split('\n').slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     try {
       setLoading(true);
       
       // 加载药物列表
       const meds = await getTodayMedications();
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:medsLoaded',message:'Medications loaded',data:{medsCount:meds.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       
       // 如果没有药物，初始化一些示例数据
       if (meds.length === 0) {
@@ -356,14 +350,8 @@ export default function App() {
         .sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime());
       
       setTimelineLogs(recentLogs);
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:success',message:'loadData completed',data:{medsCount:medsWithStatus.length,logsCount:recentLogs.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     } catch (error) {
       console.error('加载数据失败:', error);
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:error',message:'loadData failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     } finally {
       setLoading(false);
     }
@@ -406,20 +394,11 @@ export default function App() {
     /*
     initNewRealtimeSync({
       onMedicationChange: async () => {
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange',message:'onMedicationChange called',data:{isApplyingRemoteChange:isApplyingRemoteChange()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         if (isApplyingRemoteChange()) {
           console.log('⏭ 忽略远程触发的药品变更');
-          // #region agent log
-          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange:skipped',message:'Skipped due to remote change',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           return;
         }
         console.log('🔔 检测到药品变更（新Realtime），自动刷新...');
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange:loadData',message:'Calling loadData',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         await loadData();
         
         // 显示提示
@@ -433,9 +412,6 @@ export default function App() {
         }, 2000);
       },
       onLogChange: async () => {
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onLogChange',message:'onLogChange called',data:{isApplyingRemoteChange:isApplyingRemoteChange()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         if (isApplyingRemoteChange()) {
           console.log('⏭ 忽略远程触发的记录变更');
           return;

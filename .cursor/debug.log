@@ -4020,3 +4020,305 @@
 {"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545117682,"sessionId":"debug-session","hypothesisId":"A"}
 {"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545117683,"sessionId":"debug-session","hypothesisId":"A,B"}
 {"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545117683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545119199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545119199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545119199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545119200,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545119201,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545119202,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545119202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545119203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545119204,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545119205,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545119818,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545119818,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545119818,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545120241,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545120682,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545120683,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545120684,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545120686,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545120686,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545120687,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545120688,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545120688,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545120688,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545120689,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545122199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545122199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545122199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545122201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545122201,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545122202,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545122202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545122203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545122203,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545122204,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545122817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545122817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545122817,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545123173,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545123682,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545123684,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545123682,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545123684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545123682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545123683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545123683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545123683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545123683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545123684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545125199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545125201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545125200,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545125200,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545125201,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545125202,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545125202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545125203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545125204,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545125205,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545125816,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545125817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545125817,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545126264,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545126680,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545126681,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545126681,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545126682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545126683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545126682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545126684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545126683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545126684,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545126684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545128198,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545128199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545128199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545128201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545128202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545128203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545128203,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545128205,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545128205,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545128206,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545128818,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545128819,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545128819,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545129193,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545129682,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545129685,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545129685,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545129682,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545129682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545129683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545129683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545129684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545129684,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545129684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545131198,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545131199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545131200,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545131201,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545131202,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545131202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545131203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545131204,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545131205,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545131199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545131817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545131817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545131817,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545132250,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545132682,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545132682,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545132682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545132683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545132683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545132683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545132684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545132683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545132684,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545132684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545134198,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545134199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545134199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545134200,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545134200,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545134201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545134202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545134202,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545134203,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545134204,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545134816,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545134816,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545134816,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545135043,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545135681,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545135683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545135681,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545135681,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545135682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545135681,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545135682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545135682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545135682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545135683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545137197,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545137199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545137200,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545137198,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545137200,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545137201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545137202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545137202,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545137203,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545137203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545137817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545137817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545137817,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545138153,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545138681,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545138681,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545138681,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545138682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545138682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545138684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545138683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545138684,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545138683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545138684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545140197,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545140197,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545140198,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545140199,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545140199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545140200,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545140201,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545140201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545140202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545140203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545140816,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545140816,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545140816,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545141228,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545141681,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545141683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545141682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545141684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545141682,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545141682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545141683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545141683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545141683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545141683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545143198,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545143200,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545143199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545143199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545143201,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545143202,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545143202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545143203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545143204,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545143205,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545143816,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545143816,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545143816,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545144097,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545144681,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545144681,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545144681,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545144681,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545144682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545144682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545144682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545144682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545144682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545144683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545146198,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545146199,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545146199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545146200,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545146200,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545146201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545146202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545146203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545146203,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545146204,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545146817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545146817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545146817,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545147127,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545147680,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545147680,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545147680,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545147681,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545147683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545147681,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545147682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545147682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545147683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545147683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545149198,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545149198,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545149200,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545149199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545149199,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545149201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545149201,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545149203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545149203,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545149204,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545149817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545149818,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545149818,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545150061,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545150680,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545150681,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545150681,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545150682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545150682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545150682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545150683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545150684,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545150683,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545150683,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545152197,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545152198,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545152199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545152200,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545152200,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545152201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545152202,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545152203,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545152203,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545152204,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545152817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545152817,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545152817,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545153210,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545153679,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545153681,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545153682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545153681,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545153680,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545153680,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545153682,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545153681,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545153681,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545153682,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545155197,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545155197,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545155197,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545155199,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545155199,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545155200,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545155200,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545155201,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":null,"hasUser":false},"timestamp":1767545155198,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545155198,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"App.tsx:syncInterval","message":"Sync interval triggered","data":{"isApplyingRemote":false},"timestamp":1767545155816,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"App.tsx:syncInterval:executing","message":"Starting sync operations","data":{},"timestamp":1767545155816,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"supabase.ts:37","message":"getCurrentUserId called","data":{"supabaseExists":true},"timestamp":1767545155816,"sessionId":"debug-session","hypothesisId":"A,B"}
+{"location":"supabase.ts:43","message":"Supabase auth.getUser result","data":{"userId":"53b1d982-29b2-44f8-ab61-3a36e434f591","hasUser":true},"timestamp":1767545156142,"sessionId":"debug-session","hypothesisId":"A"}
