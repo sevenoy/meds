@@ -70,14 +70,20 @@ const MedCard: React.FC<{
   med: MedicationUI; 
   onCameraClick: () => void;
 }> = ({ med, onCameraClick }) => {
-  const getAccentClass = () => {
+  const getAccentColor = () => {
+    // 支持hex颜色或旧的预设颜色
+    if (med.accent?.startsWith('#')) {
+      return med.accent;
+    }
     switch(med.accent) {
-      case 'berry': return 'bg-berry';
-      case 'lime': return 'bg-lime';
-      case 'mint': return 'bg-mint';
-      default: return 'bg-white';
+      case 'berry': return '#FFD1DC';
+      case 'lime': return '#E0F3A2';
+      case 'mint': return '#BFEFFF';
+      default: return '#FFFFFF';
     }
   };
+
+  const accentColor = getAccentColor();
 
   const formatTime = (isoString?: string) => {
     if (!isoString) return '--:--';
@@ -86,7 +92,10 @@ const MedCard: React.FC<{
   };
 
   return (
-    <div className={`group relative p-8 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${med.status === 'completed' ? 'bg-white' : getAccentClass()}`}>
+    <div 
+      className={`group relative p-8 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${med.status === 'completed' ? 'bg-white' : ''}`}
+      style={{ backgroundColor: med.status !== 'completed' ? accentColor : undefined }}
+    >
       <div className="flex flex-col">
         <div className="flex items-center gap-3 mb-2">
           <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">{med.scheduled_time}</span>
@@ -256,15 +265,28 @@ export default function App() {
   const [newMedName, setNewMedName] = useState('');
   const [newMedDosage, setNewMedDosage] = useState('');
   const [newMedTime, setNewMedTime] = useState('');
-  const [newMedAccent, setNewMedAccent] = useState<'berry' | 'lime' | 'mint'>('lime');
+  const [newMedAccent, setNewMedAccent] = useState<string>('#E0F3A2'); // 默认颜色
+  
+  // 编辑药品状态
+  const [editingMed, setEditingMed] = useState<Medication | null>(null);
+  const [editMedName, setEditMedName] = useState('');
+  const [editMedDosage, setEditMedDosage] = useState('');
+  const [editMedTime, setEditMedTime] = useState('');
+  const [editMedAccent, setEditMedAccent] = useState<string>('#E0F3A2');
 
   // 加载数据
   const loadData = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:entry',message:'loadData called',data:{stackTrace:new Error().stack?.split('\n').slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     try {
       setLoading(true);
       
       // 加载药物列表
       const meds = await getTodayMedications();
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:medsLoaded',message:'Medications loaded',data:{medsCount:meds.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       
       // 如果没有药物，初始化一些示例数据
       if (meds.length === 0) {
@@ -334,8 +356,14 @@ export default function App() {
         .sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime());
       
       setTimelineLogs(recentLogs);
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:success',message:'loadData completed',data:{medsCount:medsWithStatus.length,logsCount:recentLogs.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     } catch (error) {
       console.error('加载数据失败:', error);
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:error',message:'loadData failed',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     } finally {
       setLoading(false);
     }
@@ -377,15 +405,18 @@ export default function App() {
     initNewRealtimeSync({
       onMedicationChange: async () => {
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange',message:'onMedicationChange called',data:{isApplyingRemoteChange:isApplyingRemoteChange()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange',message:'onMedicationChange called',data:{isApplyingRemoteChange:isApplyingRemoteChange()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
         if (isApplyingRemoteChange()) {
           console.log('⏭ 忽略远程触发的药品变更');
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange:skipped',message:'Skipped due to remote change',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
           return;
         }
         console.log('🔔 检测到药品变更（新Realtime），自动刷新...');
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange:loadData',message:'Calling loadData',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onMedicationChange:loadData',message:'Calling loadData',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
         await loadData();
         
@@ -400,6 +431,9 @@ export default function App() {
         }, 2000);
       },
       onLogChange: async () => {
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:onLogChange',message:'onLogChange called',data:{isApplyingRemoteChange:isApplyingRemoteChange()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         if (isApplyingRemoteChange()) {
           console.log('⏭ 忽略远程触发的记录变更');
           return;
@@ -534,6 +568,9 @@ export default function App() {
     
     // 定期同步（缩短到3秒，更快速的多设备同步）
     const syncInterval = setInterval(async () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:syncInterval',message:'Sync interval triggered',data:{isApplyingRemote:isApplyingRemote()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       // 【B】在所有监听入口加 guard
       if (isApplyingRemote()) {
         console.log('⏭ 忽略云端回放引起的本地变化（定时同步）');
@@ -541,6 +578,9 @@ export default function App() {
       }
       
       console.log('⏰ 定时同步...');
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:syncInterval:executing',message:'Starting sync operations',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       
       // 【B】定时同步只负责数据同步，不触发刷新/保存
       // 删除所有变化检测和刷新逻辑，避免触发 cloudSaveV2
@@ -665,65 +705,6 @@ export default function App() {
             <h1 className="text-2xl font-black italic tracking-tighter">
               药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{(window as any).APP_VERSION || 'V251219.1'}</span>
             </h1>
-            {/* 云端快照管理按钮和同步状态 */}
-            {isLoggedIn && (
-              <div className="flex gap-2 items-center">
-                {/* Realtime 同步状态指示器 */}
-                <SyncStatusIndicator 
-                  status={realtimeStatus}
-                  onReconnect={async () => {
-                    await reconnectRealtime({
-                      onMedicationChange: async () => {
-                        if (isApplyingRemoteChange()) return;
-                        await loadData();
-                      },
-                      onLogChange: async () => {
-                        if (isApplyingRemoteChange()) return;
-                        await loadData();
-                      },
-                      onSettingsChange: async () => {
-                        if (isApplyingRemoteChange()) return;
-                        const settings = await getUserSettings();
-                        if (settings.avatar_url) {
-                          setAvatarUrl(settings.avatar_url);
-                        }
-                      },
-                      onConnectionStatusChange: (status) => {
-                        setRealtimeStatus(status);
-                      }
-                    });
-                  }}
-                />
-                
-                <button
-                  onClick={async () => {
-                    const result = await saveSnapshotLegacy();
-                    alert(result.message);
-                    if (result.success) {
-                      await loadData(); // 刷新数据
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-blue-500 text-white rounded-full text-xs font-bold hover:bg-blue-600 transition-all shadow-md flex items-center gap-1.5"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  云端保存
-                </button>
-                
-                <button
-                  onClick={async () => {
-                    const result = await loadSnapshotLegacy(false);
-                    alert(result.message);
-                    if (result.success) {
-                      await loadData(); // 刷新数据
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-green-500 text-white rounded-full text-xs font-bold hover:bg-green-600 transition-all shadow-md flex items-center gap-1.5"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  云端读取
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </header>
@@ -995,10 +976,10 @@ export default function App() {
 
         {activeTab === 'profile' && (
           <div className="max-w-4xl">
-            {/* 用户信息卡片 */}
-            <div className="bg-white rounded-[40px] p-4 shadow-sm border border-gray-100 mb-6">
-              <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
+            {/* 用户信息卡片 - 降低高度至50% */}
+            <div className="bg-white rounded-[40px] p-2 shadow-sm border border-gray-100 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
                   {avatarUrl ? (
                     <img 
                       src={avatarUrl} 
@@ -1006,18 +987,18 @@ export default function App() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User className="w-10 h-10 text-white" strokeWidth={2.5} />
+                    <User className="w-6 h-6 text-white" strokeWidth={2.5} />
                   )}
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-2xl font-black italic tracking-tighter mb-1">{userName}</h2>
-                  <p className="text-sm text-gray-500 font-bold tracking-widest">药盒助手用户</p>
+                  <h2 className="text-lg font-black italic tracking-tighter mb-0.5">{userName}</h2>
+                  <p className="text-xs text-gray-500 font-bold tracking-widest">药盒助手用户</p>
                 </div>
                 <button 
                   onClick={() => setShowProfileEdit(true)}
-                  className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
                 >
-                  <Edit2 className="w-5 h-5" />
+                  <Edit2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1084,24 +1065,6 @@ export default function App() {
                     <p className="font-black italic tracking-tighter">提醒设置</p>
                     <p className="text-xs text-gray-400 font-bold">
                       {reminderEnabled ? '提醒已开启' : '设置服药提醒时间'}
-                    </p>
-                  </div>
-                </div>
-                <span className="text-gray-400">›</span>
-              </div>
-
-              <div 
-                onClick={() => setShowSyncSettings(true)}
-                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                    <RefreshCw className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="font-black italic tracking-tighter">数据同步</p>
-                    <p className="text-xs text-gray-400 font-bold">
-                      {syncEnabled ? '同步已开启' : '多设备数据同步管理'}
                     </p>
                   </div>
                 </div>
@@ -1348,24 +1311,42 @@ export default function App() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <RefreshCw className="w-5 h-5 text-purple-600" />
-                    <span className="font-black italic tracking-tighter">自动同步</span>
+                    <span className="font-black italic tracking-tighter">云端数据</span>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={syncEnabled}
-                      onChange={(e) => {
-                        setSyncEnabled(e.target.checked);
-                        localStorage.setItem('syncEnabled', e.target.checked.toString());
-                      }}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                  </label>
                 </div>
-                <p className="text-xs text-gray-500 font-bold">
-                  开启后，数据会自动在多个设备间同步
+                <p className="text-xs text-gray-500 font-bold mb-4">
+                  手动保存和读取云端备份数据
                 </p>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={async () => {
+                      const result = await saveSnapshotLegacy();
+                      alert(result.message);
+                      if (result.success) {
+                        await loadData(); // 刷新数据
+                      }
+                    }}
+                    className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-2xl font-bold hover:bg-blue-600 transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    云端保存
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      const result = await loadSnapshotLegacy(false);
+                      alert(result.message);
+                      if (result.success) {
+                        await loadData(); // 刷新数据
+                      }
+                    }}
+                    className="flex-1 px-4 py-3 bg-green-500 text-white rounded-2xl font-bold hover:bg-green-600 transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    云端读取
+                  </button>
+                </div>
               </div>
 
               {syncEnabled && (
@@ -1497,7 +1478,7 @@ export default function App() {
             <div className="mb-6 p-6 bg-gradient-to-br from-pink-50 to-purple-50 rounded-3xl border-2 border-pink-100">
               <h4 className="text-lg font-black italic tracking-tighter mb-4 flex items-center gap-2">
                 <Plus className="w-5 h-5" />
-                添加新药品
+                网页
               </h4>
               
               <div className="space-y-3">
@@ -1535,37 +1516,21 @@ export default function App() {
 
                 <div>
                   <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setNewMedAccent('lime')}
-                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-                        newMedAccent === 'lime' 
-                          ? 'bg-lime border-2 border-green-600 scale-105' 
-                          : 'bg-lime/50 border-2 border-transparent'
-                      }`}
-                    >
-                      柠檬绿
-                    </button>
-                    <button
-                      onClick={() => setNewMedAccent('mint')}
-                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-                        newMedAccent === 'mint' 
-                          ? 'bg-mint border-2 border-blue-600 scale-105' 
-                          : 'bg-mint/50 border-2 border-transparent'
-                      }`}
-                    >
-                      薄荷蓝
-                    </button>
-                    <button
-                      onClick={() => setNewMedAccent('berry')}
-                      className={`flex-1 py-3 rounded-2xl font-bold transition-all ${
-                        newMedAccent === 'berry' 
-                          ? 'bg-berry border-2 border-pink-600 scale-105' 
-                          : 'bg-berry/50 border-2 border-transparent'
-                      }`}
-                    >
-                      莓果粉
-                    </button>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={newMedAccent}
+                      onChange={(e) => setNewMedAccent(e.target.value)}
+                      className="w-16 h-16 rounded-2xl border-2 border-gray-300 cursor-pointer"
+                      title="选择颜色"
+                    />
+                    <div className="flex-1">
+                      <div 
+                        className="w-full h-12 rounded-2xl border-2 border-gray-200"
+                        style={{ backgroundColor: newMedAccent }}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 font-mono">{newMedAccent}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -1614,7 +1579,7 @@ export default function App() {
                       setNewMedName('');
                       setNewMedDosage('');
                       setNewMedTime('');
-                      setNewMedAccent('lime');
+                      setNewMedAccent('#E0F3A2');
                     });
                   }}
                   className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -1636,63 +1601,82 @@ export default function App() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {medications.map((med) => (
-                    <div
-                      key={med.id}
-                      className={`p-5 rounded-2xl border-2 flex items-center justify-between ${
-                        med.accent === 'lime' ? 'bg-lime/20 border-lime' :
-                        med.accent === 'mint' ? 'bg-mint/20 border-mint' :
-                        'bg-berry/20 border-berry'
-                      }`}
-                    >
-                      <div className="flex-1">
-                        <h5 className="font-black italic tracking-tighter text-lg">{med.name}</h5>
-                        <div className="flex items-center gap-4 mt-1">
-                          <span className="text-sm font-bold text-gray-600">{med.dosage}</span>
-                          <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">
-                            {med.scheduled_time}
-                          </span>
+                  {medications.map((med) => {
+                    const medColor = (med.accent?.startsWith('#') ? med.accent : 
+                      med.accent === 'lime' ? '#E0F3A2' : 
+                      med.accent === 'mint' ? '#BFEFFF' :
+                      med.accent === 'berry' ? '#FFD1DC' : '#FFFFFF');
+                    
+                    return (
+                      <div
+                        key={med.id}
+                        className="p-5 rounded-2xl border-2 flex items-center justify-between bg-white"
+                        style={{ borderColor: medColor }}
+                      >
+                        <div className="flex-1">
+                          <h5 className="font-black italic tracking-tighter text-lg">{med.name}</h5>
+                          <div className="flex items-center gap-4 mt-1">
+                            <span className="text-sm font-bold text-gray-600">{med.dosage}</span>
+                            <span className="text-xs font-black bg-black text-white px-3 py-1 rounded-full italic">
+                              {med.scheduled_time}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 ml-4">
+                          <button
+                            onClick={() => {
+                              setEditingMed(med);
+                              setEditMedName(med.name);
+                              setEditMedDosage(med.dosage);
+                              setEditMedTime(med.scheduled_time);
+                              setEditMedAccent(medColor);
+                            }}
+                            className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-all"
+                          >
+                            <Edit2 className="w-5 h-5 text-blue-600" />
+                          </button>
+                          
+                          <button
+                            onClick={async () => {
+                              // 【C】统一用户操作写路径：修改 payload → cloudSaveV2
+                              runWithUserAction(async () => {
+                                if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                                  const payload = getCurrentSnapshotPayload();
+                                  if (!payload) {
+                                    alert('系统未初始化，请刷新页面后重试');
+                                    return;
+                                  }
+
+                                  // 从 payload 中删除药品
+                                  payload.medications = (payload.medications || []).filter((m: any) => m.id !== med.id);
+                                  // 删除相关的服药记录
+                                  payload.medication_logs = (payload.medication_logs || []).filter((l: any) => l.medication_id !== med.id);
+
+                                  const result = await cloudSaveV2(payload);
+                                  if (!result.success) {
+                                    if (result.conflict) {
+                                      alert('版本冲突，正在重新加载...');
+                                      await cloudLoadV2();
+                                    } else {
+                                      alert(`删除药品失败: ${result.message}`);
+                                    }
+                                    return;
+                                  }
+
+                                  console.log('✅ 药品已成功从 payload 删除并同步到云端');
+                                  await loadData();
+                                }
+                              });
+                            }}
+                            className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
+                          >
+                            <Trash2 className="w-5 h-5 text-red-600" />
+                          </button>
                         </div>
                       </div>
-                      
-                      <button
-                        onClick={async () => {
-                          // 【C】统一用户操作写路径：修改 payload → cloudSaveV2
-                          runWithUserAction(async () => {
-                            if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-                              const payload = getCurrentSnapshotPayload();
-                              if (!payload) {
-                                alert('系统未初始化，请刷新页面后重试');
-                                return;
-                              }
-
-                              // 从 payload 中删除药品
-                              payload.medications = (payload.medications || []).filter((m: any) => m.id !== med.id);
-                              // 删除相关的服药记录
-                              payload.medication_logs = (payload.medication_logs || []).filter((l: any) => l.medication_id !== med.id);
-
-                              const result = await cloudSaveV2(payload);
-                              if (!result.success) {
-                                if (result.conflict) {
-                                  alert('版本冲突，正在重新加载...');
-                                  await cloudLoadV2();
-                                } else {
-                                  alert(`删除药品失败: ${result.message}`);
-                                }
-                                return;
-                              }
-
-                              console.log('✅ 药品已成功从 payload 删除并同步到云端');
-                              await loadData();
-                            }
-                          });
-                        }}
-                        className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all ml-4"
-                      >
-                        <Trash2 className="w-5 h-5 text-red-600" />
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1714,6 +1698,132 @@ export default function App() {
 
       {/* 版本更新提示 */}
       <UpdateNotification />
+      
+      {/* 编辑药品模态框 */}
+      {editingMed && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black italic tracking-tighter">编辑药品</h3>
+              <button
+                onClick={() => setEditingMed(null)}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">药品名称</label>
+                <input
+                  type="text"
+                  value={editMedName}
+                  onChange={(e) => setEditMedName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                  placeholder="例如：降压药"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">剂量</label>
+                <input
+                  type="text"
+                  value={editMedDosage}
+                  onChange={(e) => setEditMedDosage(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                  placeholder="例如：1片"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">服用时间</label>
+                <input
+                  type="time"
+                  value={editMedTime}
+                  onChange={(e) => setEditMedTime(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={editMedAccent}
+                    onChange={(e) => setEditMedAccent(e.target.value)}
+                    className="w-16 h-16 rounded-2xl border-2 border-gray-300 cursor-pointer"
+                    title="选择颜色"
+                  />
+                  <div className="flex-1">
+                    <div 
+                      className="w-full h-12 rounded-2xl border-2 border-gray-200"
+                      style={{ backgroundColor: editMedAccent }}
+                    />
+                    <p className="text-xs text-gray-500 mt-1 font-mono">{editMedAccent}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setEditingMed(null)}
+                  className="flex-1 px-6 py-4 bg-gray-100 text-gray-700 font-black italic rounded-full tracking-tighter hover:bg-gray-200 transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={async () => {
+                    runWithUserAction(async () => {
+                      if (!editMedName || !editMedDosage || !editMedTime) {
+                        alert('请填写完整信息');
+                        return;
+                      }
+
+                      const payload = getCurrentSnapshotPayload();
+                      if (!payload) {
+                        alert('系统未初始化，请刷新页面后重试');
+                        return;
+                      }
+
+                      // 更新药品信息
+                      const medIndex = (payload.medications || []).findIndex((m: any) => m.id === editingMed.id);
+                      if (medIndex !== -1) {
+                        payload.medications[medIndex] = {
+                          ...payload.medications[medIndex],
+                          name: editMedName,
+                          dosage: editMedDosage,
+                          scheduled_time: editMedTime,
+                          accent: editMedAccent
+                        };
+                      }
+
+                      const result = await cloudSaveV2(payload);
+                      if (!result.success) {
+                        if (result.conflict) {
+                          alert('版本冲突，正在重新加载...');
+                          await cloudLoadV2();
+                        } else {
+                          alert(`更新药品失败: ${result.message}`);
+                        }
+                        return;
+                      }
+
+                      console.log('✅ 药品已成功更新并同步到云端');
+                      await loadData();
+                      setEditingMed(null);
+                    });
+                  }}
+                  className="flex-1 px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
