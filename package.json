@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "update-version": "node update-version.js"
+    "update-version": "node update-version.mjs"
   },
   "dependencies": {
     "@cloudbase/js-sdk": "^2.24.3",

@@ -12,6 +12,7 @@ import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, 
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote, initRealtimeV2 } from './src/services/snapshot';
 import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
+import { APP_VERSION } from './src/config/version';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Types ---
@@ -132,7 +133,8 @@ const TimelineItem: React.FC<{
   log: MedicationLog; 
   medication: Medication;
   onMedicationClick?: (medicationId: string) => void;
-}> = ({ log, medication, onMedicationClick }) => {
+  isLast?: boolean;
+}> = ({ log, medication, onMedicationClick, isLast }) => {
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -171,52 +173,52 @@ const TimelineItem: React.FC<{
   };
 
   return (
-    <div className="relative pl-12 pb-16 border-l-2 border-black/10 last:pb-0">
+    <div className={`relative pl-12 pb-8 border-l-2 border-black/10 ${isLast ? 'border-l-transparent pb-0' : ''}`}>
       <div className="absolute left-[-11px] top-0 w-5 h-5 rounded-full bg-black border-4 border-white" />
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <button
-              onClick={() => onMedicationClick?.(medication.id)}
-              className="text-sm font-black italic uppercase hover:text-blue-600 transition-colors cursor-pointer"
-            >
-              {medication.name}
-            </button>
-            <span className={`text-[10px] font-bold px-2 py-1 rounded-md tracking-widest ${getStatusColor()}`}>
-              {getStatusText()}
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 tracking-widest">
-              {formatDate(log.taken_at)}
-            </span>
-          </div>
-          
-          <div className="mt-4">
-            <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
-              <p className="text-[10px] font-bold text-gray-400 tracking-widest mb-1">拍摄时间 ({getTimeSourceText()})</p>
-              <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3">
+        {/* 药品名称和状态标签 */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => onMedicationClick?.(medication.id)}
+            className="text-lg font-black italic uppercase hover:text-blue-600 transition-colors cursor-pointer"
+          >
+            {medication.name}
+          </button>
+          <span className={`text-[10px] font-bold px-2 py-1 rounded-md tracking-widest ${getStatusColor()}`}>
+            {getStatusText()}
+          </span>
+        </div>
+        
+        {/* 时间和图片信息 */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-4 flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-[10px] font-bold text-gray-400 tracking-widest mb-1">
+                拍摄时间 ({getTimeSourceText()})
+              </p>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-black" />
-                <span className="font-black italic">{formatTime(log.taken_at)}</span>
+                <span className="font-black italic text-base">{formatTime(log.taken_at)}</span>
+              </div>
+            </div>
+            
+            {log.image_path && (
+              <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden group relative cursor-pointer">
+                <img 
+                  src={log.image_path} 
+                  alt="验证凭证" 
+                  className="w-full h-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
+                />
+                <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-80 h-80">
+                  <img 
+                    src={log.image_path} 
+                    alt="预览" 
+                    className="w-full h-full object-cover rounded-2xl shadow-2xl border-4 border-white"
+                  />
                 </div>
-                {log.image_path && (
-                  <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-200 rounded-xl overflow-hidden group relative cursor-pointer ml-auto">
-                    <img 
-                      src={log.image_path} 
-                      alt="验证凭证" 
-                      className="w-full h-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
-                    />
-                    <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-64 h-64 md:w-80 md:h-80">
-                      <img 
-                        src={log.image_path} 
-                        alt="预览" 
-                        className="w-full h-full object-cover rounded-2xl shadow-2xl border-4 border-white"
-                      />
               </div>
-            </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -297,11 +299,15 @@ export default function App() {
     try {
       setLoading(true);
       
+      console.log('🔄 开始加载数据...');
+      
       // 加载药物列表
       const meds = await getTodayMedications();
+      console.log(`📋 已加载 ${meds.length} 个药物:`, meds.map(m => m.name));
       
       // 如果没有药物，初始化一些示例数据
       if (meds.length === 0) {
+        console.log('⚠️ 没有药物，初始化默认药物...');
         const defaultMeds: Medication[] = [
           { 
             id: '1', 
@@ -332,6 +338,7 @@ export default function App() {
         }
         
         meds.push(...defaultMeds);
+        console.log('✅ 默认药物已初始化');
       }
       
       // 转换药物列表并检查状态
@@ -356,20 +363,24 @@ export default function App() {
         })
       );
       
+      console.log(`✅ 药物状态已更新，共 ${medsWithStatus.length} 个`);
       setMedications(medsWithStatus);
       
-      // 加载时间线数据（最近7天）
+      // 加载时间线数据（所有记录，不限于7天）
       const allLogs = await getMedicationLogs();
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      console.log(`📝 已加载 ${allLogs.length} 条服药记录`);
       
-      const recentLogs = allLogs
-        .filter(log => new Date(log.taken_at) >= sevenDaysAgo)
-        .sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime());
+      // 按日期降序排序
+      const sortedLogs = allLogs.sort((a, b) => 
+        new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+      );
       
-      setTimelineLogs(recentLogs);
+      console.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
+      setTimelineLogs(sortedLogs);
+      
+      console.log('✅ 数据加载完成');
     } catch (error) {
-      console.error('加载数据失败:', error);
+      console.error('❌ 加载数据失败:', error);
     } finally {
       setLoading(false);
     }
@@ -441,10 +452,8 @@ export default function App() {
       }
     }).catch(console.error);
     
-    // 【新增】初始化新的 Realtime 服务（基于 Supabase Realtime）
-    // 【本地认证模式】禁用 Realtime，避免无效连接
+    // 【启用新的 Realtime 即时同步】参考技术文档实现
     let newRealtimeCleanup: (() => void) | null = null;
-    /*
     initNewRealtimeSync({
       onMedicationChange: async () => {
         if (isApplyingRemoteChange()) {
@@ -499,8 +508,8 @@ export default function App() {
       }
     }).then(cleanup => {
       newRealtimeCleanup = cleanup;
+      console.log('✅ 新 Realtime 服务已启动（基于 Supabase Realtime）');
     }).catch(console.error);
-    */
     
     // 【本地认证模式】禁用旧的 Realtime 同步
     /*
@@ -655,6 +664,10 @@ export default function App() {
         realtimeCleanup();
         console.log('🔌 Realtime V2 已断开');
       }
+      if (newRealtimeCleanup) {
+        newRealtimeCleanup();
+        console.log('🔌 新 Realtime 服务已断开');
+      }
     };
   }, [isLoggedIn]);
 
@@ -747,8 +760,29 @@ export default function App() {
         <div className="flex-1">
           <div className="flex items-center justify-between gap-4 mb-2">
             <h1 className="text-2xl font-black italic tracking-tighter">
-              药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{(window as any).APP_VERSION || 'V251219.1'}</span>
+              药盒助手 <span className="text-gray-500 text-xs font-medium tracking-widest">{APP_VERSION}</span>
             </h1>
+            {/* Realtime 同步状态指示器 */}
+            <div className="flex items-center gap-2">
+              {realtimeStatus === 'connected' && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-green-50 rounded-full">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[10px] font-bold text-green-700">实时同步</span>
+                </div>
+              )}
+              {realtimeStatus === 'connecting' && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-yellow-50 rounded-full">
+                  <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                  <span className="text-[10px] font-bold text-yellow-700">连接中...</span>
+                </div>
+              )}
+              {realtimeStatus === 'disconnected' && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-red-50 rounded-full">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-[10px] font-bold text-red-700">未连接</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -906,21 +940,27 @@ export default function App() {
                       >
                         <span className="font-bold">{day}</span>
                         {logsOnDate.length > 0 && (
-                          <div className="flex gap-1 mt-1">
+                          <div className="flex gap-1 mt-1 flex-wrap justify-center">
                             {Array.from(new Set(logsOnDate.map(log => {
                               const med = medications.find(m => m.id === log.medication_id);
-                              return med?.accent;
-                            }))).map((accent, idx) => (
-                              <div
-                                key={idx}
-                                className={`w-2 h-2 rounded-full shadow-md ring-1 ring-white ${
-                                  accent === 'lime' ? 'bg-lime' :
-                                  accent === 'mint' ? 'bg-mint' :
-                                  accent === 'berry' ? 'bg-berry' :
-                                  'bg-gray-400'
-                                }`}
-                              />
-                            ))}
+                              if (!med) return null;
+                              // 获取实际颜色值
+                              const color = med.accent?.startsWith('#') ? med.accent :
+                                med.accent === 'lime' ? '#E0F3A2' :
+                                med.accent === 'mint' ? '#BFEFFF' :
+                                med.accent === 'berry' ? '#FFD1DC' : '#999999';
+                              return JSON.stringify({ color, name: med.name });
+                            }).filter(Boolean))).map((item, idx) => {
+                              const { color, name } = JSON.parse(item as string);
+                              return (
+                                <div
+                                  key={idx}
+                                  className="w-2 h-2 rounded-full shadow-md ring-1 ring-white"
+                                  style={{ backgroundColor: color }}
+                                  title={name}
+                                />
+                              );
+                            })}
                           </div>
                         )}
                       </button>
@@ -1013,19 +1053,21 @@ export default function App() {
                       const dateDisplay = isToday ? '今天' : date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
 
                       return (
-                        <div key={dateKey} className="space-y-4">
-                          {/* 日期标题 */}
-                          <div className="flex items-center gap-3">
-                            <div className={`px-4 py-2 rounded-full ${isToday ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'} font-black italic text-sm`}>
+                        <div key={dateKey} className="mb-12">
+                          {/* 日期标题 - 更醒目的设计 */}
+                          <div className="flex items-center gap-4 mb-6">
+                            <div className={`px-6 py-3 rounded-full ${isToday ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' : 'bg-gray-100 text-gray-700'} font-black italic text-base`}>
                               {dateDisplay}
                             </div>
-                            <div className="flex-1 h-px bg-gray-200" />
-                            <span className="text-xs font-bold text-gray-400">{logsOnDate.length} 条记录</span>
+                            <div className="flex-1 h-0.5 bg-gradient-to-r from-gray-200 to-transparent" />
+                            <span className="text-sm font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full">
+                              {logsOnDate.length} 条
+                            </span>
                           </div>
 
-                          {/* 当天的记录 */}
-                          <div className="space-y-4">
-                            {logsOnDate.map(log => {
+                          {/* 当天的记录列表 - 使用时间线样式 */}
+                          <div className="relative">
+                            {logsOnDate.map((log, index) => {
                               const medication = medications.find(m => m.id === log.medication_id);
                               if (!medication) return null;
                               
@@ -1037,6 +1079,7 @@ export default function App() {
                                   onMedicationClick={(medId) => {
                                     setSelectedMedicationId(medId);
                                   }}
+                                  isLast={index === logsOnDate.length - 1}
                                 />
                               );
                             })}
@@ -1260,7 +1303,7 @@ export default function App() {
                   </div>
                   <div>
                     <p className="font-black italic tracking-tighter">关于应用</p>
-                    <p className="text-xs text-gray-400 font-bold">版本 {(window as any).APP_VERSION || 'V251219.1'}</p>
+                    <p className="text-xs text-gray-400 font-bold">版本 {APP_VERSION}</p>
                   </div>
                 </div>
                 <span className="text-gray-400">›</span>
@@ -1768,7 +1811,7 @@ export default function App() {
                   <span className="text-4xl font-black italic text-white">药</span>
                 </div>
                 <h2 className="text-3xl font-black italic tracking-tighter mb-2">药盒助手</h2>
-                <p className="text-sm text-gray-500 font-bold">版本 {(window as any).APP_VERSION || 'V251219.1'}</p>
+                <p className="text-sm text-gray-500 font-bold">版本 {APP_VERSION}</p>
               </div>
 
               <div className="space-y-3">
