@@ -42,11 +42,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         
         // 检查用户名和密码（不区分大小写）
         if (email.toLowerCase().trim() === validUsername && password === validPassword) {
-          // 本地认证成功，现在尝试连接 Supabase
-          console.log('✅ 本地认证成功，尝试连接 Supabase...');
+          // 本地认证成功，现在必须连接 Supabase
+          console.log('✅ 本地认证成功，正在连接 Supabase...');
           
-          // 尝试使用对应的邮箱和密码登录 Supabase
-          // 假设用户邮箱是 sevenoy@gmail.com
+          // 使用对应的邮箱和密码登录 Supabase
           const supabaseEmail = 'sevenoy@gmail.com';
           const supabasePassword = password; // 使用相同的密码
           
@@ -54,22 +53,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             const { data: supabaseData, error: supabaseError } = await signIn(supabaseEmail, supabasePassword);
             
             if (supabaseError) {
-              console.warn('⚠️ Supabase 登录失败（将使用本地模式）:', supabaseError.message);
-              // Supabase 登录失败不影响本地登录，继续使用本地功能
-            } else {
-              console.log('✅ Supabase 登录成功，数据库已连接');
+              console.error('❌ Supabase 登录失败:', supabaseError.message);
+              setError(`数据库连接失败：${supabaseError.message || '无法连接到数据库，请检查网络或联系管理员'}`);
+              setLoading(false);
+              return;
             }
-          } catch (supabaseErr) {
-            console.warn('⚠️ Supabase 连接失败（将使用本地模式）:', supabaseErr);
-            // 即使 Supabase 连接失败，也允许使用本地功能
+            
+            // Supabase 登录成功
+            console.log('✅ Supabase 登录成功，数据库已连接');
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userEmail', supabaseEmail);
+            localStorage.setItem('userName', 'sevenoy');
+            setLoading(false);
+            onLoginSuccess();
+          } catch (supabaseErr: any) {
+            console.error('❌ Supabase 连接异常:', supabaseErr);
+            const errorMessage = supabaseErr?.message || '网络连接失败，请检查网络后重试';
+            setError(`数据库连接失败：${errorMessage}`);
+            setLoading(false);
+            return;
           }
-          
-          // 设置本地登录状态
-          localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userEmail', supabaseEmail);
-          localStorage.setItem('userName', 'sevenoy');
-          setLoading(false);
-          onLoginSuccess();
         } else {
           // 登录失败
           console.error('❌ 登录失败：用户名或密码错误');
