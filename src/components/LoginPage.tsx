@@ -53,8 +53,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             const { data: supabaseData, error: supabaseError } = await signIn(supabaseEmail, password);
             
             if (supabaseError) {
-              console.error('❌ Supabase 连接失败:', supabaseError.message);
-              setError(`数据库连接失败：${supabaseError.message || '无法连接到数据库，请检查网络或联系管理员'}`);
+              console.error('❌ Supabase 连接失败:', supabaseError);
+              // 提供更详细的错误信息
+              let errorMsg = '数据库连接失败';
+              if (supabaseError.message) {
+                errorMsg += `：${supabaseError.message}`;
+              } else if (supabaseError.status) {
+                errorMsg += `（错误代码：${supabaseError.status}）`;
+              }
+              errorMsg += '\n\n请检查：\n1. Supabase 项目是否正常运行\n2. 用户账号是否存在\n3. 网络连接是否正常';
+              setError(errorMsg);
               setLoading(false);
               return;
             }
@@ -72,8 +80,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             onLoginSuccess();
           } catch (supabaseErr: any) {
             console.error('❌ Supabase 连接异常:', supabaseErr);
-            const errorMessage = supabaseErr?.message || '网络连接失败，请检查网络后重试';
-            setError(`数据库连接失败：${errorMessage}`);
+            let errorMsg = '数据库连接失败';
+            if (supabaseErr?.message) {
+              if (supabaseErr.message.includes('fetch') || supabaseErr.message.includes('Failed to fetch')) {
+                errorMsg = '数据库连接失败：网络错误（可能是 Supabase 项目不存在或域名无法解析）\n\n请检查：\n1. Supabase 项目是否正常运行\n2. 项目域名是否正确\n3. 网络连接是否正常';
+              } else {
+                errorMsg = `数据库连接失败：${supabaseErr.message}`;
+              }
+            } else {
+              errorMsg = '数据库连接失败：未知错误';
+            }
+            setError(errorMsg);
             setLoading(false);
             return;
           }
