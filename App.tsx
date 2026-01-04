@@ -235,6 +235,7 @@ export default function App() {
   const [medications, setMedications] = useState<MedicationUI[]>([]);
   const [timelineLogs, setTimelineLogs] = useState<MedicationLog[]>([]);
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [selectedMedicationId, setSelectedMedicationId] = useState<string | null>(null); // 新增：选中的药物ID
   const [syncPrompt, setSyncPrompt] = useState<MedicationLog | null>(null);
   const [loading, setLoading] = useState(true);
   const [appInitialized, setAppInitialized] = useState(false); // 新增：应用是否已初始化
@@ -767,7 +768,10 @@ export default function App() {
                   <MedCard 
                     key={med.id} 
                     med={med}
-                    onCameraClick={() => setShowCameraModal(true)}
+                    onCameraClick={() => {
+                      setSelectedMedicationId(med.id);
+                      setShowCameraModal(true);
+                    }}
                   />
                 ))}
               </div>
@@ -965,7 +969,7 @@ export default function App() {
               )}
             </div>
 
-             <div className="space-y-4">
+             <div className="space-y-6">
                 {(() => {
                   let filteredLogs = timelineLogs;
 
@@ -989,20 +993,56 @@ export default function App() {
                     filteredLogs = filteredLogs.filter(log => log.medication_id === selectedMedicationId);
                   }
 
-                  return filteredLogs.length > 0 ? (
-                    filteredLogs.map(log => {
-                      const medication = medications.find(m => m.id === log.medication_id);
-                      if (!medication) return null;
+                  // 按天分组
+                  const groupedByDate = filteredLogs.reduce((groups, log) => {
+                    const dateKey = new Date(log.taken_at).toISOString().split('T')[0];
+                    if (!groups[dateKey]) {
+                      groups[dateKey] = [];
+                    }
+                    groups[dateKey].push(log);
+                    return groups;
+                  }, {} as Record<string, typeof filteredLogs>);
+
+                  // 按日期降序排序
+                  const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
+
+                  return sortedDates.length > 0 ? (
+                    sortedDates.map(dateKey => {
+                      const logsOnDate = groupedByDate[dateKey];
+                      const date = new Date(dateKey);
+                      const isToday = dateKey === new Date().toISOString().split('T')[0];
+                      const dateDisplay = isToday ? '今天' : date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
+
                       return (
-                        <TimelineItem 
-                          key={log.id} 
-                          log={log} 
-                          medication={medication}
-                          onMedicationClick={(medId) => {
-                            setSelectedMedicationId(medId);
-                            setSelectedDate(null); // 清除日期筛选以显示全部历史
-                          }}
-                        />
+                        <div key={dateKey} className="space-y-4">
+                          {/* 日期标题 */}
+                          <div className="flex items-center gap-3">
+                            <div className={`px-4 py-2 rounded-full ${isToday ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'} font-black italic text-sm`}>
+                              {dateDisplay}
+                            </div>
+                            <div className="flex-1 h-px bg-gray-200" />
+                            <span className="text-xs font-bold text-gray-400">{logsOnDate.length} 条记录</span>
+                          </div>
+
+                          {/* 当天的记录 */}
+                          <div className="space-y-4">
+                            {logsOnDate.map(log => {
+                              const medication = medications.find(m => m.id === log.medication_id);
+                              if (!medication) return null;
+                              
+                              return (
+                                <TimelineItem 
+                                  key={log.id} 
+                                  log={log} 
+                                  medication={medication}
+                                  onMedicationClick={(medId) => {
+                                    setSelectedMedicationId(medId);
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     })
                   ) : (
@@ -1466,8 +1506,13 @@ export default function App() {
       {showCameraModal && medications.length > 0 && (
         <CameraModal
           medications={medications}
-          onClose={() => setShowCameraModal(false)}
+          onClose={() => {
+            setShowCameraModal(false);
+            setSelectedMedicationId(null);
+          }}
           onSuccess={handleRecordSuccess}
+          preselectedMedicationId={selectedMedicationId}
+        />
         />
       )}
 

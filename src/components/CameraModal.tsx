@@ -11,9 +11,10 @@ interface CameraModalProps {
   medications: Medication[]; // 改为所有药品列表
   onClose: () => void;
   onSuccess: () => void;
+  preselectedMedicationId?: string | null; // 新增：预选的药品ID
 }
 
-export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, onSuccess }) => {
+export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, onSuccess, preselectedMedicationId }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<'select' | 'confirm'>('select');
   const [preview, setPreview] = useState<string | null>(null);
@@ -30,9 +31,14 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
 
   useEffect(() => {
     if (medications.length > 0) {
-      setSelectedMedicationId(medications[0].id);
+      // 优先使用预选的药品ID，否则使用第一个
+      if (preselectedMedicationId && medications.find(m => m.id === preselectedMedicationId)) {
+        setSelectedMedicationId(preselectedMedicationId);
+      } else {
+        setSelectedMedicationId(medications[0].id);
+      }
     }
-  }, [medications]);
+  }, [medications, preselectedMedicationId]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,6 +89,29 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
     try {
       // 组合用户确认的日期和时间
       const confirmedDateTime = new Date(`${confirmedDate}T${confirmedTime}`);
+      
+      // 检查当天是否已有该药品的记录
+      const { getMedicationLogs } = await import('../db/localDB');
+      const existingLogs = await getMedicationLogs(selectedMedicationId);
+      const confirmedDateStr = confirmedDateTime.toISOString().split('T')[0];
+      
+      const hasTodayLog = existingLogs.some(log => {
+        const logDate = new Date(log.taken_at).toISOString().split('T')[0];
+        return logDate === confirmedDateStr;
+      });
+      
+      if (hasTodayLog) {
+        const selectedMed = medications.find(m => m.id === selectedMedicationId);
+        const medName = selectedMed?.name || '该药品';
+        const dateDisplay = confirmedDateStr === new Date().toISOString().split('T')[0] 
+          ? '今天' 
+          : new Date(confirmedDateStr).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
+        
+        if (!confirm(`⚠️ 提醒：${dateDisplay}已经记录过${medName}的服药记录。\n\n确定要再次添加吗？`)) {
+          setUploading(false);
+          return;
+        }
+      }
       
       await recordMedicationIntake(selectedMedicationId, selectedFile, confirmedDateTime);
       
