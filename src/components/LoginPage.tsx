@@ -19,7 +19,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     
     if (!email || !password) {
-      setError('请输入邮箱和密码');
+      setError('请输入用户名和密码');
       return;
     }
 
@@ -28,48 +28,39 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
     try {
       if (isRegisterMode) {
-        // 注册模式
-        console.log('📝 尝试注册:', email);
-        const { data, error: registerError } = await signUp(email, password);
-        
-        if (registerError) {
-          console.error('❌ 注册失败:', registerError);
-          setError(`注册失败：${registerError.message || '请重试'}`);
-          setLoading(false);
-          return;
-        }
-        
-        console.log('✅ 注册成功，自动登录');
-        // 注册成功后自动登录
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userEmail', email);
+        // 注册模式：暂时禁用，使用固定账号
+        setError('请使用默认账号登录：sevenoy / jiajia');
         setLoading(false);
-        onLoginSuccess();
+        return;
       } else {
-        // 登录模式
-        console.log('🔐 尝试登录:', email);
-        const { data, error: loginError } = await signIn(email, password);
+        // 登录模式：本地认证（不连接 Supabase）
+        console.log('🔐 尝试登录（本地认证）:', email);
         
-        console.log('📋 登录结果:', { data, error: loginError });
+        // 硬编码的用户名和密码
+        const validUsername = 'sevenoy';
+        const validPassword = 'jiajia';
         
-        if (loginError) {
-          console.error('❌ 登录失败:', loginError);
-          setError(`登录失败：${loginError.message || '邮箱或密码错误'}`);
+        // 检查用户名和密码（不区分大小写）
+        if (email.toLowerCase().trim() === validUsername && password === validPassword) {
+          // 登录成功
+          console.log('✅ 本地认证成功');
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('userEmail', email);
+          localStorage.setItem('userName', 'sevenoy');
+          setLoading(false);
+          onLoginSuccess();
+        } else {
+          // 登录失败
+          console.error('❌ 登录失败：用户名或密码错误');
+          setError('用户名或密码错误（提示：sevenoy / jiajia）');
           setLoading(false);
           return;
         }
-
-        // 登录成功
-        console.log('✅ 登录成功');
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userEmail', email);
-        setLoading(false);
-        onLoginSuccess();
       }
     } catch (err) {
       console.error('❌ 操作异常:', err);
       const errorMessage = err instanceof Error ? err.message : '请重试';
-      setError(`${isRegisterMode ? '注册' : '登录'}失败：${errorMessage}`);
+      setError(`登录失败：${errorMessage}`);
       setLoading(false);
     }
   };
@@ -103,18 +94,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
         {/* 登录表单 */}
         <form onSubmit={handleLogin} className="space-y-4">
-          {/* 邮箱 */}
+          {/* 用户名 */}
           <div>
             <label className="block text-sm font-bold text-gray-600 mb-2">
-              邮箱
+              用户名
             </label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="请输入邮箱"
+                placeholder="请输入用户名"
                 className="w-full pl-12 pr-4 py-3 rounded-2xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none font-medium transition-all"
                 disabled={loading}
               />

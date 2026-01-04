@@ -343,20 +343,9 @@ export default function App() {
 
   // 检查登录状态
   useEffect(() => {
-    // 🔧 自动跳过登录模式（用于测试和演示）
-    // 如果 localStorage 中没有 isLoggedIn，自动设置为已登录状态
-    const storedLogin = localStorage.getItem('isLoggedIn');
-    const skipLogin = localStorage.getItem('SKIP_LOGIN') !== 'false'; // 默认 true（跳过登录）
-    
-    if (!storedLogin && skipLogin) {
-      // 自动设置登录状态，跳过登录页面
-      localStorage.setItem('isLoggedIn', 'true');
-      console.log('🔧 自动跳过登录（演示模式）');
-      setIsLoggedIn(true);
-    } else {
-      setIsLoggedIn(storedLogin === 'true');
-    }
-    
+    // 检查是否已登录
+    const storedLogin = localStorage.getItem('isLoggedIn') === 'true';
+    setIsLoggedIn(storedLogin);
     setCheckingAuth(false);
   }, []);
 
