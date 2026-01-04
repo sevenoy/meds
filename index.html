@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>药盒助手 - 智能服药追踪</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/icon/192x192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon/192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon/512x512.png">
+    <link rel="apple-touch-icon" href="/icon/192x192.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon/192x192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon/512x512.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Meta tags for PWA -->
+    <meta name="theme-color" content="#3482D5">
+    <meta name="description" content="智能服药追踪应用，帮助您准确记录和管理用药时间">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="药盒助手">
+    
+    <!-- 版本号配置 -->
+    <script>
+      const APP_VERSION = 'V260103.01';
+      window.APP_VERSION = APP_VERSION; // 暴露到全局window对象
+      console.log('📦 当前版本:', APP_VERSION);
+      
+      // 检查本地存储的版本号
+      const storedVersion = localStorage.getItem('app_version');
+      if (storedVersion && storedVersion !== APP_VERSION) {
+        console.log('🔄 检测到版本更新:', storedVersion, '→', APP_VERSION);
+        console.log('🚀 开始强制更新...');
+        
+        // 1. 清除所有缓存
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            console.log('🗑️ 清除', names.length, '个缓存');
+            return Promise.all(names.map(function(name) {
+              console.log('   - 删除:', name);
+              return caches.delete(name);
+            }));
+          }).then(function() {
+            console.log('✅ 所有缓存已清除');
+            
+            // 2. 注销所有Service Worker
+            if ('serviceWorker' in navigator) {
+              return navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                console.log('🗑️ 注销', registrations.length, '个Service Worker');
+                return Promise.all(registrations.map(function(reg) {
+                  return reg.unregister();
+                }));
+              });
+            }
+          }).then(function() {
+            console.log('✅ Service Worker已注销');
+            
+            // 3. 更新版本号
+            localStorage.setItem('app_version', APP_VERSION);
+            
+            // 4. 强制刷新（不修改 URL）
+            console.log('🔄 强制刷新页面...');
+            setTimeout(function() {
+              window.location.reload();
+            }, 500);
+          }).catch(function(err) {
+            console.error('❌ 更新失败:', err);
+            localStorage.setItem('app_version', APP_VERSION);
+            window.location.reload(true);
+          });
+        } else {
+          localStorage.setItem('app_version', APP_VERSION);
+          window.location.reload(true);
+        }
+      } else if (!storedVersion) {
+        // 首次访问
+        console.log('🆕 首次访问，记录版本号');
+        localStorage.setItem('app_version', APP_VERSION);
+      } else {
+        console.log('✅ 版本号一致，无需更新');
+      }
+    </script>
+    
+    <!-- Service Worker 注册（在 index.tsx 中导入） -->
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F9F9F9;
+            color: #000000;
+        }
+        .text-outline {
+            -webkit-text-stroke: 2px #000000;
+            color: transparent;
+        }
+        .bg-berry { background-color: #FFD1DC; }
+        .bg-lime { background-color: #E0F3A2; }
+        .bg-mint { background-color: #BFEFFF; }
+        .rounded-pill { border-radius: 40px; }
+        
+        /* 多设备同步提示动画 */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        .animate-fade-out {
+            animation: fadeOut 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
