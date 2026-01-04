@@ -10,7 +10,7 @@ import { getTodayMedications, isMedicationTakenToday } from './src/services/medi
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications, fixLegacyDeviceIds } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
-import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote } from './src/services/snapshot';
+import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote, initRealtimeV2 } from './src/services/snapshot';
 import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
 import type { Medication, MedicationLog } from './src/types';
 
@@ -256,7 +256,24 @@ export default function App() {
   const [showMedicationManage, setShowMedicationManage] = useState(false);
   
   // 用户信息
-  const [userName, setUserName] = useState(localStorage.getItem('userName') || '用户');
+  const [userName, setUserName] = useState(() => {
+    // 优先从 localStorage 获取
+    const savedName = localStorage.getItem('userName');
+    if (savedName) return savedName;
+    
+    // 尝试从登录信息获取
+    const currentUser = localStorage.getItem('current_user_v1');
+    if (currentUser) {
+      try {
+        const user = JSON.parse(currentUser);
+        return user.username || '用户';
+      } catch {
+        return '用户';
+      }
+    }
+    
+    return '用户';
+  });
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(localStorage.getItem('reminderEnabled') === 'true');
   const [syncEnabled, setSyncEnabled] = useState(localStorage.getItem('syncEnabled') === 'true');
@@ -369,13 +386,44 @@ export default function App() {
   useEffect(() => {
     if (!isLoggedIn) return;
     
-    // 【修复】一次性修复旧药品的 device_id
-    fixLegacyDeviceIds().then(() => {
-      console.log('🔧 device_id 修复完成，开始加载数据');
-      loadData();
+    // 【修复1】先初始化 payload，再修复 device_id
+    const initializeApp = async () => {
+      try {
+        console.log('🚀 开始初始化应用...');
+        
+        // 1. 加载云端快照，初始化 currentSnapshotPayload
+        const loadResult = await cloudLoadV2();
+        if (loadResult.success && loadResult.payload) {
+          console.log('✅ 云端数据已加载并初始化 payload');
+        } else {
+          console.log('📝 首次使用，创建初始 payload');
+        }
+        
+        // 2. 修复旧药品的 device_id
+        await fixLegacyDeviceIds();
+        console.log('🔧 device_id 修复完成');
+        
+        // 3. 加载数据到 UI
+        await loadData();
+        console.log('✅ 应用初始化完成');
+      } catch (error) {
+        console.error('❌ 应用初始化失败:', error);
+        // 即使失败也加载数据
+        loadData();
+      }
+    };
+    
+    initializeApp();
+    
+    // 【新增】启用 Realtime V2 多设备即时同步
+    let realtimeCleanup: (() => void) | null = null;
+    initRealtimeV2().then(cleanup => {
+      realtimeCleanup = cleanup;
+      console.log('✅ Realtime V2 多设备即时同步已启用');
+      setRealtimeStatus('connected');
     }).catch(error => {
-      console.error('❌ device_id 修复失败:', error);
-      loadData(); // 即使失败也继续加载
+      console.error('❌ Realtime V2 启动失败:', error);
+      setRealtimeStatus('disconnected');
     });
     
     // 加载用户设置
@@ -596,15 +644,13 @@ export default function App() {
     // }, 3000); // 每3秒同步一次
     
     // 【本地认证模式】不需要清理定时器
-    // return () => {
-    // 【本地认证模式】不需要清理定时器
-    // return () => {
-    //   cleanup();
-    //   cleanupSettings();
-    //   if (cleanupSnapshot) cleanupSnapshot();
-    //   if (newRealtimeCleanup) newRealtimeCleanup();
-    //   clearInterval(syncInterval);
-    // };
+    // 返回清理函数
+    return () => {
+      if (realtimeCleanup) {
+        realtimeCleanup();
+        console.log('🔌 Realtime V2 已断开');
+      }
+    };
   }, [isLoggedIn]);
 
   // 处理拍照成功
@@ -984,7 +1030,7 @@ export default function App() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-black italic tracking-tighter mb-0.5">{userName}</h2>
+                  <h2 className="text-lg font-black italic tracking-tighter mb-0.5">{userName || localStorage.getItem('userName') || '用户'}</h2>
                   <p className="text-xs text-gray-500 font-bold tracking-widest">药盒助手用户</p>
                 </div>
                 <button 
@@ -1069,19 +1115,37 @@ export default function App() {
                   if (confirm('⚠️ 警告：确定要清除所有药品数据吗？\n\n这将删除：\n- 所有药品记录\n- 所有服药记录\n- 云端数据也会被清除\n\n此操作不可恢复！')) {
                     if (confirm('⚠️ 最后确认：真的要删除所有数据吗？')) {
                       try {
-                        // 清除本地数据库中的所有药品和记录
-                        const allMeds = await getMedications();
-                        for (const med of allMeds) {
-                          await deleteMedication(med.id);
-                        }
-                        
-                        // 同步到云端（清空云端数据）
-                        await cloudSaveV2();
-                        
-                        // 重新加载药品列表
-                        await loadMedications();
-                        
-                        alert('✅ 所有药品数据已清除！');
+                        // 使用 runWithUserAction 包裹用户操作
+                        runWithUserAction(async () => {
+                          const payload = getCurrentSnapshotPayload();
+                          if (!payload) {
+                            alert('系统未初始化，请刷新页面后重试');
+                            return;
+                          }
+                          
+                          // 清空 payload 中的所有药品和记录
+                          payload.medications = [];
+                          payload.medication_logs = [];
+                          
+                          // 保存到云端
+                          const result = await cloudSaveV2(payload);
+                          if (!result.success) {
+                            if (result.conflict) {
+                              alert('版本冲突，正在重新加载...');
+                              await cloudLoadV2();
+                            } else {
+                              alert(`清除数据失败: ${result.message}`);
+                            }
+                            return;
+                          }
+                          
+                          console.log('✅ 所有药品数据已从 payload 清除并同步到云端');
+                          
+                          // 重新加载数据
+                          await loadData();
+                          
+                          alert('✅ 所有药品数据已清除！');
+                        });
                       } catch (error) {
                         console.error('清除数据失败:', error);
                         alert('❌ 清除数据失败，请重试');
@@ -1141,6 +1205,7 @@ export default function App() {
                 <span className="text-gray-400">›</span>
               </div>
 
+              {/* 关于应用按钮 - 已隐藏
               <div 
                 onClick={() => setShowAbout(true)}
                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
@@ -1156,6 +1221,7 @@ export default function App() {
                 </div>
                 <span className="text-gray-400">›</span>
               </div>
+              */}
 
               <div 
                 onClick={() => {
