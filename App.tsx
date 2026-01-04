@@ -246,7 +246,6 @@ export default function App() {
   // 日期筛选
   const [selectedDate, setSelectedDate] = useState<string | null>(null); // YYYY-MM-DD
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
-  const [selectedMedicationId, setSelectedMedicationId] = useState<string | null>(null);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   
@@ -1512,7 +1511,6 @@ export default function App() {
           }}
           onSuccess={handleRecordSuccess}
           preselectedMedicationId={selectedMedicationId}
-        />
         />
       )}
 
