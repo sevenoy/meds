@@ -1,95 +1,123 @@
-# 药箱助手（Medication Tracker）
+# 药盒助手 - 前端应用
 
-一个基于"证据"的行为记录系统，专注于真实时间、数据可追溯性和多设备同步。
+## 📋 项目说明
 
-## ✨ 核心特性
+这是药盒助手的前端应用，包含完整的 UI 和业务逻辑。后端 API 需要单独实现。
 
-- 📸 **EXIF 时间提取** - 自动从照片中提取真实拍摄时间
-- 🔒 **数据可追溯** - 每条记录都有完整的时间戳和哈希验证
-- 🔄 **多设备同步** - 支持多设备实时同步，冲突检测和用户决策
-- 💾 **Local-first** - 本地优先架构，离线可用
-- 🎯 **时间可信度** - 自动计算并标记时间可信度（准时/延迟/可疑）
+## 🎯 当前状态
+
+- ✅ 前端 UI 完整实现
+- ✅ 本地存储（IndexedDB）
+- ✅ 核心功能完整
+- ⏳ 后端 API 待实现
+
+## 📁 项目结构
+
+```
+frontend/
+├── src/
+│   ├── components/          # React 组件
+│   │   ├── MainApp.tsx      # 主应用容器
+│   │   ├── MedicationList.tsx    # 药品列表
+│   │   ├── AddMedicationModal.tsx # 添加/编辑药品模态框
+│   │   ├── CameraModal.tsx       # 拍照模态框
+│   │   ├── TodayProgress.tsx     # 今日进度
+│   │   ├── LogHistory.tsx        # 历史记录
+│   │   └── SyncStatusIndicator.tsx # 同步状态
+│   ├── services/           # 业务逻辑
+│   │   ├── medication.ts   # 药品管理
+│   │   ├── logs.ts        # 记录管理
+│   │   ├── sync.ts        # 数据同步
+│   │   └── realtime.ts    # 实时同步
+│   ├── db/                 # 数据库
+│   │   └── localDB.ts      # IndexedDB 封装
+│   ├── lib/                # 库封装
+│   │   ├── supabase.ts    # Supabase 客户端
+│   │   └── localAuth.ts   # 本地认证（测试模式）
+│   └── utils/              # 工具函数
+├── public/                 # 静态资源
+└── package.json           # 依赖配置
+```
 
 ## 🚀 快速开始
 
 ### 安装依赖
 
 ```bash
-npm install
+cd frontend
+npm install --legacy-peer-deps
 ```
 
-### 配置（可选）
+### 配置环境变量
 
-创建 `.env.local` 文件配置 Supabase：
+创建 `frontend/.env`:
 
 ```env
 VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_LOCAL_TEST_MODE=true
+VITE_SKIP_LOGIN=true
 ```
 
-**如果不配置 Supabase，系统将自动使用 Mock 模式（完全离线）**
-
-### 运行
+### 启动开发服务器
 
 ```bash
 npm run dev
 ```
 
-访问 http://localhost:3000
+访问: http://localhost:3000
 
-## 📋 Supabase 设置（可选）
+## 📚 文档
 
-如果需要多设备同步功能：
+- **[FRONTEND_UI_DOCUMENTATION.md](./FRONTEND_UI_DOCUMENTATION.md)** - 前端 UI 功能详细说明
+- **[BACKEND_REQUIREMENTS.md](./BACKEND_REQUIREMENTS.md)** - 后端 API 需求文档
+- **[FEATURES_SUMMARY.md](./FEATURES_SUMMARY.md)** - 功能实现总结
+- **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** - 测试指南
 
-1. 在 Supabase Dashboard 中执行 `supabase-schema.sql`
-2. 创建 Storage Bucket：`medication-images`（公开）
-3. 配置 Storage 策略（见 SQL 文件注释）
+## ✨ 核心功能
 
-## 🎯 使用说明
+### 已实现
+- ✅ 药品管理（添加/编辑/删除）
+- ✅ 拍照记录功能
+- ✅ 今日进度显示
+- ✅ 历史记录列表
+- ✅ 本地数据存储
+- ✅ 响应式设计
 
-### 记录服药
+### 待后端支持
+- ⏳ API 接口集成
+- ⏳ 实时同步
+- ⏳ 云端存储
+- ⏳ 用户认证
 
-1. 点击药物卡片上的相机按钮
-2. 选择或拍摄照片
-3. 系统自动提取 EXIF 时间并计算可信度
-4. 记录保存到本地，后台同步到服务器
+## 🔧 技术栈
 
-### 查看时间线
+- React 19.2.3
+- TypeScript 5.8.2
+- Vite 6.2.0
+- Tailwind CSS
+- Dexie (IndexedDB)
+- Lucide React (图标)
 
-切换到 "History" 标签页查看历史记录，包括：
-- EXIF 拍摄时间
-- 上传时间
-- 设备信息
-- 时间可信度状态
+## 📝 开发说明
 
-### 多设备同步
+### 跳过登录
+代码中已强制跳过登录，直接进入主页面（`App.tsx` 中 `SKIP_LOGIN = true`）
 
-当其他设备添加记录时，会显示同步提示，用户可以查看详情并决定是否接受。
+### 本地测试模式
+启用 `VITE_LOCAL_TEST_MODE=true` 后，使用本地认证，无需后端
 
-## 📚 技术栈
+### API 集成
+所有 API 调用在 `services/` 目录中，需要配置正确的 API 端点
 
-- React 19 + TypeScript
-- Dexie (IndexedDB) - 本地数据库
-- Supabase - 后端服务（可选）
-- exif-js - EXIF 时间提取
-- crypto-js - 哈希计算
-- Tailwind CSS - 样式
+## 🎯 下一步
 
-## 📖 详细文档
+1. 实现后端 API（参考 `BACKEND_REQUIREMENTS.md`）
+2. 配置 API 端点
+3. 集成实时同步
+4. 测试完整流程
 
-查看 [IMPLEMENTATION.md](./IMPLEMENTATION.md) 了解详细的功能实现说明。
+---
 
-## 🎨 设计理念
-
-本系统不是「打卡 App」，而是：
-
-> **一个基于"证据"的行为记录系统**
-
-核心原则：
-1. **真实时间优先于用户输入**
-2. **数据可被追溯，不被静默篡改**
-3. **多设备同步必须可感知、可决策**
-
-## 📝 License
-
-MIT
+**版本**: V260103.01  
+**最后更新**: 2026-01-03

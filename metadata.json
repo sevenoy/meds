@@ -1,7 +1,0 @@
-{
-  "name": "Medication Tracker - Minimalist Edition",
-  "description": "A high-performance medication tracking UI featuring minimalism, lifestyle branding, and visual evidence validation.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}
