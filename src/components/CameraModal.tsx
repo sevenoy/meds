@@ -85,6 +85,10 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
       const confirmedDateTime = new Date(`${confirmedDate}T${confirmedTime}`);
       
       await recordMedicationIntake(selectedMedicationId, selectedFile, confirmedDateTime);
+      
+      // 显示成功提示
+      alert('✅ 服药记录已成功添加！');
+      
       onSuccess();
       onClose();
     } catch (err) {
@@ -97,7 +101,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
   const selectedMed = medications.find(m => m.id === selectedMedicationId);
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(243, 232, 255, 0.95) 0%, rgba(232, 225, 255, 0.95) 100%)', backdropFilter: 'blur(8px)' }}>
       <div className="bg-white rounded-[40px] p-8 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl font-black italic tracking-tighter">

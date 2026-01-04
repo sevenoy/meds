@@ -99,7 +99,14 @@ export async function recordMedicationIntake(
           id: savedId
         });
         // 异步保存，不阻塞 UI
-        cloudSaveV2(payload).catch(console.error);
+        const saveResult = await cloudSaveV2(payload);
+        if (!saveResult.success) {
+          console.error('❌ 同步服药记录失败:', saveResult.message);
+        } else {
+          console.log('✅ 服药记录已同步到云端');
+        }
+      } else {
+        console.warn('⚠️ 系统未初始化，服药记录仅保存到本地');
       }
     });
   }

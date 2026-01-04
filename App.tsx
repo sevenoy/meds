@@ -237,6 +237,7 @@ export default function App() {
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [syncPrompt, setSyncPrompt] = useState<MedicationLog | null>(null);
   const [loading, setLoading] = useState(true);
+  const [appInitialized, setAppInitialized] = useState(false); // 新增：应用是否已初始化
   
   // Realtime 同步状态
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
@@ -406,10 +407,14 @@ export default function App() {
         // 3. 加载数据到 UI
         await loadData();
         console.log('✅ 应用初始化完成');
+        
+        // 4. 标记应用已初始化
+        setAppInitialized(true);
       } catch (error) {
         console.error('❌ 应用初始化失败:', error);
-        // 即使失败也加载数据
-        loadData();
+        // 即使失败也加载数据并标记初始化完成
+        await loadData();
+        setAppInitialized(true);
       }
     };
     
@@ -1477,7 +1482,7 @@ export default function App() {
 
       {/* 个人信息编辑 */}
       {showProfileEdit && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(243, 232, 255, 0.95) 0%, rgba(232, 225, 255, 0.95) 100%)', backdropFilter: 'blur(8px)' }}>
           <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-black italic tracking-tighter">个人信息</h3>
@@ -1765,7 +1770,7 @@ export default function App() {
       
       {/* 编辑药品模态框 */}
       {editingMed && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(243, 232, 255, 0.95) 0%, rgba(232, 225, 255, 0.95) 100%)', backdropFilter: 'blur(8px)' }}>
           <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-black italic tracking-tighter">编辑药品</h3>
