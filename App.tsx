@@ -1656,8 +1656,9 @@ export default function App() {
                         return;
                       }
 
+                      // 关键修复：使用 UUID 作为 id（本地/云端一致），避免 local_xxx 导致无法同步到 Supabase medications
                       const newMedication = {
-                        id: `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                        id: (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
                         name: newMedName,
                         dosage: newMedDosage,
                         scheduled_time: newMedTime,
@@ -1667,6 +1668,13 @@ export default function App() {
 
                       payload.medications = payload.medications || [];
                       payload.medications.push(newMedication);
+
+                      // 关键修复：写入本地 IndexedDB（UI 读取 getTodayMedications() 只看本地 DB）
+                      try {
+                        await upsertMedication(newMedication as any);
+                      } catch (e) {
+                        console.warn('⚠️ 写入本地药品失败:', e);
+                      }
 
                       const result = await cloudSaveV2(payload);
                       if (!result.success) {
@@ -1681,13 +1689,17 @@ export default function App() {
 
                       console.log('✅ 新药品已成功写入 payload 并同步到云端');
                       
-                      // 【修复】立即同步到 Supabase,确保多设备同步
+                      // 关键修复：同步到 Supabase medications（之前误用 pushLocalChanges，它只推送 logs）
                       try {
-                        await pushLocalChanges();
-                        console.log('✅ 新药品已同步到 Supabase');
-                      } catch (pushError) {
-                        console.warn('⚠️ 同步到 Supabase 失败:', pushError);
+                        await syncMedications();
+                        console.log('✅ 新药品已同步到 Supabase（medications）');
+                      } catch (syncError) {
+                        console.warn('⚠️ 同步到 Supabase 失败:', syncError);
                       }
+
+                      // #region agent log
+                      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:addMedication',message:'Added medication via home form',data:{id:newMedication.id,name:newMedication.name,hasUUID:!(String(newMedication.id).startsWith('local_'))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'P'})}).catch(()=>{});
+                      // #endregion
                       
                       await loadData();
                       
