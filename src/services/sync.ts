@@ -241,10 +241,20 @@ export async function syncMedications(): Promise<void> {
     // #endregion
     
     if (cloudMeds && cloudMeds.length > 0) {
+      console.log(`📥 从Supabase拉取到 ${cloudMeds.length} 条药品:`, cloudMeds.map(m => ({ id: m.id, name: m.name })));
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:245',message:'从Supabase拉取到药品',data:{cloudMedsCount:cloudMeds.length,cloudMedIds:cloudMeds.map(m=>m.id),localMedIds:localMeds.map(m=>m.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+      // #endregion
+      
       // 【性能优化】批量添加云端有但本地没有的药品
       const newMeds = cloudMeds.filter(cloudMed => 
         !localMeds.find(m => m.id === cloudMed.id)
       );
+      
+      console.log(`🔍 匹配结果: 云端${cloudMeds.length}条, 本地${localMeds.length}条, 新药品${newMeds.length}条`);
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:252',message:'匹配结果',data:{cloudCount:cloudMeds.length,localCount:localMeds.length,newCount:newMeds.length,newMedIds:newMeds.map(m=>m.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+      // #endregion
       
       if (newMeds.length > 0) {
         const medsToAdd = newMeds.map(cloudMed => ({
@@ -256,16 +266,26 @@ export async function syncMedications(): Promise<void> {
           accent: cloudMed.accent || '#E8F5E9' // 默认浅绿色
         }));
         
-        // 批量添加到本地
+        console.log(`📦 准备批量添加 ${medsToAdd.length} 条药品到本地:`, medsToAdd.map(m => ({ id: m.id, name: m.name })));
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:230',message:'批量添加到本地',data:{count:medsToAdd.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:262',message:'批量添加到本地',data:{count:medsToAdd.length,meds:medsToAdd.map(m=>({id:m.id,name:m.name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
         // #endregion
         await db.medications.bulkPut(medsToAdd);
         console.log(`✅ 批量添加 ${medsToAdd.length} 条云端药品到本地`);
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:233',message:'批量添加完成',data:{count:medsToAdd.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:266',message:'批量添加完成',data:{count:medsToAdd.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+        // #endregion
+      } else {
+        console.log('ℹ️ 所有云端药品都已存在于本地，无需添加');
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:270',message:'无需添加新药品',data:{cloudCount:cloudMeds.length,localCount:localMeds.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
         // #endregion
       }
+    } else {
+      console.log('⚠️ 从Supabase拉取的medications为空或null');
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:274',message:'Supabase返回空数据',data:{cloudMedsIsNull:!cloudMeds,cloudMedsLength:cloudMeds?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+      // #endregion
     }
     
     console.log('✅ Medications同步完成');
