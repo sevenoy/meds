@@ -437,6 +437,17 @@ export async function addLogToCloud(log: Omit<MedicationLog, 'id'>): Promise<Med
 /**
  * 初始化 Realtime 监听（仅监听其他设备的变更）
  */
+// 【彻底单例】全局启动门闩，保护整个启动流程
+let realtimeStartupLatch: {
+  isStarting: boolean;
+  userId: string | null;
+  promise: Promise<() => void> | null;
+} = {
+  isStarting: false,
+  userId: null,
+  promise: null
+};
+
 // Realtime 单例管理
 let realtimeInstance: {
   userId: string;
@@ -456,30 +467,50 @@ export async function initCloudOnlyRealtime(callbacks: {
   onMedicationChange: () => void;
   onLogChange: () => void;
 }): Promise<() => void> {
+  // 【彻底单例】同步检查启动门闩，避免异步竞态条件
+  if (realtimeStartupLatch.isStarting) {
+    console.log('⏭️ Realtime 正在启动中，等待现有启动完成...', { 
+      currentUserId: realtimeStartupLatch.userId 
+    });
+    // 等待现有启动完成
+    if (realtimeStartupLatch.promise) {
+      return await realtimeStartupLatch.promise;
+    }
+    // 如果 promise 不存在，说明启动失败，继续执行
+  }
+
   if (!supabase) {
     console.warn('⚠️ Supabase 未配置，无法启动 Realtime');
     return () => {};
   }
 
-  // 【单例检查】同一 userId 只能 init 一次
+  // 【彻底单例】获取 userId（同步检查）
   const userId = await getCurrentUserId();
   if (!userId) {
     console.warn('⚠️ 用户未登录，无法启动 Realtime');
     return () => {};
   }
-  
+
+  // 【彻底单例】检查已存在的实例（同步检查）
   if (realtimeInstance && realtimeInstance.userId === userId) {
     console.log('⏭️ Realtime 已存在，跳过重复初始化', { userId });
     return realtimeInstance.cleanup; // 返回现有的清理函数
   }
-  
-  // 清理旧实例（如果存在）
-  if (realtimeInstance) {
-    realtimeInstance.cleanup();
-    realtimeInstance = null;
-  }
 
-  const deviceId = getDeviceId();
+  // 【彻底单例】设置启动门闩
+  realtimeStartupLatch.isStarting = true;
+  realtimeStartupLatch.userId = userId;
+  
+  // 创建启动 Promise
+  const startupPromise = (async () => {
+    try {
+      // 清理旧实例（如果存在）
+      if (realtimeInstance) {
+        realtimeInstance.cleanup();
+        realtimeInstance = null;
+      }
+
+      const deviceId = getDeviceId();
   
   // 防抖包装函数
   const debouncedMedChange = () => {
@@ -603,11 +634,23 @@ export async function initCloudOnlyRealtime(callbacks: {
     console.log('🔌 纯云端 Realtime 已停止');
   };
 
-  // 保存单例实例
-  realtimeInstance = { userId, cleanup };
-  console.log('✅ Realtime 单例已创建', { userId });
+      // 保存单例实例
+      realtimeInstance = { userId, cleanup };
+      console.log('✅ Realtime 单例已创建', { userId });
 
-  // 返回清理函数
-  return cleanup;
+      // 返回清理函数
+      return cleanup;
+    } finally {
+      // 【彻底单例】清除启动门闩
+      realtimeStartupLatch.isStarting = false;
+      realtimeStartupLatch.userId = null;
+      realtimeStartupLatch.promise = null;
+    }
+  })();
+
+  // 保存 Promise 供其他调用等待
+  realtimeStartupLatch.promise = startupPromise;
+
+  return await startupPromise;
 }
 

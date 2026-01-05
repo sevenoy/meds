@@ -736,7 +736,33 @@ export function isApplyingRemote(): boolean {
  * 监听 app_state 表的 INSERT 和 UPDATE 事件
  * @returns 返回 unsubscribe 函数
  */
+// 【彻底单例】Realtime V2 单例管理
+let realtimeV2Instance: {
+  userId: string;
+  cleanup: () => void;
+} | null = null;
+
+let realtimeV2StartupLatch: {
+  isStarting: boolean;
+  userId: string | null;
+  promise: Promise<() => void> | null;
+} = {
+  isStarting: false,
+  userId: null,
+  promise: null
+};
+
 export async function initRealtimeV2(): Promise<() => void> {
+  // 【彻底单例】同步检查启动门闩
+  if (realtimeV2StartupLatch.isStarting) {
+    console.log('⏭️ Realtime V2 正在启动中，等待现有启动完成...', { 
+      currentUserId: realtimeV2StartupLatch.userId 
+    });
+    if (realtimeV2StartupLatch.promise) {
+      return await realtimeV2StartupLatch.promise;
+    }
+  }
+
   // 1. 检查 Supabase 是否配置
   if (!supabase) {
     console.warn('⚠️ Supabase 未配置，无法启动 Realtime V2');
@@ -750,9 +776,28 @@ export async function initRealtimeV2(): Promise<() => void> {
     return () => {}; // 返回空函数
   }
 
-  // 3. 获取当前 deviceId（用于过滤自身更新）
-  const currentDeviceId = getDeviceId();
-  console.log('🔄 initRealtimeV2() 开始订阅，userId:', userId, 'deviceId:', currentDeviceId);
+  // 【彻底单例】检查已存在的实例
+  if (realtimeV2Instance && realtimeV2Instance.userId === userId) {
+    console.log('⏭️ Realtime V2 已存在，跳过重复初始化', { userId });
+    return realtimeV2Instance.cleanup;
+  }
+
+  // 【彻底单例】设置启动门闩
+  realtimeV2StartupLatch.isStarting = true;
+  realtimeV2StartupLatch.userId = userId;
+
+  // 创建启动 Promise
+  const startupPromise = (async () => {
+    try {
+      // 清理旧实例（如果存在）
+      if (realtimeV2Instance) {
+        realtimeV2Instance.cleanup();
+        realtimeV2Instance = null;
+      }
+
+      // 3. 获取当前 deviceId（用于过滤自身更新）
+      const currentDeviceId = getDeviceId();
+      console.log('🔄 initRealtimeV2() 开始订阅，userId:', userId, 'deviceId:', currentDeviceId);
 
   // 4. 创建 Realtime 订阅
   const channel = supabase
@@ -826,17 +871,34 @@ export async function initRealtimeV2(): Promise<() => void> {
       }
     });
 
-  // 7. 保存 channel 引用，防止被垃圾回收
-  (window as any)._appStateRealtimeV2Channel = channel;
+      // 7. 保存 channel 引用，防止被垃圾回收
+      (window as any)._appStateRealtimeV2Channel = channel;
 
-  // 8. 返回清理函数
-  return () => {
-    console.log('🔌 initRealtimeV2() 断开订阅');
-    if (channel) {
-      supabase.removeChannel(channel);
+      // 8. 创建清理函数
+      const cleanup = () => {
+        console.log('🔌 initRealtimeV2() 断开订阅');
+        if (channel) {
+          supabase.removeChannel(channel);
+        }
+        delete (window as any)._appStateRealtimeV2Channel;
+      };
+
+      // 保存单例实例
+      realtimeV2Instance = { userId, cleanup };
+
+      return cleanup;
+    } finally {
+      // 【彻底单例】清除启动门闩
+      realtimeV2StartupLatch.isStarting = false;
+      realtimeV2StartupLatch.userId = null;
+      realtimeV2StartupLatch.promise = null;
     }
-    delete (window as any)._appStateRealtimeV2Channel;
-  };
+  })();
+
+  // 保存 Promise 供其他调用等待
+  realtimeV2StartupLatch.promise = startupPromise;
+
+  return await startupPromise;
 }
 
 /**
