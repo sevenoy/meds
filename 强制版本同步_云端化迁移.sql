@@ -9,7 +9,7 @@ ADD COLUMN IF NOT EXISTS required_version TEXT;
 
 -- 2. 设置当前最新版本（所有设备必须更新到此版本）
 UPDATE app_state 
-SET required_version = 'V260105.29'
+SET required_version = 'V260105.30'
 WHERE required_version IS NULL;
 
 -- 3. 添加 medications 表缺失字段（确保兼容）
