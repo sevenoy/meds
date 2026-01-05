@@ -18,7 +18,15 @@ export const DebugPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         // 查询云端 required_version（容错处理）
         let requiredVersion = 'N/A';
         let versionCheckSkipped = false;
-        if (userId && supabase) {
+        
+        // 【减少无意义 400】检查缓存标记，如果已禁用，不发起请求
+        const versionCheckDisabledKey = 'version_check_disabled_column_missing';
+        const isVersionCheckDisabled = localStorage.getItem(versionCheckDisabledKey) === 'true';
+        
+        if (isVersionCheckDisabled) {
+          requiredVersion = '版本检查已禁用（列缺失/功能关闭）';
+          versionCheckSkipped = true;
+        } else if (userId && supabase) {
           try {
             const { data, error } = await supabase
               .from('app_state')
@@ -29,13 +37,19 @@ export const DebugPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             if (error) {
               // 【容错】如果列不存在（42703），标记为跳过
               if (error.code === '42703' || error.message?.includes('does not exist')) {
-                requiredVersion = '版本检查跳过：required_version 不存在';
+                requiredVersion = '版本检查已禁用（列缺失/功能关闭）';
                 versionCheckSkipped = true;
+                // 设置缓存标记，后续不再查询
+                localStorage.setItem(versionCheckDisabledKey, 'true');
               } else {
                 requiredVersion = `查询失败: ${error.code}`;
               }
             } else {
               requiredVersion = data?.required_version || 'null';
+              // 如果查询成功，清除禁用标记（可能数据库已迁移）
+              if (localStorage.getItem(versionCheckDisabledKey) === 'true') {
+                localStorage.removeItem(versionCheckDisabledKey);
+              }
             }
           } catch (err: any) {
             requiredVersion = `异常: ${err.message}`;

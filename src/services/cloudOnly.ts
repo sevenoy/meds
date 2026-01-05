@@ -39,6 +39,15 @@ export async function enforceVersionSync(): Promise<void> {
     return;
   }
 
+  // 【减少无意义 400】检查缓存标记，如果列不存在，直接跳过，不发起请求
+  const versionCheckDisabledKey = 'version_check_disabled_column_missing';
+  const isVersionCheckDisabled = localStorage.getItem(versionCheckDisabledKey) === 'true';
+  
+  if (isVersionCheckDisabled) {
+    console.log('ℹ️ 版本检查已禁用（列缺失/功能关闭）');
+    return; // 直接返回，不发起网络请求
+  }
+
   try {
     // 1. 查询云端 required_version
     const { data, error } = await supabase
@@ -48,11 +57,13 @@ export async function enforceVersionSync(): Promise<void> {
       .maybeSingle();
 
     if (error) {
-      // 【容错处理】如果列不存在（42703），静默跳过版本检查
+      // 【容错处理】如果列不存在（42703），设置缓存标记，后续不再查询
       if (error.code === '42703' || error.message?.includes('does not exist')) {
-        console.log('ℹ️ 版本检查跳过：required_version 列不存在（数据库未迁移）');
+        // 设置缓存标记，后续启动时直接跳过
+        localStorage.setItem(versionCheckDisabledKey, 'true');
+        console.log('ℹ️ 版本检查跳过：required_version 列不存在（数据库未迁移），已禁用后续查询');
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:columnMissing',message:'Version check skipped - column missing',data:{errorCode:error.code,errorMessage:error.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:columnMissing',message:'Version check skipped - column missing, cached',data:{errorCode:error.code,errorMessage:error.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
         // #endregion
         return; // 静默返回，不报错，不触发刷新
       }
@@ -63,6 +74,12 @@ export async function enforceVersionSync(): Promise<void> {
       fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:error',message:'Query error (non-blocking)',data:{error:error.message,code:error.code},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
       // #endregion
       return; // 静默返回，不阻塞应用启动
+    }
+    
+    // 【成功查询】如果查询成功，清除禁用标记（可能数据库已迁移）
+    if (localStorage.getItem(versionCheckDisabledKey) === 'true') {
+      localStorage.removeItem(versionCheckDisabledKey);
+      console.log('✅ 版本检查已重新启用（数据库可能已迁移）');
     }
 
     const requiredVersion = data?.required_version;
