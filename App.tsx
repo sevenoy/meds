@@ -311,7 +311,16 @@ export default function App() {
       
       console.log('🔄 开始加载数据...');
       
-      // 加载药物列表
+      // 【修复】优先从云端同步最新数据
+      try {
+        console.log('☁️ 从云端拉取最新数据...');
+        await pullRemoteChanges();
+        console.log('✅ 云端数据已同步到本地');
+      } catch (syncError) {
+        console.warn('⚠️ 云端同步失败,使用本地数据:', syncError);
+      }
+      
+      // 加载药物列表(已从云端同步)
       const meds = await getTodayMedications();
       console.log(`📋 已加载 ${meds.length} 个药物:`, meds.map(m => m.name));
       
@@ -345,6 +354,14 @@ export default function App() {
         // 保存到本地数据库
         for (const med of defaultMeds) {
           await upsertMedication(med);
+        }
+        
+        // 【修复】立即同步到云端
+        try {
+          await pushLocalChanges();
+          console.log('✅ 默认药物已同步到云端');
+        } catch (pushError) {
+          console.warn('⚠️ 同步到云端失败:', pushError);
         }
         
         meds.push(...defaultMeds);
@@ -470,36 +487,50 @@ export default function App() {
           console.log('⏭ 忽略远程触发的药品变更');
           return;
         }
-        console.log('🔔 检测到药品变更（新Realtime），自动刷新...');
-        await loadData();
+        console.log('🔔 检测到药品变更（新Realtime），从云端重新加载...');
         
-        // 显示提示
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-        notification.textContent = '✅ 药品数据已同步';
-        document.body.appendChild(notification);
-        setTimeout(() => {
-          notification.classList.add('animate-fade-out');
-          setTimeout(() => notification.remove(), 300);
-        }, 2000);
+        // 【修复】从云端重新同步数据
+        try {
+          await pullRemoteChanges();
+          await loadData();
+          
+          // 显示提示
+          const notification = document.createElement('div');
+          notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+          notification.textContent = '✅ 药品数据已同步';
+          document.body.appendChild(notification);
+          setTimeout(() => {
+            notification.classList.add('animate-fade-out');
+            setTimeout(() => notification.remove(), 300);
+          }, 2000);
+        } catch (error) {
+          console.error('❌ 同步药品变更失败:', error);
+        }
       },
       onLogChange: async () => {
         if (isApplyingRemoteChange()) {
           console.log('⏭ 忽略远程触发的记录变更');
           return;
         }
-        console.log('🔔 检测到服药记录变更（新Realtime），自动刷新...');
-        await loadData();
+        console.log('🔔 检测到服药记录变更（新Realtime），从云端重新加载...');
         
-        // 显示提示
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 z-50 bg-blue-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-        notification.textContent = '✅ 服药记录已同步';
-        document.body.appendChild(notification);
-        setTimeout(() => {
-          notification.classList.add('animate-fade-out');
-          setTimeout(() => notification.remove(), 300);
-        }, 2000);
+        // 【修复】从云端重新同步数据
+        try {
+          await pullRemoteChanges();
+          await loadData();
+          
+          // 显示提示
+          const notification = document.createElement('div');
+          notification.className = 'fixed top-4 right-4 z-50 bg-blue-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+          notification.textContent = '✅ 服药记录已同步';
+          document.body.appendChild(notification);
+          setTimeout(() => {
+            notification.classList.add('animate-fade-out');
+            setTimeout(() => notification.remove(), 300);
+          }, 2000);
+        } catch (error) {
+          console.error('❌ 同步记录变更失败:', error);
+        }
       },
       onSettingsChange: async () => {
         if (isApplyingRemoteChange()) {
@@ -507,9 +538,13 @@ export default function App() {
           return;
         }
         console.log('🔔 检测到设置变更（新Realtime），自动刷新...');
-        const settings = await getUserSettings();
-        if (settings.avatar_url) {
-          setAvatarUrl(settings.avatar_url);
+        try {
+          const settings = await getUserSettings();
+          if (settings.avatar_url) {
+            setAvatarUrl(settings.avatar_url);
+          }
+        } catch (error) {
+          console.error('❌ 加载设置失败:', error);
         }
       },
       onConnectionStatusChange: (status) => {
@@ -1548,6 +1583,15 @@ export default function App() {
                       }
 
                       console.log('✅ 新药品已成功写入 payload 并同步到云端');
+                      
+                      // 【修复】立即同步到 Supabase,确保多设备同步
+                      try {
+                        await pushLocalChanges();
+                        console.log('✅ 新药品已同步到 Supabase');
+                      } catch (pushError) {
+                        console.warn('⚠️ 同步到 Supabase 失败:', pushError);
+                      }
+                      
                       await loadData();
                       
                       setNewMedName('');
@@ -1635,6 +1679,16 @@ export default function App() {
                                     return;
                                   }
 
+                                  console.log('✅ 药品已删除并同步到云端');
+                                  
+                                  // 【修复】立即同步到 Supabase,确保多设备同步
+                                  try {
+                                    await pushLocalChanges();
+                                    console.log('✅ 删除操作已同步到 Supabase');
+                                  } catch (pushError) {
+                                    console.warn('⚠️ 同步到 Supabase 失败:', pushError);
+                                  }
+                                  
                                   await loadData();
                                 }
                               });
@@ -2077,6 +2131,15 @@ export default function App() {
                       }
 
                       console.log('✅ 药品已成功更新并同步到云端');
+                      
+                      // 【修复】立即同步到 Supabase,确保多设备同步
+                      try {
+                        await pushLocalChanges();
+                        console.log('✅ 药品更新已同步到 Supabase');
+                      } catch (pushError) {
+                        console.warn('⚠️ 同步到 Supabase 失败:', pushError);
+                      }
+                      
                       await loadData();
                       setEditingMed(null);
                     });
