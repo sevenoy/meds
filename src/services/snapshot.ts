@@ -41,6 +41,32 @@ let isUserAction = false;
 // 【当前快照 payload 的内存变量】
 let currentSnapshotPayload: SnapshotPayload | null = null;
 
+function shouldSendDebugIngest(): boolean {
+  try {
+    // eslint-disable-next-line no-undef
+    if (!(import.meta as any)?.env?.DEV) return false;
+  } catch {
+    return false;
+  }
+  return localStorage.getItem('debug_ingest') === 'true';
+}
+
+function generateUUID(): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cryptoAny = crypto as any;
+  if (cryptoAny?.randomUUID) return cryptoAny.randomUUID();
+  return `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function isUUIDv4(str: any): boolean {
+  return typeof str === 'string' && UUID_V4_REGEX.test(str);
+}
+
 /**
  * 【A】统一去重工具（系统级幂等）
  * 确保 payload.medications 在任何时刻都是幂等集合
@@ -370,7 +396,9 @@ export async function cloudLoadV2(): Promise<{
     const userId = await getCurrentUserId();
     
     // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'snapshot.ts:377',message:'cloudLoadV2 获取 userId',data:{userId:userId||null,hasUserId:!!userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    if (shouldSendDebugIngest()) {
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'snapshot.ts:cloudLoadV2:userId',message:'cloudLoadV2 获取 userId',data:{userId:userId||null,hasUserId:!!userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    }
     // #endregion
     
     if (!userId) {
@@ -387,7 +415,9 @@ export async function cloudLoadV2(): Promise<{
       }
       
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'snapshot.ts:395',message:'userId 为 null,返回失败',data:{payloadInitialized:!!currentSnapshotPayload},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+      if (shouldSendDebugIngest()) {
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'snapshot.ts:cloudLoadV2:noUser',message:'userId 为 null,返回失败',data:{payloadInitialized:!!currentSnapshotPayload},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+      }
       // #endregion
       
       return { success: false, message: '用户未登录' };
@@ -533,37 +563,52 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
 
   try {
     // 【B】强制幂等：先去重，再应用
-    const cleanMeds = dedupeMedications(payload.medications ?? []);
-    const cleanLogs = payload.medication_logs ?? [];
+    // 同时修复 meds id（local_xxx/空/非UUID）→ UUID，并保持 logs 引用一致
+    const rawMeds = payload.medications ?? [];
+    const idRemap = new Map<string, string>();
+    const normalizedMeds = rawMeds.map((m: any) => {
+      const oldId = m?.id;
+      if (!oldId || !isUUIDv4(oldId)) {
+        const newId = generateUUID();
+        if (oldId) idRemap.set(oldId, newId);
+        return { ...m, id: newId };
+      }
+      return m;
+    });
+
+    const cleanMeds = dedupeMedications(normalizedMeds as any);
+    const cleanLogs = (payload.medication_logs ?? []).map((log: any) => {
+      const remappedMedId = idRemap.get(log?.medication_id);
+      return remappedMedId ? { ...log, medication_id: remappedMedId } : log;
+    });
 
     console.log(`🔄 去重前: ${payload.medications?.length || 0} 条，去重后: ${cleanMeds.length} 条`);
 
-    // 1. 清空所有现有数据（全量覆盖）
-    await db.medications.clear();
-    await db.medicationLogs.clear();
-    console.log('✅ 已清空所有本地数据');
-    
-    // 2. 批量写入药物（全量覆盖，使用 bulkAdd，使用去重后的数据）
-    if (cleanMeds.length > 0) {
-      await db.medications.bulkAdd(cleanMeds);
-      console.log(`✅ 已批量添加 ${cleanMeds.length} 条药品记录（已去重）`);
-    }
-    
-    // 3. 批量写入记录（全量覆盖，使用 bulkAdd）
-    if (cleanLogs.length > 0) {
-      const logsToAdd = cleanLogs.map((log: any) => {
-        // 确保有 id
-        if (!log.id) {
-          log.id = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        }
-        return {
-          ...log,
-          sync_state: 'clean' // 从云端加载的记录标记为已同步
-        };
-      });
-      await db.medicationLogs.bulkAdd(logsToAdd);
-      console.log(`✅ 已批量添加 ${logsToAdd.length} 条服药记录`);
-    }
+    // 1-3. 全量覆盖写入：放进同一个事务，避免并发写入导致 ConstraintError
+    await db.transaction('rw', db.medications, db.medicationLogs, async () => {
+      await db.medications.clear();
+      await db.medicationLogs.clear();
+      console.log('✅ 已清空所有本地数据');
+
+      // 使用 bulkPut（幂等），避免 bulkAdd 因 key 冲突报错
+      if (cleanMeds.length > 0) {
+        await db.medications.bulkPut(cleanMeds as any);
+        console.log(`✅ 已批量写入 ${cleanMeds.length} 条药品记录（已去重）`);
+      }
+
+      if (cleanLogs.length > 0) {
+        const logsToPut = cleanLogs.map((log: any) => {
+          const id = log.id || `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+          return {
+            ...log,
+            id,
+            sync_state: 'clean'
+          };
+        });
+        await db.medicationLogs.bulkPut(logsToPut);
+        console.log(`✅ 已批量写入 ${logsToPut.length} 条服药记录`);
+      }
+    });
 
     // 4. 更新用户设置
     if (payload.user_settings) {

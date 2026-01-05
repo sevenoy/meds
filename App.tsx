@@ -12,6 +12,7 @@ import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, 
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote, initRealtimeV2 } from './src/services/snapshot';
 import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
+import { forcePwaUpdateOncePerVersion } from './src/sw-register';
 import { APP_VERSION } from './src/config/version';
 import type { Medication, MedicationLog } from './src/types';
 
@@ -305,74 +306,77 @@ export default function App() {
   const [editMedAccent, setEditMedAccent] = useState<string>('#E0F3A2');
 
   // 加载数据
-  const loadData = async () => {
+  const loadData = async (syncFromCloud: boolean = false) => {
     try {
       setLoading(true);
       
       console.log('🔄 开始加载数据...');
       
-      // 【修复】优先从云端同步最新数据
-      try {
-        console.log('☁️ 从云端拉取最新数据...');
-        
-        // 1. 同步药品
-        await syncMedications();
-        
-        // 2. 同步服药记录
-        const remoteLogs = await pullRemoteChanges();
-        console.log(`📥 从云端拉取到 ${remoteLogs.length} 条服药记录`);
-        
-        // 3. 【性能优化】批量合并到本地数据库
-        if (remoteLogs.length > 0) {
-          // 先获取所有本地记录
-          const localLogs = await getMedicationLogs();
-          const logsToAdd: MedicationLog[] = [];
-          const logsToUpdate: MedicationLog[] = [];
+      // 仅在需要时（首次加载/手动触发）做云端拉取；Realtime 触发的刷新只读本地，避免事件风暴
+      if (syncFromCloud) {
+        // 【修复】优先从云端同步最新数据
+        try {
+          console.log('☁️ 从云端拉取最新数据...');
           
-          for (const remoteLog of remoteLogs) {
-            const existing = localLogs.find(l => l.id === remoteLog.id);
-            if (!existing) {
-              // 新记录，直接添加
-              logsToAdd.push({
-                ...remoteLog,
-                sync_state: 'clean'
-              });
-            } else {
-              // 检测冲突
-              const conflict = detectConflict(existing, remoteLog);
-              if (!conflict) {
-                // 无冲突，更新
-                logsToUpdate.push({
-                  ...existing,
+          // 1. 同步药品
+          await syncMedications();
+          
+          // 2. 同步服药记录
+          const remoteLogs = await pullRemoteChanges();
+          console.log(`📥 从云端拉取到 ${remoteLogs.length} 条服药记录`);
+          
+          // 3. 【性能优化】批量合并到本地数据库
+          if (remoteLogs.length > 0) {
+            // 先获取所有本地记录
+            const localLogs = await getMedicationLogs();
+            const logsToAdd: MedicationLog[] = [];
+            const logsToUpdate: MedicationLog[] = [];
+            
+            for (const remoteLog of remoteLogs) {
+              const existing = localLogs.find(l => l.id === remoteLog.id);
+              if (!existing) {
+                // 新记录，直接添加
+                logsToAdd.push({
                   ...remoteLog,
                   sync_state: 'clean'
                 });
               } else {
-                // 有冲突，标记为冲突状态
-                logsToUpdate.push({
-                  ...existing,
-                  sync_state: 'conflict'
-                });
+                // 检测冲突
+                const conflict = detectConflict(existing, remoteLog);
+                if (!conflict) {
+                  // 无冲突，更新
+                  logsToUpdate.push({
+                    ...existing,
+                    ...remoteLog,
+                    sync_state: 'clean'
+                  });
+                } else {
+                  // 有冲突，标记为冲突状态
+                  logsToUpdate.push({
+                    ...existing,
+                    sync_state: 'conflict'
+                  });
+                }
               }
+            }
+            
+            // 批量添加新记录
+            if (logsToAdd.length > 0) {
+              await db.medicationLogs.bulkAdd(logsToAdd);
+              console.log(`✅ 批量添加 ${logsToAdd.length} 条新记录`);
+            }
+            
+            // 批量更新现有记录
+            if (logsToUpdate.length > 0) {
+              await db.medicationLogs.bulkPut(logsToUpdate);
+              console.log(`✅ 批量更新 ${logsToUpdate.length} 条记录`);
             }
           }
           
-          // 批量添加新记录
-          if (logsToAdd.length > 0) {
-            await db.medicationLogs.bulkAdd(logsToAdd);
-            console.log(`✅ 批量添加 ${logsToAdd.length} 条新记录`);
-          }
-          
-          // 批量更新现有记录
-          if (logsToUpdate.length > 0) {
-            await db.medicationLogs.bulkPut(logsToUpdate);
-            console.log(`✅ 批量更新 ${logsToUpdate.length} 条记录`);
-          }
+          console.log('✅ 云端数据已同步到本地');
+        } catch (syncError) {
+          console.warn('⚠️ 云端同步失败,使用本地数据:', syncError);
         }
-        
-        console.log('✅ 云端数据已同步到本地');
-      } catch (syncError) {
-        console.warn('⚠️ 云端同步失败,使用本地数据:', syncError);
       }
       
       // 加载药物列表(已从云端同步)
@@ -458,6 +462,12 @@ export default function App() {
   useEffect(() => {
     if (!isLoggedIn) return;
     
+    // 【PWA强制更新】每台设备在首次登录该版本时自动强制更新一次，避免多设备缓存无法手动清理
+    // 注意：必须发布时递增 APP_VERSION，否则同版本无法保证拿到新资源
+    forcePwaUpdateOncePerVersion('login').catch((e) => {
+      console.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
+    });
+
     // 【修复1】先初始化 payload，再修复 device_id
     const initializeApp = async () => {
       try {
@@ -482,7 +492,7 @@ export default function App() {
         console.log('🔧 device_id 修复完成');
         
         // 3. 加载数据到 UI
-        await loadData();
+        await loadData(true);
         console.log('✅ 应用初始化完成');
         
         // 4. 标记应用已初始化
@@ -520,68 +530,23 @@ export default function App() {
     
     // 【启用新的 Realtime 即时同步】参考技术文档实现
     let newRealtimeCleanup: (() => void) | null = null;
+    // 新 Realtime（表级变更）只做“去抖刷新 UI”，不要在这里触发 cloud pull，否则会被批量 UPDATE 打爆
     initNewRealtimeSync({
       onMedicationChange: async () => {
         if (isApplyingRemoteChange()) {
           console.log('⏭ 忽略远程触发的药品变更');
           return;
         }
-        console.log('🔔 检测到药品变更（新Realtime），从云端重新加载...');
-        
-        // 【修复】从云端重新同步数据
-        try {
-          // 同步药品和服药记录
-          await syncMedications();
-          const remoteLogs = await pullRemoteChanges();
-          for (const log of remoteLogs) {
-            await mergeRemoteLog(log);
-          }
-          
-          await loadData();
-          
-          // 显示提示
-          const notification = document.createElement('div');
-          notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-          notification.textContent = '✅ 药品数据已同步';
-          document.body.appendChild(notification);
-          setTimeout(() => {
-            notification.classList.add('animate-fade-out');
-            setTimeout(() => notification.remove(), 300);
-          }, 2000);
-        } catch (error) {
-          console.error('❌ 同步药品变更失败:', error);
-        }
+        console.log('🔔 检测到药品变更（新Realtime），刷新本地 UI...');
+        await loadData(false);
       },
       onLogChange: async () => {
         if (isApplyingRemoteChange()) {
           console.log('⏭ 忽略远程触发的记录变更');
           return;
         }
-        console.log('🔔 检测到服药记录变更（新Realtime），从云端重新加载...');
-        
-        // 【修复】从云端重新同步数据
-        try {
-          // 同步药品和服药记录
-          await syncMedications();
-          const remoteLogs = await pullRemoteChanges();
-          for (const log of remoteLogs) {
-            await mergeRemoteLog(log);
-          }
-          
-          await loadData();
-          
-          // 显示提示
-          const notification = document.createElement('div');
-          notification.className = 'fixed top-4 right-4 z-50 bg-blue-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-          notification.textContent = '✅ 服药记录已同步';
-          document.body.appendChild(notification);
-          setTimeout(() => {
-            notification.classList.add('animate-fade-out');
-            setTimeout(() => notification.remove(), 300);
-          }, 2000);
-        } catch (error) {
-          console.error('❌ 同步记录变更失败:', error);
-        }
+        console.log('🔔 检测到服药记录变更（新Realtime），刷新本地 UI...');
+        await loadData(false);
       },
       onSettingsChange: async () => {
         if (isApplyingRemoteChange()) {

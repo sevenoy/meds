@@ -6,6 +6,30 @@ import { isApplyingRemote } from './snapshot';
 import { runWithRemoteFlag } from './realtime';
 import type { MedicationLog, ConflictInfo, Medication } from '../types';
 
+function shouldSendDebugIngest(): boolean {
+  try {
+    // 仅本地开发 + 显式开关启用，避免线上/移动端产生大量无效请求
+    // eslint-disable-next-line no-undef
+    if (!(import.meta as any)?.env?.DEV) return false;
+  } catch {
+    return false;
+  }
+  return localStorage.getItem('debug_ingest') === 'true';
+}
+
+function generateUUID(): string {
+  // 现代浏览器可用
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cryptoAny = crypto as any;
+  if (cryptoAny?.randomUUID) return cryptoAny.randomUUID();
+  // 降级
+  return `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 /**
  * 一次性修复：更新所有药品的 device_id 为当前设备
  * 包括 null 和其他设备的 device_id
@@ -137,6 +161,42 @@ export function sanitizePayload(payload: any): any {
 }
 
 /**
+ * 将本地 medications 的非 UUID id 迁移为 UUID，并同步更新 medicationLogs.medication_id 引用。
+ * 修复点：
+ * - PostgREST upsert columns 包含 id 时，缺失 id 会导致 NULL → 23502
+ * - local_xxx 临时 id 会导致跨设备同步/去重/排序混乱
+ */
+async function ensureLocalMedicationIdsAreUUID(): Promise<void> {
+  const meds = await getMedications();
+  const toFix = meds.filter((m) => !m.id || !isValidUUID(m.id));
+  if (toFix.length === 0) return;
+
+  await db.transaction('rw', db.medications, db.medicationLogs, async () => {
+    for (const med of toFix) {
+      const oldId = med.id;
+      const newId = generateUUID();
+
+      // 写入新主键记录
+      await db.medications.put({ ...med, id: newId });
+
+      // 更新日志引用（若旧 id 存在）
+      if (oldId) {
+        await db.medicationLogs
+          .where('medication_id')
+          .equals(oldId)
+          .modify((log) => {
+            // eslint-disable-next-line no-param-reassign
+            (log as any).medication_id = newId;
+          });
+
+        // 删除旧主键药品记录（不能调用 deleteMedication，否则会误删刚刚迁移的日志）
+        await db.medications.delete(oldId);
+      }
+    }
+  });
+}
+
+/**
  * 同步medications到云端
  */
 export async function syncMedications(): Promise<void> {
@@ -150,17 +210,25 @@ export async function syncMedications(): Promise<void> {
   if (!userId) return;
   
   try {
+    // 关键修复：先把本地药品 id 统一迁移到 UUID，避免 upsert id=null
+    await ensureLocalMedicationIdsAreUUID();
+
     const localMeds = await getMedications();
     const deviceId = getDeviceId();
     
     // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:153',message:'syncMedications开始',data:{localMedsCount:localMeds.length,deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+    if (shouldSendDebugIngest()) {
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:syncMedications:start',message:'syncMedications开始',data:{localMedsCount:localMeds.length,deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+    }
     // #endregion
     
     // 【性能优化】批量推送本地medications到云端
     if (localMeds.length > 0) {
       const medsToSync = localMeds.map(med => {
+        // ensureLocalMedicationIdsAreUUID 后，这里应当永远为 UUID；再做一次兜底
+        const safeId = med.id && isValidUUID(med.id) ? med.id : generateUUID();
         const medData: any = {
+          id: safeId,
           user_id: userId,
           name: med.name,
           dosage: med.dosage,
@@ -168,18 +236,14 @@ export async function syncMedications(): Promise<void> {
           device_id: deviceId,
           updated_at: new Date().toISOString()
         };
-        
-        // 如果本地有合法的 UUID，使用它
-        if (med.id && isValidUUID(med.id)) {
-          medData.id = med.id;
-        }
-        
         return sanitizePayload(medData);
       }).filter(med => med); // 过滤掉无效数据
       
         if (medsToSync.length > 0) {
           // #region agent log
-          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:175',message:'批量upsert开始',data:{count:medsToSync.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+          if (shouldSendDebugIngest()) {
+            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:syncMedications:upsert:start',message:'批量upsert开始',data:{count:medsToSync.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+          }
           // #endregion
           // 批量upsert（Supabase会自动处理insert/update）
           const { data: syncedMeds, error: syncError } = await supabase!
@@ -188,41 +252,17 @@ export async function syncMedications(): Promise<void> {
             .select();
           
           // #region agent log
-          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:182',message:'批量upsert结果',data:{hasError:!!syncError,errorMsg:syncError?.message,syncedCount:syncedMeds?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+          if (shouldSendDebugIngest()) {
+            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:syncMedications:upsert:result',message:'批量upsert结果',data:{hasError:!!syncError,errorMsg:syncError?.message,syncedCount:syncedMeds?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+          }
           // #endregion
           
           if (syncError) {
             console.error('❌ 批量同步 medications 失败:', syncError);
           } else {
             console.log(`✅ 批量同步 ${syncedMeds?.length || 0} 条药品到云端`);
-          
-          // 【重要修复】更新本地记录中非UUID的ID
-          // 匹配逻辑：通过name + dosage + scheduled_time匹配，因为local_xxx的ID无法直接匹配
-          if (syncedMeds) {
-            for (const syncedMed of syncedMeds) {
-              // 先尝试通过ID匹配（如果是UUID）
-              let localMed = localMeds.find(m => m.id === syncedMed.id);
-              
-              // 如果没找到，通过name + dosage + scheduled_time匹配（用于匹配local_xxx的ID）
-              if (!localMed) {
-                localMed = localMeds.find(m => 
-                  !isValidUUID(m.id) && 
-                  m.name === syncedMed.name &&
-                  m.dosage === syncedMed.dosage &&
-                  m.scheduled_time === syncedMed.scheduled_time
-                );
-              }
-              
-              if (localMed && localMed.id !== syncedMed.id) {
-                console.log(`🔄 更新本地药品ID: ${localMed.id} → ${syncedMed.id} (${localMed.name})`);
-                const updatedMed = { ...localMed, id: syncedMed.id };
-                await upsertMedication(updatedMed);
-                // #region agent log
-                fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:217',message:'更新本地药品ID',data:{oldId:localMed.id,newId:syncedMed.id,name:localMed.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'M'})}).catch(()=>{});
-                // #endregion
-              }
-            }
-          }
+          // 旧逻辑在这里做 local_xxx → UUID 的映射更新；
+          // 现在统一由 ensureLocalMedicationIdsAreUUID 负责，避免产生双份记录和 id=null。
         }
       }
     }

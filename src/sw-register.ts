@@ -5,6 +5,103 @@
 
 import { APP_VERSION } from './config/version';
 
+const FORCE_UPDATE_KEY = `pwa_force_update_done_${APP_VERSION}`;
+const FORCE_UPDATE_IN_FLIGHT_KEY = `pwa_force_update_in_flight_${APP_VERSION}`;
+
+async function getRegistrationSafe(): Promise<ServiceWorkerRegistration | null> {
+  try {
+    const base = import.meta.env.BASE_URL || '/';
+    // 尽量使用同 scope 的 registration
+    const reg = await navigator.serviceWorker.getRegistration(base);
+    if (reg) return reg;
+  } catch {
+    // ignore
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    return reg || null;
+  } catch {
+    return null;
+  }
+}
+
+async function postMessageAll(reg: ServiceWorkerRegistration, msg: any): Promise<void> {
+  try {
+    reg.active?.postMessage(msg);
+  } catch {
+    // ignore
+  }
+  try {
+    reg.waiting?.postMessage(msg);
+  } catch {
+    // ignore
+  }
+  try {
+    reg.installing?.postMessage(msg);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * 【关键增强】每台设备在“首次登录此版本”时，强制更新一次 PWA/SW，并自动刷新页面。
+ * 目的：避免用户无法同时清理多设备缓存，导致继续运行旧代码。
+ *
+ * 注意：如果你发布了新代码但没变更 APP_VERSION，任何强制更新都无法可靠拿到新资源。
+ */
+export async function forcePwaUpdateOncePerVersion(reason: 'login' | 'manual' = 'login'): Promise<void> {
+  if (!('serviceWorker' in navigator)) return;
+
+  // 已完成则跳过
+  if (localStorage.getItem(FORCE_UPDATE_KEY) === 'true') return;
+
+  // 避免死循环：同一页面生命周期只做一次
+  if (sessionStorage.getItem(FORCE_UPDATE_IN_FLIGHT_KEY) === 'true') return;
+  sessionStorage.setItem(FORCE_UPDATE_IN_FLIGHT_KEY, 'true');
+
+  const reg = await getRegistrationSafe();
+  if (!reg) {
+    // 没有 SW，也就不用强制更新
+    localStorage.setItem(FORCE_UPDATE_KEY, 'true');
+    return;
+  }
+
+  console.warn('🧨 [PWA] 首次登录触发强制更新', { version: APP_VERSION, reason });
+
+  // 等待 controller 切换后刷新
+  const controllerChangePromise = new Promise<void>((resolve) => {
+    const onChange = () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+      resolve();
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', onChange);
+  });
+
+  // 主动检查更新
+  try {
+    await reg.update();
+  } catch (e) {
+    console.warn('⚠️ [PWA] registration.update() 失败:', e);
+  }
+
+  // 清缓存 + 让 waiting 立即接管（若存在）
+  await postMessageAll(reg, { type: 'CLEAR_CACHE' });
+  await postMessageAll(reg, { type: 'SKIP_WAITING' });
+
+  // 兜底：如果没有 controllerchange，也在短时间后刷新一次
+  await Promise.race([
+    controllerChangePromise,
+    new Promise<void>((resolve) => setTimeout(resolve, 2500))
+  ]);
+
+  // 标记完成，避免反复刷新
+  localStorage.setItem(FORCE_UPDATE_KEY, 'true');
+  sessionStorage.removeItem(FORCE_UPDATE_IN_FLIGHT_KEY);
+
+  // 刷新以确保 index.html / assets 全部切到新缓存/新 SW
+  window.location.reload();
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const base = import.meta.env.BASE_URL || '/';
@@ -22,6 +119,9 @@ if ('serviceWorker' in navigator) {
       })
       .then(async (registration) => {
         console.log('✅ Service Worker 注册成功:', swUrl);
+
+        // 暴露给其他模块（比如登录后强制更新）
+        (window as any).__swRegistration = registration;
 
         // 立即触发一次更新检查，避免等浏览器的 24h 周期
         try {

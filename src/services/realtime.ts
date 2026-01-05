@@ -11,6 +11,40 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 let realtimeChannel: RealtimeChannel | null = null;
 let isApplyingRemote = false; // 防止循环更新标志
 let connectionStatus: 'connected' | 'disconnected' | 'connecting' = 'disconnected';
+let reconnecting = false;
+
+let medChangeTimer: number | null = null;
+let logChangeTimer: number | null = null;
+let settingsChangeTimer: number | null = null;
+
+function shouldSendDebugIngest(): boolean {
+  try {
+    // eslint-disable-next-line no-undef
+    if (!(import.meta as any)?.env?.DEV) return false;
+  } catch {
+    return false;
+  }
+  return localStorage.getItem('debug_ingest') === 'true';
+}
+
+function debounceCall(timerRef: 'med' | 'log' | 'settings', fn: () => void, delayMs: number): void {
+  const clear = (t: number | null) => {
+    if (t !== null) window.clearTimeout(t);
+  };
+
+  if (timerRef === 'med') {
+    clear(medChangeTimer);
+    medChangeTimer = window.setTimeout(fn, delayMs);
+    return;
+  }
+  if (timerRef === 'log') {
+    clear(logChangeTimer);
+    logChangeTimer = window.setTimeout(fn, delayMs);
+    return;
+  }
+  clear(settingsChangeTimer);
+  settingsChangeTimer = window.setTimeout(fn, delayMs);
+}
 
 // 回调函数类型
 interface RealtimeCallbacks {
@@ -75,17 +109,24 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         });
         
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate',message:'Received UPDATE event (other device)',data:{payloadDeviceId:newData?.device_id,currentDeviceId:deviceId,isApplyingRemote:isApplyingRemote,medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C,D'})}).catch(()=>{});
+        if (shouldSendDebugIngest()) {
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate',message:'Received UPDATE event (other device)',data:{payloadDeviceId:newData?.device_id,currentDeviceId:deviceId,isApplyingRemote:isApplyingRemote,medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C,D'})}).catch(()=>{});
+        }
         // #endregion
         
         if (!isApplyingRemote && callbacks.onMedicationChange) {
           // #region agent log
-          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate:callback',message:'Calling onMedicationChange callback',data:{medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{});
+          if (shouldSendDebugIngest()) {
+            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate:callback',message:'Calling onMedicationChange callback',data:{medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{});
+          }
           // #endregion
-          callbacks.onMedicationChange();
+          // 关键：合并同一批次的多条变更，避免 1 分钟 2000 次回调/同步
+          debounceCall('med', callbacks.onMedicationChange, 300);
         } else {
           // #region agent log
-          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate:skipped',message:'Skipped callback',data:{isApplyingRemote:isApplyingRemote,hasCallback:!!callbacks.onMedicationChange},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+          if (shouldSendDebugIngest()) {
+            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate:skipped',message:'Skipped callback',data:{isApplyingRemote:isApplyingRemote,hasCallback:!!callbacks.onMedicationChange},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+          }
           // #endregion
         }
       })
@@ -110,7 +151,7 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         });
         
         if (!isApplyingRemote && callbacks.onLogChange) {
-          callbacks.onLogChange();
+          debounceCall('log', callbacks.onLogChange, 300);
         }
       })
       // 订阅用户设置表变更
@@ -133,7 +174,7 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         });
         
         if (!isApplyingRemote && callbacks.onSettingsChange) {
-          callbacks.onSettingsChange();
+          debounceCall('settings', callbacks.onSettingsChange, 300);
         }
       })
       .subscribe((status) => {
@@ -141,13 +182,17 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         
         if (status === 'SUBSCRIBED') {
           updateConnectionStatus('connected', callbacks);
+          reconnecting = false;
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           updateConnectionStatus('disconnected', callbacks);
           // 自动重连
-          setTimeout(() => {
-            console.log('[Realtime] 尝试重新连接...');
-            initRealtimeSync(callbacks);
-          }, 5000);
+          if (!reconnecting) {
+            reconnecting = true;
+            setTimeout(() => {
+              console.log('[Realtime] 尝试重新连接...');
+              initRealtimeSync(callbacks);
+            }, 5000);
+          }
         }
       });
     
@@ -198,7 +243,9 @@ export function getConnectionStatus(): 'connected' | 'disconnected' | 'connectin
  */
 export async function runWithRemoteFlag(fn: () => Promise<void>): Promise<void> {
   // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:runWithRemoteFlag:entry',message:'Setting isApplyingRemote=true',data:{wasApplyingRemote:isApplyingRemote},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+  if (shouldSendDebugIngest()) {
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:runWithRemoteFlag:entry',message:'Setting isApplyingRemote=true',data:{wasApplyingRemote:isApplyingRemote},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
+  }
   // #endregion
   isApplyingRemote = true;
   try {
@@ -208,7 +255,9 @@ export async function runWithRemoteFlag(fn: () => Promise<void>): Promise<void> 
     // 使用 2000ms 延迟以确保 Realtime 事件有足够时间到达
     setTimeout(() => {
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:runWithRemoteFlag:reset',message:'Resetting isApplyingRemote=false after 2000ms',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      if (shouldSendDebugIngest()) {
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:runWithRemoteFlag:reset',message:'Resetting isApplyingRemote=false after 2000ms',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      }
       // #endregion
       isApplyingRemote = false;
     }, 2000);
