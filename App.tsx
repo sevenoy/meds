@@ -1440,7 +1440,7 @@ export default function App() {
                     <p className="text-xs text-red-400 font-bold">当前用户：{userName}</p>
                   </div>
                 </div>
-                <parameter name="text-red-400">›</span>
+                <span className="text-red-400">›</span>
               </div>
             </div>
           </div>
