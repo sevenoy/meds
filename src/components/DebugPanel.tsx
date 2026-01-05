@@ -26,12 +26,26 @@ export const DebugPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           requiredVersion = data?.required_version || 'null';
         }
 
+        const htmlVersion = (window as any).APP_VERSION || 'N/A';
+        const versionMismatch = htmlVersion !== APP_VERSION;
+
+        // 版本不一致时在控制台报错
+        if (versionMismatch) {
+          console.error('🚨 版本不一致检测:', {
+            htmlVersion,
+            tsVersion: APP_VERSION,
+            mismatch: true,
+            solution: '需要重新构建项目: npm run build'
+          });
+        }
+
         setDiagnostics({
           userId: userId || 'null',
           hasSupabase: !!supabase,
           networkOnline: navigator.onLine,
           appVersion: APP_VERSION,
-          htmlVersion: (window as any).APP_VERSION || 'N/A',
+          htmlVersion: htmlVersion,
+          versionMismatch: versionMismatch,
           swVersion: 'checking...',
           requiredVersion: requiredVersion,
           medicationsCount: meds.length,
@@ -97,9 +111,11 @@ export const DebugPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <DiagnosticItem label="HTML 版本" value={diagnostics.htmlVersion} />
                 <DiagnosticItem label="SW 版本" value={diagnostics.swVersion} />
                 <DiagnosticItem label="云端要求版本" value={diagnostics.requiredVersion} />
-                {diagnostics.appVersion !== diagnostics.htmlVersion && (
+                {diagnostics.versionMismatch && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
-                    <p className="text-red-600 text-sm font-bold">⚠️ 版本不一致！需要重新构建</p>
+                    <p className="text-red-600 text-sm font-bold">🚨 严重错误：版本不一致！</p>
+                    <p className="text-red-600 text-xs mt-1">HTML: {diagnostics.htmlVersion} ≠ TS: {diagnostics.appVersion}</p>
+                    <p className="text-red-600 text-xs mt-1">解决方案：重新构建项目 (npm run build)</p>
                   </div>
                 )}
               </div>
