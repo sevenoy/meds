@@ -92,12 +92,68 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
       console.log('✅ 新药品已成功写入 payload 并同步到云端');
       
       // 【重要修复】立即同步到Supabase，确保药品ID正确映射
+      // 直接推送新添加的药品，而不是依赖IndexedDB读取（可能有延迟）
       try {
-        const { syncMedications } = await import('../services/sync');
-        await syncMedications();
-        console.log('✅ 新药品已同步到 Supabase');
+        const { getCurrentUserId } = await import('../lib/supabase');
+        const { supabase } = await import('../lib/supabase');
+        const { isValidUUID, sanitizePayload } = await import('../services/sync');
+        const userId = await getCurrentUserId();
+        const deviceId = getDeviceId();
+        
+        if (userId && supabase) {
+          // 构建要同步的药品数据
+          const medData: any = {
+            user_id: userId,
+            name: newMedication.name,
+            dosage: newMedication.dosage,
+            scheduled_time: newMedication.scheduled_time,
+            device_id: deviceId,
+            updated_at: new Date().toISOString()
+          };
+          
+          // 如果本地有合法的 UUID，使用它（但新添加的药品ID是local_xxx，所以不会设置）
+          // Supabase会生成新UUID
+          const sanitized = sanitizePayload(medData);
+          
+          console.log('📤 直接推送新药品到Supabase:', { name: newMedication.name, hasId: !!sanitized.id });
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MedicationManagePage.tsx:105',message:'直接推送新药品',data:{name:newMedication.name,hasId:!!sanitized.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'O'})}).catch(()=>{});
+          // #endregion
+          
+          // 插入到Supabase（不传id，让Supabase生成UUID）
+          const { data: syncedMed, error: syncError } = await supabase
+            .from('medications')
+            .insert(sanitized)
+            .select()
+            .single();
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MedicationManagePage.tsx:115',message:'Supabase插入结果',data:{hasError:!!syncError,errorMsg:syncError?.message,hasSyncedMed:!!syncedMed,syncedMedId:syncedMed?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'O'})}).catch(()=>{});
+          // #endregion
+          
+          if (syncError) {
+            console.error('❌ 同步到 Supabase 失败:', syncError);
+          } else if (syncedMed && syncedMed.id) {
+            console.log('✅ 新药品已同步到 Supabase，UUID:', syncedMed.id);
+            
+            // 更新本地药品ID为Supabase返回的UUID
+            const updatedMed = { ...newMedication, id: syncedMed.id };
+            await upsertMedication(updatedMed);
+            console.log(`🔄 更新本地药品ID: ${newMedication.id} → ${syncedMed.id}`);
+            
+            // 同时更新payload中的ID
+            const medIndex = payload.medications.findIndex((m: any) => m.id === newMedication.id);
+            if (medIndex !== -1) {
+              payload.medications[medIndex] = updatedMed;
+              await cloudSaveV2(payload); // 更新payload中的ID
+            }
+          }
+        }
       } catch (syncError) {
-        console.warn('⚠️ 同步到 Supabase 失败:', syncError);
+        console.error('❌ 同步到 Supabase 异常:', syncError);
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MedicationManagePage.tsx:135',message:'同步异常',data:{error:String(syncError)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'O'})}).catch(()=>{});
+        // #endregion
       }
       
       await onDataChange();

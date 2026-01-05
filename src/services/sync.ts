@@ -113,14 +113,14 @@ const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 /**
  * 判断字符串是否为合法的 UUID v4
  */
-function isValidUUID(str: string): boolean {
+export function isValidUUID(str: string): boolean {
   return UUID_V4_REGEX.test(str);
 }
 
 /**
  * 防御性检查：只允许合法 UUID，其余一律移除
  */
-function sanitizePayload(payload: any): any {
+export function sanitizePayload(payload: any): any {
   const sanitized = { ...payload };
   
   // 如果 id 不是 UUID，移除
