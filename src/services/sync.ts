@@ -153,84 +153,80 @@ export async function syncMedications(): Promise<void> {
     const localMeds = await getMedications();
     const deviceId = getDeviceId();
     
-    // 推送本地medications到云端
-    for (const med of localMeds) {
-      // 只发送数据库真实存在的字段（根据 supabase-schema.sql）
-      const medData: any = {
+    // 【性能优化】批量推送本地medications到云端
+    if (localMeds.length > 0) {
+      const medsToSync = localMeds.map(med => {
+        const medData: any = {
           user_id: userId,
           name: med.name,
           dosage: med.dosage,
           scheduled_time: med.scheduled_time,
           device_id: deviceId,
           updated_at: new Date().toISOString()
-      };
-      
-      // 注意：不发送 accent 字段（数据库中可能不存在）
-      // 如果数据库已执行 supabase-schema-fix.sql 添加了 accent 字段，可以取消注释：
-      // if (med.accent) {
-      //   medData.accent = med.accent;
-      // }
-      
-      // 防御性检查：移除非 UUID 格式的 id
-      const sanitized = sanitizePayload(medData);
-      
-      // 如果本地有合法的 UUID，使用 upsert；否则使用 insert（让数据库生成 UUID）
-      if (med.id && isValidUUID(med.id)) {
-        sanitized.id = med.id; // 只有合法的 UUID 才传
-      }
-      
-      const { data, error } = med.id && isValidUUID(med.id)
-        ? await supabase!.from('medications').upsert(sanitized).select().single()
-        : await supabase!.from('medications').insert(sanitized).select().single();
-      
-      if (error) {
-        console.error('❌ 同步 medication 失败:', error);
-        continue;
-      }
-      
-      // 如果返回了新的 UUID，更新本地记录（保留 local_id）
-      if (data && data.id && med.id && !isValidUUID(med.id)) {
-        const updatedMed = {
-          ...med,
-          id: data.id // 使用云端生成的 UUID
         };
-        // 保留 local_id（如果存在）
-        if (med.local_id) {
-          (updatedMed as any).local_id = med.local_id;
+        
+        // 如果本地有合法的 UUID，使用它
+        if (med.id && isValidUUID(med.id)) {
+          medData.id = med.id;
         }
-        await upsertMedication(updatedMed);
+        
+        return sanitizePayload(medData);
+      }).filter(med => med); // 过滤掉无效数据
+      
+      if (medsToSync.length > 0) {
+        // 批量upsert（Supabase会自动处理insert/update）
+        const { data: syncedMeds, error: syncError } = await supabase!
+          .from('medications')
+          .upsert(medsToSync, { onConflict: 'id' })
+          .select();
+        
+        if (syncError) {
+          console.error('❌ 批量同步 medications 失败:', syncError);
+        } else {
+          console.log(`✅ 批量同步 ${syncedMeds?.length || 0} 条药品到云端`);
+          
+          // 更新本地记录中非UUID的ID
+          if (syncedMeds) {
+            for (const syncedMed of syncedMeds) {
+              const localMed = localMeds.find(m => 
+                (m.id && !isValidUUID(m.id) && m.name === syncedMed.name) ||
+                m.id === syncedMed.id
+              );
+              if (localMed && localMed.id !== syncedMed.id) {
+                const updatedMed = { ...localMed, id: syncedMed.id };
+                await upsertMedication(updatedMed);
+              }
+            }
+          }
+        }
       }
     }
     
-    // 拉取云端medications
+    // 拉取云端medications（批量）
     const { data: cloudMeds } = await supabase!
       .from('medications')
       .select('*')
       .eq('user_id', userId);
     
-    if (cloudMeds) {
-      for (const cloudMed of cloudMeds) {
-        const localMed = localMeds.find(m => m.id === cloudMed.id);
-        if (!localMed) {
-          // 云端有但本地没有，添加到本地
-          const medData: Medication = {
-            id: cloudMed.id,
-            name: cloudMed.name,
-            dosage: cloudMed.dosage,
-            scheduled_time: cloudMed.scheduled_time,
-            user_id: cloudMed.user_id
-          };
-          
-          // 只有当云端有 accent 时才添加
-          if (cloudMed.accent) {
-            medData.accent = cloudMed.accent;
-          } else {
-            // 如果没有，使用默认值
-            medData.accent = '#E8F5E9'; // 默认浅绿色
-          }
-          
-          await upsertMedication(medData);
-        }
+    if (cloudMeds && cloudMeds.length > 0) {
+      // 【性能优化】批量添加云端有但本地没有的药品
+      const newMeds = cloudMeds.filter(cloudMed => 
+        !localMeds.find(m => m.id === cloudMed.id)
+      );
+      
+      if (newMeds.length > 0) {
+        const medsToAdd = newMeds.map(cloudMed => ({
+          id: cloudMed.id,
+          name: cloudMed.name,
+          dosage: cloudMed.dosage,
+          scheduled_time: cloudMed.scheduled_time,
+          user_id: cloudMed.user_id,
+          accent: cloudMed.accent || '#E8F5E9' // 默认浅绿色
+        }));
+        
+        // 批量添加到本地
+        await db.medications.bulkPut(medsToAdd);
+        console.log(`✅ 批量添加 ${medsToAdd.length} 条云端药品到本地`);
       }
     }
     

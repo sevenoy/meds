@@ -8,7 +8,7 @@ import { AvatarUpload } from './src/components/AvatarUpload';
 import { SyncStatusIndicator } from './src/components/SyncStatusIndicator';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId, db } from './src/db/localDB';
-import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications, fixLegacyDeviceIds } from './src/services/sync';
+import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications, fixLegacyDeviceIds, detectConflict } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote, initRealtimeV2 } from './src/services/snapshot';
 import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
@@ -322,9 +322,52 @@ export default function App() {
         const remoteLogs = await pullRemoteChanges();
         console.log(`📥 从云端拉取到 ${remoteLogs.length} 条服药记录`);
         
-        // 3. 合并到本地数据库
-        for (const log of remoteLogs) {
-          await mergeRemoteLog(log);
+        // 3. 【性能优化】批量合并到本地数据库
+        if (remoteLogs.length > 0) {
+          // 先获取所有本地记录
+          const localLogs = await getMedicationLogs();
+          const logsToAdd: MedicationLog[] = [];
+          const logsToUpdate: MedicationLog[] = [];
+          
+          for (const remoteLog of remoteLogs) {
+            const existing = localLogs.find(l => l.id === remoteLog.id);
+            if (!existing) {
+              // 新记录，直接添加
+              logsToAdd.push({
+                ...remoteLog,
+                sync_state: 'clean'
+              });
+            } else {
+              // 检测冲突
+              const conflict = detectConflict(existing, remoteLog);
+              if (!conflict) {
+                // 无冲突，更新
+                logsToUpdate.push({
+                  ...existing,
+                  ...remoteLog,
+                  sync_state: 'clean'
+                });
+              } else {
+                // 有冲突，标记为冲突状态
+                logsToUpdate.push({
+                  ...existing,
+                  sync_state: 'conflict'
+                });
+              }
+            }
+          }
+          
+          // 批量添加新记录
+          if (logsToAdd.length > 0) {
+            await db.medicationLogs.bulkAdd(logsToAdd);
+            console.log(`✅ 批量添加 ${logsToAdd.length} 条新记录`);
+          }
+          
+          // 批量更新现有记录
+          if (logsToUpdate.length > 0) {
+            await db.medicationLogs.bulkPut(logsToUpdate);
+            console.log(`✅ 批量更新 ${logsToUpdate.length} 条记录`);
+          }
         }
         
         console.log('✅ 云端数据已同步到本地');
@@ -1279,35 +1322,45 @@ export default function App() {
                           }
                         }
                         
-                        // 方法3: 直接清除 Supabase (如果使用)
+                        // 方法3: 直接清除 Supabase 数据库
                         try {
-                          const user = getCurrentUser();
-                          if (user && window.supabaseClient) {
-                            console.log('📦 清除 Supabase 数据...');
-                            const userTag = `user:${user.username}`;
+                          const { getCurrentUserId } = await import('./src/lib/supabase');
+                          const { supabase } = await import('./src/lib/supabase');
+                          const userId = await getCurrentUserId();
+                          
+                          if (userId && supabase) {
+                            console.log('📦 清除 Supabase 数据...', { userId });
                             
                             // 删除所有药品
-                            const { error: medError } = await window.supabaseClient
+                            const { error: medError, count: medCount } = await supabase
                               .from('medications')
                               .delete()
-                              .contains('scene_tags', [userTag]);
+                              .eq('user_id', userId)
+                              .select('*', { count: 'exact', head: false });
                             
-                            if (!medError) {
-                              console.log('✅ Supabase 药品数据已清空');
+                            if (medError) {
+                              console.error('❌ 清除 Supabase 药品失败:', medError);
+                            } else {
+                              console.log(`✅ Supabase 药品数据已清空 (${medCount || 0} 条)`);
                             }
                             
                             // 删除所有记录
-                            const { error: logError } = await window.supabaseClient
+                            const { error: logError, count: logCount } = await supabase
                               .from('medication_logs')
                               .delete()
-                              .contains('scene_tags', [userTag]);
+                              .eq('user_id', userId)
+                              .select('*', { count: 'exact', head: false });
                             
-                            if (!logError) {
-                              console.log('✅ Supabase 记录数据已清空');
+                            if (logError) {
+                              console.error('❌ 清除 Supabase 记录失败:', logError);
+                            } else {
+                              console.log(`✅ Supabase 记录数据已清空 (${logCount || 0} 条)`);
                             }
+                          } else {
+                            console.warn('⚠️ 无法获取 userId 或 supabase 客户端');
                           }
                         } catch (e) {
-                          console.warn('⚠️ Supabase 清除失败:', e);
+                          console.error('❌ Supabase 清除失败:', e);
                         }
                         
                         // 重新加载数据
