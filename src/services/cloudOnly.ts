@@ -464,8 +464,8 @@ const LOG_DEBOUNCE_MS = 400;
 const MAX_PROCESSED_IDS = 100; // 防止内存泄漏
 
 export async function initCloudOnlyRealtime(callbacks: {
-  onMedicationChange: () => void;
-  onLogChange: () => void;
+  onMedicationChange: (payload: { eventType: string; new?: any; old?: any }) => void;
+  onLogChange: (payload: { eventType: string; new?: any; old?: any }) => void;
 }): Promise<() => void> {
   // 【彻底单例】同步检查启动门闩，避免异步竞态条件
   if (realtimeStartupLatch.isStarting) {
@@ -512,28 +512,8 @@ export async function initCloudOnlyRealtime(callbacks: {
 
       const deviceId = getDeviceId();
   
-  // 防抖包装函数
-  const debouncedMedChange = () => {
-    if (medDebounceTimer) {
-      clearTimeout(medDebounceTimer);
-    }
-    medDebounceTimer = window.setTimeout(() => {
-      medDebounceTimer = null;
-      processedMedIds.clear(); // 清空已处理ID，允许同一ID再次触发
-      callbacks.onMedicationChange();
-    }, MED_DEBOUNCE_MS);
-  };
-
-  const debouncedLogChange = () => {
-    if (logDebounceTimer) {
-      clearTimeout(logDebounceTimer);
-    }
-    logDebounceTimer = window.setTimeout(() => {
-      logDebounceTimer = null;
-      processedLogIds.clear(); // 清空已处理ID
-      callbacks.onLogChange();
-    }, LOG_DEBOUNCE_MS);
-  };
+  // 【强制修复】移除防抖包装，直接调用回调传递 payload
+  // 防抖逻辑已移除，因为现在只做局部更新，不需要防抖
   
   // 监听 medications 表变更
   const medicationsChannel = supabase
@@ -580,7 +560,12 @@ export async function initCloudOnlyRealtime(callbacks: {
         }
         
         console.log('🔔 检测到其他设备的药品变更', { medId, eventType: payload.eventType, eventDeviceId });
-        debouncedMedChange();
+        // 【强制修复】直接传递 payload 给回调，不触发全量拉取
+        callbacks.onMedicationChange({
+          eventType: payload.eventType,
+          new: payload.new,
+          old: payload.old
+        });
       }
     )
     .subscribe();
@@ -630,7 +615,12 @@ export async function initCloudOnlyRealtime(callbacks: {
         }
         
         console.log('🔔 检测到其他设备的服药记录变更', { logId, eventType: payload.eventType, eventDeviceId });
-        debouncedLogChange();
+        // 【强制修复】直接传递 payload 给回调，不触发全量拉取
+        callbacks.onLogChange({
+          eventType: payload.eventType,
+          new: payload.new,
+          old: payload.old
+        });
       }
     )
     .subscribe();
@@ -639,14 +629,6 @@ export async function initCloudOnlyRealtime(callbacks: {
 
   // 清理函数
   const cleanup = () => {
-    if (medDebounceTimer) {
-      clearTimeout(medDebounceTimer);
-      medDebounceTimer = null;
-    }
-    if (logDebounceTimer) {
-      clearTimeout(logDebounceTimer);
-      logDebounceTimer = null;
-    }
     supabase.removeChannel(medicationsChannel);
     supabase.removeChannel(logsChannel);
     processedMedIds.clear();

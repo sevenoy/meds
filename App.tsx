@@ -346,22 +346,40 @@ export default function App() {
       
       console.log('🔄 开始加载数据...', { triggerSource, syncFromCloud });
       
-      // 仅在需要时（首次加载/手动触发）做云端拉取；Realtime 触发的刷新只读本地，避免事件风暴
-      if (syncFromCloud) {
-        // 【修复】优先从云端同步最新数据
+      // 【强制修复】medications 只能在应用初始化时拉取一次
+      // 禁止在 Realtime 事件、删除/编辑操作后再次拉取
+      // 只在 triggerSource === 'app-init' 时拉取 medications
+      let meds: Medication[] = [];
+      
+      if (triggerSource === 'app-init' && syncFromCloud) {
+        // 【唯一拉取点】只在应用初始化时拉取 medications
+        console.log('☁️ [初始化] 从云端拉取 medications（唯一拉取点）');
+        meds = await getMedicationsFromCloud();
+        console.log(`📋 [初始化] 从云端加载 ${meds.length} 个药物:`, meds.map(m => m.name));
+      } else {
+        // 【禁止重复拉取】非初始化阶段，使用当前 state
+        console.log('⏭️ [非初始化] 使用当前 medications state，不拉取云端数据', { triggerSource });
+        meds = medications.map(m => ({
+          id: m.id,
+          name: m.name,
+          dosage: m.dosage,
+          scheduled_time: m.scheduled_time,
+          accent: m.accent,
+          device_id: (m as any).device_id || ''
+        }));
+      }
+      
+      // 【强制修复】删除 syncMedications 调用，避免重复拉取
+      // ❌ 已删除：await syncMedications();
+      
+      // 同步服药记录（仅在初始化时）
+      if (triggerSource === 'app-init' && syncFromCloud) {
         try {
-          console.log('☁️ 从云端拉取最新数据...');
-          
-          // 1. 同步药品
-          await syncMedications();
-          
-          // 2. 同步服药记录
           const remoteLogs = await pullRemoteChanges();
-          console.log(`📥 从云端拉取到 ${remoteLogs.length} 条服药记录`);
+          console.log(`📥 [初始化] 从云端拉取到 ${remoteLogs.length} 条服药记录`);
           
-          // 3. 【性能优化】批量合并到本地数据库
+          // 【性能优化】批量合并到本地数据库
           if (remoteLogs.length > 0) {
-            // 先获取所有本地记录
             const localLogs = await getMedicationLogs();
             const logsToAdd: MedicationLog[] = [];
             const logsToUpdate: MedicationLog[] = [];
@@ -369,23 +387,19 @@ export default function App() {
             for (const remoteLog of remoteLogs) {
               const existing = localLogs.find(l => l.id === remoteLog.id);
               if (!existing) {
-                // 新记录，直接添加
                 logsToAdd.push({
                   ...remoteLog,
                   sync_state: 'clean'
                 });
               } else {
-                // 检测冲突
                 const conflict = detectConflict(existing, remoteLog);
                 if (!conflict) {
-                  // 无冲突，更新
                   logsToUpdate.push({
                     ...existing,
                     ...remoteLog,
                     sync_state: 'clean'
                   });
                 } else {
-                  // 有冲突，标记为冲突状态
                   logsToUpdate.push({
                     ...existing,
                     sync_state: 'conflict'
@@ -394,54 +408,33 @@ export default function App() {
               }
             }
             
-            // 批量添加新记录
             if (logsToAdd.length > 0) {
               await db.medicationLogs.bulkAdd(logsToAdd);
               console.log(`✅ 批量添加 ${logsToAdd.length} 条新记录`);
             }
             
-            // 批量更新现有记录
             if (logsToUpdate.length > 0) {
               await db.medicationLogs.bulkPut(logsToUpdate);
               console.log(`✅ 批量更新 ${logsToUpdate.length} 条记录`);
             }
           }
-          
-          console.log('✅ 云端数据已同步到本地');
         } catch (syncError) {
-          console.warn('⚠️ 云端同步失败,使用本地数据:', syncError);
+          console.warn('⚠️ 同步服药记录失败:', syncError);
         }
       }
       
-      // 【云端化】直接从云端读取药物列表，不使用本地缓存
-      const meds = await getMedicationsFromCloud();
-      console.log(`📋 从云端加载 ${meds.length} 个药物:`, meds.map(m => m.name));
-      
-      // 【禁用默认初始化】让用户手动添加药品,以便测试真实的同步功能
-      // 如果需要默认药品,用户可以通过"药品管理"手动添加
-      if (meds.length === 0) {
-        console.log('📝 暂无药品,请通过"药品管理"添加');
+      // 【强制修复】只在初始化时拉取 logs，非初始化阶段使用当前 state
+      let allLogs: MedicationLog[] = [];
+      if (triggerSource === 'app-init' && syncFromCloud) {
+        // 【唯一拉取点】只在应用初始化时拉取 logs
+        console.log('☁️ [初始化] 从云端拉取 logs（唯一拉取点）');
+        allLogs = await getLogsFromCloud();
+        console.log(`📝 [初始化] 从云端加载 ${allLogs.length} 条服药记录`);
+      } else {
+        // 【禁止重复拉取】非初始化阶段，使用当前 state
+        console.log('⏭️ [非初始化] 使用当前 logs state，不拉取云端数据', { triggerSource });
+        allLogs = timelineLogs;
       }
-      
-      // 注释掉默认初始化逻辑,避免掩盖同步问题
-      // if (meds.length === 0) {
-      //   console.log('⚠️ 没有药物，初始化默认药物...');
-      //   const defaultMeds: Medication[] = [
-      //     { id: '1', name: '降压药', dosage: '1片', scheduled_time: '08:00', accent: 'lime' },
-      //     { id: '2', name: '降糖药', dosage: '1片', scheduled_time: '12:00', accent: 'mint' },
-      //     { id: '3', name: '钙片', dosage: '2片', scheduled_time: '20:00', accent: 'berry' },
-      //   ];
-      //   for (const med of defaultMeds) {
-      //     await upsertMedication(med);
-      //   }
-      //   await pushLocalChanges();
-      //   meds.push(...defaultMeds);
-      //   console.log('✅ 默认药物已初始化');
-      // }
-      
-      // 【修复重复请求】一次性读取所有 logs，避免 N 次请求
-      const allLogs = await getLogsFromCloud();
-      console.log(`📝 从云端加载 ${allLogs.length} 条服药记录`);
       
       // 【修复重复请求】使用已读取的 allLogs，避免重复请求
       const medsWithStatus: MedicationUI[] = meds.map((med) => {
@@ -587,25 +580,95 @@ export default function App() {
     // 【云端化】启用纯云端 Realtime（仅监听其他设备的变更）
     let cloudRealtimeCleanup: (() => void) | null = null;
     initCloudOnlyRealtime({
-      onMedicationChange: async () => {
-        // 【修复误触发】初始化阶段忽略 Realtime 事件
+      onMedicationChange: (payload) => {
+        // 【强制修复】Realtime 事件绝对不能触发 loadData，只做局部更新
+        // 初始化阶段忽略 Realtime 事件
         if (isInitializingRef.current) {
           console.log('⏭️ 初始化阶段，忽略 Realtime 药品变更事件');
           return;
         }
-        console.log('🔔 检测到其他设备的药品变更，轻量刷新...');
-        // 【轻量刷新】只刷新药品列表，不触发全量 loadData
-        await loadData(false, 'realtime-medication-change');
+        
+        // 【局部更新】根据 payload 直接更新 state，不触发全量拉取
+        const { eventType, new: newData, old: oldData } = payload;
+        
+        if (eventType === 'DELETE') {
+          // 删除：从 state 中移除
+          const deletedId = oldData?.id;
+          if (deletedId) {
+            setMedications(prev => prev.filter(m => m.id !== deletedId));
+            console.log('✅ [Realtime] 已从 state 移除药品:', deletedId);
+          }
+        } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+          // 插入/更新：更新或添加药品
+          const medData = newData;
+          if (medData) {
+            setMedications(prev => {
+              const existingIndex = prev.findIndex(m => m.id === medData.id);
+              if (existingIndex >= 0) {
+                // 更新现有药品
+                const updated = [...prev];
+                updated[existingIndex] = {
+                  ...updated[existingIndex],
+                  ...medData,
+                  status: updated[existingIndex].status || 'pending'
+                };
+                return updated;
+              } else {
+                // 添加新药品
+                return [...prev, {
+                  ...medData,
+                  status: 'pending',
+                  lastTakenAt: undefined,
+                  uploadedAt: undefined,
+                  lastLog: undefined
+                }];
+              }
+            });
+            console.log('✅ [Realtime] 已更新 state 中的药品:', medData.id);
+          }
+        }
       },
-      onLogChange: async () => {
-        // 【修复误触发】初始化阶段忽略 Realtime 事件
+      onLogChange: (payload) => {
+        // 【强制修复】Realtime 事件绝对不能触发 loadData，只做局部更新
+        // 初始化阶段忽略 Realtime 事件
         if (isInitializingRef.current) {
           console.log('⏭️ 初始化阶段，忽略 Realtime 记录变更事件');
           return;
         }
-        console.log('🔔 检测到其他设备的服药记录变更，轻量刷新...');
-        // 【轻量刷新】只刷新记录列表，不触发全量 loadData
-        await loadData(false, 'realtime-log-change');
+        
+        // 【局部更新】根据 payload 直接更新 state，不触发全量拉取
+        const { eventType, new: newData, old: oldData } = payload;
+        
+        if (eventType === 'DELETE') {
+          // 删除：从 state 中移除
+          const deletedId = oldData?.id;
+          if (deletedId) {
+            setTimelineLogs(prev => prev.filter(l => l.id !== deletedId));
+            console.log('✅ [Realtime] 已从 state 移除记录:', deletedId);
+          }
+        } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+          // 插入/更新：更新或添加记录
+          const logData = newData;
+          if (logData) {
+            setTimelineLogs(prev => {
+              const existingIndex = prev.findIndex(l => l.id === logData.id);
+              if (existingIndex >= 0) {
+                // 更新现有记录
+                const updated = [...prev];
+                updated[existingIndex] = { ...updated[existingIndex], ...logData };
+                return updated.sort((a, b) => 
+                  new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+                );
+              } else {
+                // 添加新记录
+                return [...prev, logData].sort((a, b) => 
+                  new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+                );
+              }
+            });
+            console.log('✅ [Realtime] 已更新 state 中的记录:', logData.id);
+          }
+        }
       }
     }).then(cleanup => {
       cloudRealtimeCleanup = cleanup;
