@@ -24,7 +24,16 @@ export function getDeviceId(): string {
  * 如果云端 required_version 与当前版本不一致，强制清除缓存并刷新
  */
 export async function enforceVersionSync(): Promise<void> {
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:entry',message:'enforceVersionSync called',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
+  // #endregion
+  
   const userId = await getCurrentUserId();
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:userId',message:'Got userId',data:{userId:userId||'null',hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C1'})}).catch(()=>{});
+  // #endregion
+  
   if (!userId || !supabase) {
     console.warn('⚠️ 用户未登录或 Supabase 未配置，跳过版本检查');
     return;
@@ -40,11 +49,18 @@ export async function enforceVersionSync(): Promise<void> {
 
     if (error) {
       console.error('❌ 版本检查失败:', error);
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:error',message:'Query error',data:{error:error.message,code:error.code},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
+      // #endregion
       return;
     }
 
     const requiredVersion = data?.required_version;
     console.log('🔍 版本检查:', { currentVersion: APP_VERSION, requiredVersion });
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:compare',message:'Version comparison',data:{currentVersion:APP_VERSION,requiredVersion:requiredVersion||'null',match:requiredVersion===APP_VERSION},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
+    // #endregion
 
     // 2. 如果云端有 required_version 且与当前版本不一致
     if (requiredVersion && requiredVersion !== APP_VERSION) {
@@ -52,6 +68,10 @@ export async function enforceVersionSync(): Promise<void> {
         currentVersion: APP_VERSION,
         requiredVersion
       });
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:mismatch',message:'VERSION MISMATCH - will reload',data:{currentVersion:APP_VERSION,requiredVersion:requiredVersion},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
+      // #endregion
 
       // 3. 清除所有缓存
       try {
@@ -105,6 +125,11 @@ export async function enforceVersionSync(): Promise<void> {
     // 5. 如果云端没有 required_version，设置为当前版本
     if (!requiredVersion) {
       console.log('📝 云端未设置 required_version，设置为当前版本:', APP_VERSION);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:setVersion',message:'Setting required_version',data:{version:APP_VERSION},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
+      // #endregion
+      
       await supabase
         .from('app_state')
         .update({ required_version: APP_VERSION })
@@ -124,6 +149,11 @@ export async function enforceVersionSync(): Promise<void> {
  */
 export async function getMedicationsFromCloud(): Promise<Medication[]> {
   const userId = await getCurrentUserId();
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:getMedicationsFromCloud:entry',message:'getMedicationsFromCloud called',data:{userId:userId||'null',hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C1'})}).catch(()=>{});
+  // #endregion
+  
   if (!userId || !supabase) {
     console.warn('⚠️ 用户未登录或 Supabase 未配置');
     return [];
@@ -138,13 +168,24 @@ export async function getMedicationsFromCloud(): Promise<Medication[]> {
 
     if (error) {
       console.error('❌ 读取药品失败:', error);
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:getMedicationsFromCloud:error',message:'Supabase query error',data:{error:error.message,code:error.code,hint:error.hint},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C2'})}).catch(()=>{});
+      // #endregion
       return [];
     }
 
     console.log(`📥 从云端读取到 ${data?.length || 0} 个药品`);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:getMedicationsFromCloud:success',message:'Medications fetched',data:{count:data?.length||0,firstMedName:data?.[0]?.name||'none'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C2'})}).catch(()=>{});
+    // #endregion
+    
     return data || [];
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 读取药品异常:', error);
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:getMedicationsFromCloud:exception',message:'Exception thrown',data:{error:error.message,stack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C3'})}).catch(()=>{});
+    // #endregion
     return [];
   }
 }
@@ -206,11 +247,19 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
 
     // 如果有 id，使用 upsert；否则 insert
     if (medication.id) {
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:beforeUpsert',message:'Before upsert',data:{medicationId:medication.id,name:medication.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
+      // #endregion
+      
       const { data, error } = await supabase
         .from('medications')
         .upsert(medicationData, { onConflict: 'id' })
         .select()
         .single();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:afterUpsert',message:'After upsert',data:{hasData:!!data,hasError:!!error,errorMsg:error?.message||'none',errorCode:error?.code||'none',dataLength:Array.isArray(data)?data.length:(data?1:0)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
+      // #endregion
 
       if (error) {
         console.error('❌ 更新药品失败:', error);

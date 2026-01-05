@@ -52,6 +52,10 @@ async function postMessageAll(reg: ServiceWorkerRegistration, msg: any): Promise
 export async function forcePwaUpdateOncePerVersion(reason: 'login' | 'manual' = 'login'): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
 
+  // #region agent log
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sw-register.ts:forcePwaUpdate:entry',message:'forcePwaUpdateOncePerVersion called',data:{version:APP_VERSION,alreadyDone:localStorage.getItem(FORCE_UPDATE_KEY)||'null',inFlight:sessionStorage.getItem(FORCE_UPDATE_IN_FLIGHT_KEY)||'null',reason:reason},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B3'})}).catch(()=>{});
+  // #endregion
+
   // 已完成则跳过
   if (localStorage.getItem(FORCE_UPDATE_KEY) === 'true') return;
 

@@ -6,6 +6,7 @@ import { LoginPage } from './src/components/LoginPage';
 import { UpdateNotification } from './src/components/UpdateNotification';
 import { AvatarUpload } from './src/components/AvatarUpload';
 import { SyncStatusIndicator } from './src/components/SyncStatusIndicator';
+import { DebugPanel } from './src/components/DebugPanel';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId, db } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications, fixLegacyDeviceIds, detectConflict, pullMedicationsFromCloud } from './src/services/sync';
@@ -272,6 +273,7 @@ export default function App() {
   const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showMedicationManage, setShowMedicationManage] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   // 用户信息
   const [userName, setUserName] = useState(() => {
@@ -312,6 +314,10 @@ export default function App() {
   // 加载数据（用 useCallback 缓存，避免每次渲染都创建新函数）
   const loadData = useCallback(async (syncFromCloud: boolean = false) => {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:entry',message:'loadData called',data:{syncFromCloud:syncFromCloud},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      // #endregion
+      
       setLoading(true);
       
       console.log('🔄 开始加载数据...');
@@ -447,8 +453,15 @@ export default function App() {
       setTimelineLogs(sortedLogs);
       
       console.log('✅ 数据加载完成');
-    } catch (error) {
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:success',message:'loadData completed',data:{medicationsCount:medsWithStatus.length,logsCount:sortedLogs.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      // #endregion
+    } catch (error: any) {
       console.error('❌ 加载数据失败:', error);
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:error',message:'loadData failed',data:{error:error.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      // #endregion
     } finally {
       setLoading(false);
     }
@@ -1414,6 +1427,23 @@ export default function App() {
                 <span className="text-gray-400">›</span>
               </div>
 
+              {/* 诊断面板按钮 */}
+              <div 
+                onClick={() => setShowDebugPanel(true)}
+                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                    <AlertCircle className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black italic tracking-tighter">诊断面板</h3>
+                    <p className="text-xs text-gray-500 font-bold mt-1">查看系统状态</p>
+                  </div>
+                </div>
+                <span className="text-gray-400">›</span>
+              </div>
+
               {/* 关于应用按钮 - 已隐藏
               <div 
                 onClick={() => setShowAbout(true)}
@@ -1769,6 +1799,11 @@ export default function App() {
 
 
       {/* Camera Modal */}
+      {/* 诊断面板 */}
+      {showDebugPanel && (
+        <DebugPanel onClose={() => setShowDebugPanel(false)} />
+      )}
+
       {showCameraModal && medications.length > 0 && (
         <CameraModal
           medications={medications}
