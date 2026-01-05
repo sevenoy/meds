@@ -48,11 +48,21 @@ export async function enforceVersionSync(): Promise<void> {
       .maybeSingle();
 
     if (error) {
-      console.error('❌ 版本检查失败:', error);
+      // 【容错处理】如果列不存在（42703），静默跳过版本检查
+      if (error.code === '42703' || error.message?.includes('does not exist')) {
+        console.log('ℹ️ 版本检查跳过：required_version 列不存在（数据库未迁移）');
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:columnMissing',message:'Version check skipped - column missing',data:{errorCode:error.code,errorMessage:error.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        return; // 静默返回，不报错，不触发刷新
+      }
+      
+      // 其他错误仍然记录（但不阻塞）
+      console.warn('⚠️ 版本检查查询失败（非阻塞）:', error.code, error.message);
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:error',message:'Query error',data:{error:error.message,code:error.code},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:error',message:'Query error (non-blocking)',data:{error:error.message,code:error.code},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
       // #endregion
-      return;
+      return; // 静默返回，不阻塞应用启动
     }
 
     const requiredVersion = data?.required_version;

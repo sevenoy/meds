@@ -15,15 +15,31 @@ export const DebugPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         const meds = await getMedicationsFromCloud();
         const logs = await getLogsFromCloud();
         
-        // 查询云端 required_version
+        // 查询云端 required_version（容错处理）
         let requiredVersion = 'N/A';
+        let versionCheckSkipped = false;
         if (userId && supabase) {
-          const { data } = await supabase
-            .from('app_state')
-            .select('required_version')
-            .eq('owner_id', userId)
-            .maybeSingle();
-          requiredVersion = data?.required_version || 'null';
+          try {
+            const { data, error } = await supabase
+              .from('app_state')
+              .select('required_version')
+              .eq('owner_id', userId)
+              .maybeSingle();
+            
+            if (error) {
+              // 【容错】如果列不存在（42703），标记为跳过
+              if (error.code === '42703' || error.message?.includes('does not exist')) {
+                requiredVersion = '版本检查跳过：required_version 不存在';
+                versionCheckSkipped = true;
+              } else {
+                requiredVersion = `查询失败: ${error.code}`;
+              }
+            } else {
+              requiredVersion = data?.required_version || 'null';
+            }
+          } catch (err: any) {
+            requiredVersion = `异常: ${err.message}`;
+          }
         }
 
         const htmlVersion = (window as any).APP_VERSION || 'N/A';
@@ -48,6 +64,7 @@ export const DebugPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           versionMismatch: versionMismatch,
           swVersion: 'checking...',
           requiredVersion: requiredVersion,
+          versionCheckSkipped: versionCheckSkipped,
           medicationsCount: meds.length,
           logsCount: logs.length,
           localStorage: {
@@ -111,6 +128,12 @@ export const DebugPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <DiagnosticItem label="HTML 版本" value={diagnostics.htmlVersion} />
                 <DiagnosticItem label="SW 版本" value={diagnostics.swVersion} />
                 <DiagnosticItem label="云端要求版本" value={diagnostics.requiredVersion} />
+                {diagnostics.versionCheckSkipped && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2">
+                    <p className="text-yellow-700 text-sm font-bold">ℹ️ 版本检查跳过：required_version 不存在</p>
+                    <p className="text-yellow-600 text-xs mt-1">数据库未迁移，版本检查已禁用（可选增强）</p>
+                  </div>
+                )}
                 {diagnostics.versionMismatch && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
                     <p className="text-red-600 text-sm font-bold">🚨 严重错误：版本不一致！</p>
