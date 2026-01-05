@@ -90,15 +90,25 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
       }
 
       console.log('✅ 新药品已成功写入 payload 并同步到云端');
+      console.log('🔍 [添加药品] 准备同步到Supabase，药品信息:', { 
+        id: newMedication.id, 
+        name: newMedication.name,
+        dosage: newMedication.dosage,
+        scheduled_time: newMedication.scheduled_time
+      });
       
       // 【重要修复】立即同步到Supabase，确保药品ID正确映射
       // 直接推送新添加的药品，而不是依赖IndexedDB读取（可能有延迟）
       try {
+        console.log('📦 [添加药品] 开始导入Supabase模块...');
         const { getCurrentUserId } = await import('../lib/supabase');
         const { supabase } = await import('../lib/supabase');
-        const { isValidUUID, sanitizePayload } = await import('../services/sync');
+        const { sanitizePayload } = await import('../services/sync');
+        console.log('✅ [添加药品] Supabase模块导入成功', { hasGetCurrentUserId: !!getCurrentUserId, hasSupabase: !!supabase });
+        
         const userId = await getCurrentUserId();
         const deviceId = getDeviceId();
+        console.log('🔍 [添加药品] 获取用户和设备信息', { userId: userId?.substring(0, 8) + '...', deviceId: deviceId?.substring(0, 20) + '...' });
         
         if (userId && supabase) {
           // 构建要同步的药品数据
@@ -133,6 +143,17 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
           
           if (syncError) {
             console.error('❌ 同步到 Supabase 失败:', syncError);
+            console.error('❌ 错误详情:', {
+              message: syncError.message,
+              code: syncError.code,
+              details: syncError.details,
+              hint: syncError.hint
+            });
+            // #region agent log
+            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MedicationManagePage.tsx:140',message:'Supabase插入失败',data:{error:syncError.message,code:syncError.code,details:syncError.details},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'O'})}).catch(()=>{});
+            // #endregion
+            alert(`添加药品失败: ${syncError.message}\n\n请查看控制台了解详情`);
+            return;
           } else if (syncedMed && syncedMed.id) {
             console.log('✅ 新药品已同步到 Supabase，UUID:', syncedMed.id);
             
@@ -148,12 +169,19 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
               await cloudSaveV2(payload); // 更新payload中的ID
             }
           }
+        } else {
+          console.warn('⚠️ userId 或 supabase 客户端不可用', { hasUserId: !!userId, hasSupabase: !!supabase });
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MedicationManagePage.tsx:150',message:'userId或supabase不可用',data:{hasUserId:!!userId,hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'O'})}).catch(()=>{});
+          // #endregion
         }
       } catch (syncError) {
         console.error('❌ 同步到 Supabase 异常:', syncError);
+        console.error('❌ 异常堆栈:', syncError instanceof Error ? syncError.stack : 'N/A');
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MedicationManagePage.tsx:135',message:'同步异常',data:{error:String(syncError)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'O'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MedicationManagePage.tsx:156',message:'同步异常',data:{error:String(syncError),stack:syncError instanceof Error ? syncError.stack : 'N/A'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'O'})}).catch(()=>{});
         // #endregion
+        alert(`同步到Supabase时发生异常: ${syncError instanceof Error ? syncError.message : String(syncError)}\n\n请查看控制台了解详情`);
       }
       
       await onDataChange();
