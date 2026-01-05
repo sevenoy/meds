@@ -352,12 +352,34 @@ export async function cloudLoadV2(): Promise<{
   try {
     // 1. 检查 Supabase 是否配置
     if (!supabase) {
+      console.warn('⚠️ Supabase 未配置，初始化本地 payload');
+      if (!currentSnapshotPayload) {
+        currentSnapshotPayload = {
+          ver: 1,
+          medications: [],
+          medication_logs: [],
+          user_settings: {},
+          snapshot_label: 'local_init',
+          __initialized: true
+        };
+      }
       return { success: false, message: 'Supabase 未配置' };
     }
 
     // 2. 获取当前登录用户
     const userId = await getCurrentUserId();
     if (!userId) {
+      console.warn('⚠️ 用户未登录，初始化本地 payload');
+      if (!currentSnapshotPayload) {
+        currentSnapshotPayload = {
+          ver: 1,
+          medications: [],
+          medication_logs: [],
+          user_settings: {},
+          snapshot_label: 'local_init',
+          __initialized: true
+        };
+      }
       return { success: false, message: '用户未登录' };
     }
 
@@ -374,6 +396,18 @@ export async function cloudLoadV2(): Promise<{
 
     if (queryError) {
       console.error('❌ 查询 app_state 失败:', queryError);
+      // 【修复】即使查询失败,也要初始化 payload
+      if (!currentSnapshotPayload) {
+        console.log('⚠️ 查询失败，初始化本地空 payload');
+        currentSnapshotPayload = {
+          ver: 1,
+          medications: [],
+          medication_logs: [],
+          user_settings: {},
+          snapshot_label: 'local_init',
+          __initialized: true
+        };
+      }
       return { success: false, message: `查询失败: ${queryError.message}` };
     }
 
@@ -395,6 +429,18 @@ export async function cloudLoadV2(): Promise<{
 
       if (insertError) {
         console.error('❌ 插入 app_state 失败:', insertError);
+        // 【修复】即使插入失败,也要初始化 payload
+        if (!currentSnapshotPayload) {
+          console.log('⚠️ 插入失败，初始化本地空 payload');
+          currentSnapshotPayload = {
+            ver: 1,
+            medications: [],
+            medication_logs: [],
+            user_settings: {},
+            snapshot_label: 'local_init',
+            __initialized: true
+          };
+        }
         return { success: false, message: `插入失败: ${insertError.message}` };
       }
 

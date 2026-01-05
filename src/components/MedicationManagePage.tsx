@@ -35,15 +35,23 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
       }
 
       let payload = getCurrentSnapshotPayload();
+      console.log('🔍 [添加药品] 当前 payload 状态:', payload ? '存在' : 'null');
+      
       if (!payload) {
         console.warn('⚠️ payload 为 null，尝试重新加载...');
         const loadResult = await cloudLoadV2();
+        console.log('🔍 cloudLoadV2 结果:', loadResult);
+        
         payload = getCurrentSnapshotPayload();
+        console.log('🔍 重新获取 payload 状态:', payload ? '存在' : '仍为 null');
         
         if (!payload) {
-          alert('系统初始化失败，请刷新页面后重试');
+          console.error('❌ payload 初始化失败，cloudLoadV2 返回:', loadResult);
+          alert('系统初始化失败，请刷新页面后重试\n\n请打开控制台查看详细日志');
           return;
         }
+        
+        console.log('✅ payload 已成功初始化');
       }
 
       const newMedication: Medication = {
@@ -101,15 +109,23 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
       }
 
       let payload = getCurrentSnapshotPayload();
+      console.log('🔍 [编辑药品] 当前 payload 状态:', payload ? '存在' : 'null');
+      
       if (!payload) {
         console.warn('⚠️ payload 为 null，尝试重新加载...');
         const loadResult = await cloudLoadV2();
+        console.log('🔍 cloudLoadV2 结果:', loadResult);
+        
         payload = getCurrentSnapshotPayload();
+        console.log('🔍 重新获取 payload 状态:', payload ? '存在' : '仍为 null');
         
         if (!payload) {
-          alert('系统初始化失败，请刷新页面后重试');
+          console.error('❌ payload 初始化失败，cloudLoadV2 返回:', loadResult);
+          alert('系统初始化失败，请刷新页面后重试\n\n请打开控制台查看详细日志');
           return;
         }
+        
+        console.log('✅ payload 已成功初始化');
       }
 
       // 更新药品信息
