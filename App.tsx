@@ -336,49 +336,27 @@ export default function App() {
       const meds = await getTodayMedications();
       console.log(`📋 已加载 ${meds.length} 个药物:`, meds.map(m => m.name));
       
-      // 如果没有药物，初始化一些示例数据
+      // 【禁用默认初始化】让用户手动添加药品,以便测试真实的同步功能
+      // 如果需要默认药品,用户可以通过"药品管理"手动添加
       if (meds.length === 0) {
-        console.log('⚠️ 没有药物，初始化默认药物...');
-        const defaultMeds: Medication[] = [
-          { 
-            id: '1', 
-            name: '降压药', 
-            dosage: '1片', 
-            scheduled_time: '08:00', 
-            accent: 'lime' 
-          },
-          { 
-            id: '2', 
-            name: '降糖药', 
-            dosage: '1片', 
-            scheduled_time: '12:00', 
-            accent: 'mint' 
-          },
-          { 
-            id: '3', 
-            name: '钙片', 
-            dosage: '2片', 
-            scheduled_time: '20:00', 
-            accent: 'berry' 
-          },
-        ];
-        
-        // 保存到本地数据库
-        for (const med of defaultMeds) {
-          await upsertMedication(med);
-        }
-        
-        // 【修复】立即同步到云端
-        try {
-          await pushLocalChanges();
-          console.log('✅ 默认药物已同步到云端');
-        } catch (pushError) {
-          console.warn('⚠️ 同步到云端失败:', pushError);
-        }
-        
-        meds.push(...defaultMeds);
-        console.log('✅ 默认药物已初始化');
+        console.log('📝 暂无药品,请通过"药品管理"添加');
       }
+      
+      // 注释掉默认初始化逻辑,避免掩盖同步问题
+      // if (meds.length === 0) {
+      //   console.log('⚠️ 没有药物，初始化默认药物...');
+      //   const defaultMeds: Medication[] = [
+      //     { id: '1', name: '降压药', dosage: '1片', scheduled_time: '08:00', accent: 'lime' },
+      //     { id: '2', name: '降糖药', dosage: '1片', scheduled_time: '12:00', accent: 'mint' },
+      //     { id: '3', name: '钙片', dosage: '2片', scheduled_time: '20:00', accent: 'berry' },
+      //   ];
+      //   for (const med of defaultMeds) {
+      //     await upsertMedication(med);
+      //   }
+      //   await pushLocalChanges();
+      //   meds.push(...defaultMeds);
+      //   console.log('✅ 默认药物已初始化');
+      // }
       
       // 转换药物列表并检查状态
       const medsWithStatus: MedicationUI[] = await Promise.all(
