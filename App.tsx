@@ -317,6 +317,9 @@ export default function App() {
   
   // 【初始化阶段标记】防止 Realtime 在初始化阶段误触发
   const isInitializingRef = React.useRef(true);
+  
+  // 【性能优化】lastLogByMedicationId Map：一次建索引，避免每次扫描全量 logs
+  const lastLogByMedicationIdRef = React.useRef<Map<string, MedicationLog>>(new Map());
 
   // 加载数据（用 useCallback 缓存，避免每次渲染都创建新函数）
   const loadData = useCallback(async (syncFromCloud: boolean = false, triggerSource: string = 'unknown') => {
@@ -426,47 +429,58 @@ export default function App() {
       // 【强制修复】只在初始化时拉取 logs，非初始化阶段使用当前 state
       let allLogs: MedicationLog[] = [];
       if (triggerSource === 'app-init' && syncFromCloud) {
-        // 【唯一拉取点】只在应用初始化时拉取 logs
-        console.log('☁️ [初始化] 从云端拉取 logs（唯一拉取点）');
-        allLogs = await getLogsFromCloud();
+        // 【唯一拉取点】只在应用初始化时拉取 logs（瘦身版本）
+        console.log('☁️ [初始化] 从云端拉取 logs（唯一拉取点，瘦身版本）');
+        allLogs = await getLogsFromCloud(undefined, 300, 60); // 最近60天，最多300条
         console.log(`📝 [初始化] 从云端加载 ${allLogs.length} 条服药记录`);
+        
+        // 【性能优化】一次建索引：构建 lastLogByMedicationId Map
+        const lastLogMap = new Map<string, MedicationLog>();
+        for (const log of allLogs) {
+          const medId = log.medication_id;
+          const existing = lastLogMap.get(medId);
+          if (!existing || new Date(log.taken_at) > new Date(existing.taken_at)) {
+            lastLogMap.set(medId, log);
+          }
+        }
+        lastLogByMedicationIdRef.current = lastLogMap;
+        console.log(`✅ [性能优化] 已构建 lastLogByMedicationId Map，共 ${lastLogMap.size} 个药品的最新记录`);
       } else {
         // 【禁止重复拉取】非初始化阶段，使用当前 state
         console.log('⏭️ [非初始化] 使用当前 logs state，不拉取云端数据', { triggerSource });
         allLogs = timelineLogs;
       }
       
-      // 【修复重复请求】使用已读取的 allLogs，避免重复请求
+      // 【性能优化】使用 Map 索引，避免每次扫描全量 logs
+      const lastLogMap = lastLogByMedicationIdRef.current;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
       const medsWithStatus: MedicationUI[] = meds.map((med) => {
-        // 从 allLogs 中筛选该药品的记录
-        const medLogs = allLogs.filter(log => log.medication_id === med.id);
-        const todayLogs = medLogs.filter(log => {
-          const logDate = new Date(log.taken_at);
-          const today = new Date();
-          return logDate.toDateString() === today.toDateString();
-        });
-        const lastLog = todayLogs[0];
-        const taken = todayLogs.length > 0;
+        // 【性能优化】从 Map 中直接获取，不扫描全量数组
+        const lastLog = lastLogMap.get(med.id);
+        const taken = lastLog && new Date(lastLog.taken_at) >= today;
         
         return {
           ...med,
           status: taken ? 'completed' : 'pending',
           lastTakenAt: lastLog?.taken_at,
-          uploadedAt: lastLog?.uploaded_at,
+          uploadedAt: lastLog?.created_at, // 使用 created_at 替代 uploaded_at
           lastLog
         };
       });
       
-      console.log(`✅ 药物状态已更新，共 ${medsWithStatus.length} 个`);
+      console.log(`✅ 药物状态已更新，共 ${medsWithStatus.length} 个（使用 Map 索引，无全量扫描）`);
       setMedications(medsWithStatus);
       
-      // 按日期降序排序（使用已读取的 allLogs）
-      const sortedLogs = [...allLogs].sort((a, b) => 
-        new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
-      );
-      
-      console.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
-      setTimelineLogs(sortedLogs);
+      // 按日期降序排序（使用已读取的 allLogs，但只在初始化时排序）
+      if (triggerSource === 'app-init' && syncFromCloud) {
+        const sortedLogs = [...allLogs].sort((a, b) => 
+          new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+        );
+        console.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
+        setTimelineLogs(sortedLogs);
+      }
       
       console.log('✅ 数据加载完成', { triggerSource });
       
@@ -596,6 +610,8 @@ export default function App() {
           const deletedId = oldData?.id;
           if (deletedId) {
             setMedications(prev => prev.filter(m => m.id !== deletedId));
+            // 【强制性能修复】从 Map 中删除，不触发 logs 重算
+            lastLogByMedicationIdRef.current.delete(deletedId);
             console.log('✅ [Realtime] 已从 state 移除药品:', deletedId);
           }
         } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
@@ -607,10 +623,15 @@ export default function App() {
               if (existingIndex >= 0) {
                 // 更新现有药品
                 const updated = [...prev];
+                const existingMed = updated[existingIndex];
+                // 【强制性能修复】保持现有 status 和 lastLog，不触发 logs 重算
                 updated[existingIndex] = {
-                  ...updated[existingIndex],
+                  ...existingMed,
                   ...medData,
-                  status: updated[existingIndex].status || 'pending'
+                  status: existingMed.status || 'pending',
+                  lastTakenAt: existingMed.lastTakenAt,
+                  uploadedAt: existingMed.uploadedAt,
+                  lastLog: existingMed.lastLog
                 };
                 return updated;
               } else {
@@ -642,14 +663,57 @@ export default function App() {
         if (eventType === 'DELETE') {
           // 删除：从 state 中移除
           const deletedId = oldData?.id;
+          const deletedMedId = oldData?.medication_id;
           if (deletedId) {
             setTimelineLogs(prev => prev.filter(l => l.id !== deletedId));
+            // 【强制性能修复】更新 Map：如果删除的是某个药品的最新记录，需要重新查找
+            if (deletedMedId) {
+              const currentLastLog = lastLogByMedicationIdRef.current.get(deletedMedId);
+              if (currentLastLog?.id === deletedId) {
+                // 删除的是最新记录，需要从 timelineLogs 中找下一个最新的
+                setTimelineLogs(prev => {
+                  const nextLatest = prev
+                    .filter(l => l.medication_id === deletedMedId)
+                    .sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime())[0];
+                  if (nextLatest) {
+                    lastLogByMedicationIdRef.current.set(deletedMedId, nextLatest);
+                  } else {
+                    lastLogByMedicationIdRef.current.delete(deletedMedId);
+                  }
+                  return prev;
+                });
+              }
+            }
             console.log('✅ [Realtime] 已从 state 移除记录:', deletedId);
           }
         } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
           // 插入/更新：更新或添加记录
           const logData = newData;
-          if (logData) {
+          if (logData && logData.medication_id) {
+            // 【强制性能修复】更新 Map：如果这是该药品的最新记录，更新 Map
+            const medId = logData.medication_id;
+            const currentLastLog = lastLogByMedicationIdRef.current.get(medId);
+            if (!currentLastLog || new Date(logData.taken_at) > new Date(currentLastLog.taken_at)) {
+              lastLogByMedicationIdRef.current.set(medId, logData);
+              // 【强制性能修复】更新对应药品的 status
+              setMedications(prev => prev.map(m => {
+                if (m.id === medId) {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const taken = new Date(logData.taken_at) >= today;
+                  return {
+                    ...m,
+                    status: taken ? 'completed' : 'pending',
+                    lastTakenAt: logData.taken_at,
+                    uploadedAt: logData.created_at,
+                    lastLog: logData
+                  };
+                }
+                return m;
+              }));
+            }
+            
+            // 更新 timelineLogs
             setTimelineLogs(prev => {
               const existingIndex = prev.findIndex(l => l.id === logData.id);
               if (existingIndex >= 0) {
@@ -1746,7 +1810,7 @@ export default function App() {
                       device_id: getDeviceId()
                     };
 
-                    // 【Optimistic UI】立即更新本地 state（UI 立即生效）
+                    // 【强制性能修复】Optimistic UI：立即更新本地 state（UI 立即生效，<300ms）
                     setMedications(prev => [...prev, {
                       ...newMedication,
                       status: 'pending',
@@ -1754,39 +1818,44 @@ export default function App() {
                       uploadedAt: undefined,
                       lastLog: undefined
                     }]);
+                    
+                    // 【强制性能修复】立即关闭 loading，不阻塞 UI
+                    // 不等待任何异步操作
 
                     // 【云端化】后台异步写入云端，不阻塞 UI
-                    try {
-                      const savedMed = await upsertMedicationToCloud(newMedication);
-                      if (!savedMed) {
-                        // 失败时回滚：从本地 state 移除
+                    (async () => {
+                      try {
+                        const savedMed = await upsertMedicationToCloud(newMedication);
+                        if (!savedMed) {
+                          // 失败时回滚：从本地 state 移除
+                          setMedications(prev => prev.filter(m => m.id !== newMedication.id));
+                          alert('添加药品失败，请重试');
+                          return;
+                        }
+                        console.log('✅ 新药品已直接写入云端:', savedMed.name);
+                        
+                        // 成功：用云端返回的数据更新本地 state（确保 ID 等字段一致）
+                        if (savedMed.id !== newMedication.id) {
+                          setMedications(prev => prev.filter(m => m.id !== newMedication.id));
+                          setMedications(prev => [...prev, {
+                            ...savedMed,
+                            status: 'pending',
+                            lastTakenAt: undefined,
+                            uploadedAt: undefined,
+                            lastLog: undefined
+                          }]);
+                        }
+                      } catch (error: any) {
+                        // 失败时回滚
                         setMedications(prev => prev.filter(m => m.id !== newMedication.id));
-                        alert('添加药品失败，请重试');
-                        return;
+                        const errorMsg = error?.message || '添加药品失败，请重试';
+                        console.error('❌ 添加药品失败:', errorMsg, error);
+                        alert(`添加药品失败: ${errorMsg}`);
                       }
-                      console.log('✅ 新药品已直接写入云端:', savedMed.name);
-                      
-                      // 成功：用云端返回的数据更新本地 state（确保 ID 等字段一致）
-                      if (savedMed.id !== newMedication.id) {
-                        setMedications(prev => prev.filter(m => m.id !== newMedication.id));
-                        setMedications(prev => [...prev, {
-                          ...savedMed,
-                          status: 'pending',
-                          lastTakenAt: undefined,
-                          uploadedAt: undefined,
-                          lastLog: undefined
-                        }]);
-                      }
-                    } catch (error: any) {
-                      // 失败时回滚
-                      setMedications(prev => prev.filter(m => m.id !== newMedication.id));
-                      const errorMsg = error?.message || '添加药品失败，请重试';
-                      console.error('❌ 添加药品失败:', errorMsg, error);
-                      alert(`添加药品失败: ${errorMsg}`);
-                      return;
-                    }
+                    })();
                     
                     // 【禁止全量 reload】不再调用 loadData()，只做局部更新
+                    // 【强制性能修复】不触发 logs 重算，不更新 Map
                     setNewMedName('');
                     setNewMedDosage('');
                     setNewMedTime('');
@@ -1849,41 +1918,40 @@ export default function App() {
                           
                           <button
                             onClick={async () => {
-                              runWithUserAction(async () => {
-                                if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-                                  const payload = getCurrentSnapshotPayload();
-                                  if (!payload) {
-                                    alert('系统未初始化，请刷新页面后重试');
-                                    return;
-                                  }
+                              // 【强制性能修复】彻底移除 app_state 依赖，直接删除
+                              if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                                // 【强制性能修复】Optimistic UI：立即从本地 state 移除（UI 立即生效，<300ms）
+                                setMedications(prev => prev.filter(m => m.id !== med.id));
+                                
+                                // 【强制性能修复】从 Map 中删除，不触发 logs 重算
+                                lastLogByMedicationIdRef.current.delete(med.id);
+                                
+                                // 【强制性能修复】立即关闭 loading，不阻塞 UI
+                                // 不等待任何异步操作
 
-                                  payload.medications = (payload.medications || []).filter((m: any) => m.id !== med.id);
-                                  payload.medication_logs = (payload.medication_logs || []).filter((l: any) => l.medication_id !== med.id);
-
-                                  const result = await cloudSaveV2(payload);
-                                  if (!result.success) {
-                                    if (result.conflict) {
-                                      alert('版本冲突，正在重新加载...');
-                                      await cloudLoadV2();
-                                    } else {
-                                      alert(`删除失败: ${result.message}`);
-                                    }
-                                    return;
-                                  }
-
-                                  console.log('✅ 药品已删除并同步到云端');
-                                  
-                                  // 【修复】立即同步到 Supabase,确保多设备同步
+                                // 【云端化】后台异步删除云端，不阻塞 UI
+                                (async () => {
                                   try {
-                                    await pushLocalChanges();
-                                    console.log('✅ 删除操作已同步到 Supabase');
-                                  } catch (pushError) {
-                                    console.warn('⚠️ 同步到 Supabase 失败:', pushError);
+                                    const success = await deleteMedicationFromCloud(med.id);
+                                    if (!success) {
+                                      // 失败时回滚：重新添加回本地 state
+                                      setMedications(prev => [...prev, med]);
+                                      alert('删除药品失败，请重试');
+                                      return;
+                                    }
+                                    console.log('✅ 药品已从云端删除:', med.name);
+                                  } catch (error: any) {
+                                    // 失败时回滚
+                                    setMedications(prev => [...prev, med]);
+                                    const errorMsg = error?.message || '删除药品失败，请重试';
+                                    console.error('❌ 删除药品失败:', errorMsg, error);
+                                    alert(`删除药品失败: ${errorMsg}`);
                                   }
-                                  
-                                  await loadData();
-                                }
-                              });
+                                })();
+                                
+                                // 【禁止全量 reload】不再调用 loadData()，只做局部更新
+                                // 【强制性能修复】不触发 logs 重算，不更新 Map（已删除）
+                              }
                             }}
                             className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center hover:bg-red-200 transition-all"
                           >
@@ -2300,7 +2368,7 @@ export default function App() {
 
                     if (!editingMed) return;
 
-                    // 【Optimistic UI】立即更新本地 state（UI 立即生效）
+                    // 【强制性能修复】Optimistic UI：立即更新本地 state（UI 立即生效，<300ms）
                     const updatedMed: Medication = {
                       ...editingMed,
                       name: editMedName,
@@ -2312,45 +2380,49 @@ export default function App() {
                     // 保存原始值用于回滚
                     const originalMed = { ...editingMed };
                     
-                    // 立即更新 UI
+                    // 【强制性能修复】立即更新 UI，不等待任何异步操作
                     setMedications(prev => prev.map(m => m.id === editingMed.id ? {
                       ...m,
                       ...updatedMed
                     } : m));
+                    
+                    // 【强制性能修复】立即关闭弹窗，不阻塞 UI
+                    setEditingMed(null);
 
                     // 【云端化】后台异步更新云端，不阻塞 UI
-                    try {
-                      const savedMed = await upsertMedicationToCloud(updatedMed);
-                      if (!savedMed) {
-                        // 失败时回滚：恢复原始值
+                    (async () => {
+                      try {
+                        const savedMed = await upsertMedicationToCloud(updatedMed);
+                        if (!savedMed) {
+                          // 失败时回滚：恢复原始值
+                          setMedications(prev => prev.map(m => m.id === editingMed.id ? {
+                            ...m,
+                            ...originalMed
+                          } : m));
+                          alert('更新药品失败，请重试');
+                          return;
+                        }
+                        console.log('✅ 药品已直接更新到云端:', savedMed.name);
+                        
+                        // 成功：用云端返回的数据更新本地 state（确保字段一致）
+                        setMedications(prev => prev.map(m => m.id === editingMed.id ? {
+                          ...m,
+                          ...savedMed
+                        } : m));
+                      } catch (error: any) {
+                        // 失败时回滚
                         setMedications(prev => prev.map(m => m.id === editingMed.id ? {
                           ...m,
                           ...originalMed
                         } : m));
-                        alert('更新药品失败，请重试');
-                        return;
+                        const errorMsg = error?.message || '更新药品失败，请重试';
+                        console.error('❌ 更新药品失败:', errorMsg, error);
+                        alert(`更新药品失败: ${errorMsg}`);
                       }
-                      console.log('✅ 药品已直接更新到云端:', savedMed.name);
-                      
-                      // 成功：用云端返回的数据更新本地 state（确保字段一致）
-                      setMedications(prev => prev.map(m => m.id === editingMed.id ? {
-                        ...m,
-                        ...savedMed
-                      } : m));
-                    } catch (error: any) {
-                      // 失败时回滚
-                      setMedications(prev => prev.map(m => m.id === editingMed.id ? {
-                        ...m,
-                        ...originalMed
-                      } : m));
-                      const errorMsg = error?.message || '更新药品失败，请重试';
-                      console.error('❌ 更新药品失败:', errorMsg, error);
-                      alert(`更新药品失败: ${errorMsg}`);
-                      return;
-                    }
+                    })();
                     
                     // 【禁止全量 reload】不再调用 loadData()，只做局部更新
-                    setEditingMed(null);
+                    // 【强制性能修复】不触发 logs 重算，不更新 Map
                   }}
                   className="flex-1 px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all"
                 >

@@ -218,9 +218,17 @@ export async function getMedicationsFromCloud(): Promise<Medication[]> {
 }
 
 /**
- * 从云端读取所有服药记录（不使用本地缓存）
+ * 从云端读取服药记录（瘦身版本：只拉取必要字段，限制数量）
+ * 
+ * @param medicationId 可选：只拉取特定药品的记录
+ * @param limit 可选：限制返回数量（默认300条）
+ * @param daysLimit 可选：限制天数（默认60天）
  */
-export async function getLogsFromCloud(medicationId?: string): Promise<MedicationLog[]> {
+export async function getLogsFromCloud(
+  medicationId?: string,
+  limit: number = 300,
+  daysLimit: number = 60
+): Promise<MedicationLog[]> {
   const userId = await getCurrentUserId();
   if (!userId || !supabase) {
     console.warn('⚠️ 用户未登录或 Supabase 未配置');
@@ -228,11 +236,21 @@ export async function getLogsFromCloud(medicationId?: string): Promise<Medicatio
   }
 
   try {
+    // 【强制瘦身】只拉取必要字段，不拉取 image_path 等大字段
+    const selectFields = 'id,medication_id,taken_at,created_at,device_id,status,time_source';
+    
+    // 计算日期限制（最近 N 天）
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - daysLimit);
+    const daysAgoISO = daysAgo.toISOString();
+    
     let query = supabase
       .from('medication_logs')
-      .select('*')
+      .select(selectFields) // 【瘦身】只拉取必要字段
       .eq('user_id', userId)
-      .order('taken_at', { ascending: false });
+      .gte('taken_at', daysAgoISO) // 【限制】只拉取最近60天的记录
+      .order('taken_at', { ascending: false })
+      .limit(limit); // 【限制】最多300条
 
     if (medicationId) {
       query = query.eq('medication_id', medicationId);
@@ -245,7 +263,7 @@ export async function getLogsFromCloud(medicationId?: string): Promise<Medicatio
       return [];
     }
 
-    console.log(`📥 从云端读取到 ${data?.length || 0} 条服药记录`);
+    console.log(`📥 [瘦身] 从云端读取到 ${data?.length || 0} 条服药记录（限制：最近${daysLimit}天，最多${limit}条）`);
     return data || [];
   } catch (error) {
     console.error('❌ 读取服药记录异常:', error);
