@@ -311,16 +311,37 @@ export default function App() {
   const [editMedTime, setEditMedTime] = useState('');
   const [editMedAccent, setEditMedAccent] = useState<string>('#E0F3A2');
 
+  // 【防重入锁】防止 loadData 并发执行
+  const syncInProgressRef = React.useRef(false);
+  const loadDataTriggerSourceRef = React.useRef<string>('');
+
   // 加载数据（用 useCallback 缓存，避免每次渲染都创建新函数）
-  const loadData = useCallback(async (syncFromCloud: boolean = false) => {
+  const loadData = useCallback(async (syncFromCloud: boolean = false, triggerSource: string = 'unknown') => {
+    // 【防重入锁】如果正在同步，拒绝再次进入
+    if (syncInProgressRef.current) {
+      console.log('⏭️ loadData 正在执行中，跳过重复调用', {
+        currentTrigger: loadDataTriggerSourceRef.current,
+        newTrigger: triggerSource,
+        syncFromCloud
+      });
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:rejected',message:'loadData rejected - already in progress',data:{currentTrigger:loadDataTriggerSourceRef.current,newTrigger:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      return;
+    }
+
+    // 设置锁和触发来源
+    syncInProgressRef.current = true;
+    loadDataTriggerSourceRef.current = triggerSource;
+
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:entry',message:'loadData called',data:{syncFromCloud:syncFromCloud},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:entry',message:'loadData called',data:{syncFromCloud:syncFromCloud,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
       // #endregion
       
       setLoading(true);
       
-      console.log('🔄 开始加载数据...');
+      console.log('🔄 开始加载数据...', { triggerSource, syncFromCloud });
       
       // 仅在需要时（首次加载/手动触发）做云端拉取；Realtime 触发的刷新只读本地，避免事件风暴
       if (syncFromCloud) {
@@ -452,17 +473,20 @@ export default function App() {
       console.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
       setTimelineLogs(sortedLogs);
       
-      console.log('✅ 数据加载完成');
+      console.log('✅ 数据加载完成', { triggerSource });
       
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:success',message:'loadData completed',data:{medicationsCount:medsWithStatus.length,logsCount:sortedLogs.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:success',message:'loadData completed',data:{medicationsCount:medsWithStatus.length,logsCount:sortedLogs.length,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
       // #endregion
     } catch (error: any) {
-      console.error('❌ 加载数据失败:', error);
+      console.error('❌ 加载数据失败:', error, { triggerSource });
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:error',message:'loadData failed',data:{error:error.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:error',message:'loadData failed',data:{error:error.message,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
       // #endregion
     } finally {
+      // 【释放锁】
+      syncInProgressRef.current = false;
+      loadDataTriggerSourceRef.current = '';
       setLoading(false);
     }
   }, []); // 空依赖数组，因为内部使用的都是稳定的 API 函数
@@ -521,7 +545,7 @@ export default function App() {
         console.log('🔧 device_id 修复完成');
         
         // 3. 加载数据到 UI
-        await loadData(true);
+        await loadData(true, 'app-init');
         console.log('✅ 应用初始化完成');
         
         // 4. 标记应用已初始化
@@ -529,7 +553,7 @@ export default function App() {
       } catch (error) {
         console.error('❌ 应用初始化失败:', error);
         // 即使失败也加载数据并标记初始化完成
-        await loadData();
+        await loadData(false, 'app-init-error');
         setAppInitialized(true);
       }
     };
@@ -559,17 +583,21 @@ export default function App() {
     
     // 【云端化】启用纯云端 Realtime（仅监听其他设备的变更）
     let cloudRealtimeCleanup: (() => void) | null = null;
-    cloudRealtimeCleanup = initCloudOnlyRealtime({
+    initCloudOnlyRealtime({
       onMedicationChange: async () => {
         console.log('🔔 检测到其他设备的药品变更，重新加载...');
-        await loadData(false);
+        await loadData(false, 'realtime-medication-change');
       },
       onLogChange: async () => {
         console.log('🔔 检测到其他设备的服药记录变更，重新加载...');
-        await loadData(false);
+        await loadData(false, 'realtime-log-change');
       }
+    }).then(cleanup => {
+      cloudRealtimeCleanup = cleanup;
+      console.log('✅ 纯云端 Realtime 已启动');
+    }).catch(error => {
+      console.error('❌ Realtime 初始化失败:', error);
     });
-    console.log('✅ 纯云端 Realtime 已启动');
     
     // 【本地认证模式】禁用旧的 Realtime 同步
     /*
@@ -587,7 +615,7 @@ export default function App() {
         // 自动合并远程记录
         mergeRemoteLog(log).then(() => {
           console.log('✅ 服药记录已自动同步');
-          loadData();
+          loadData(false, 'medication-taken');
         }).catch(console.error);
       },
       // 处理药品列表更新（自动同步，无需确认）
@@ -604,7 +632,7 @@ export default function App() {
           // 先同步medications
           await syncMedications();
           // 然后重新加载数据
-          await loadData();
+          await loadData(false, 'snapshot-applied');
           
           console.log('✅ 药品列表已自动同步');
           
@@ -637,7 +665,7 @@ export default function App() {
       }
       
       // 快照更新后刷新数据
-      loadData();
+      loadData(false, 'realtime-snapshot-update');
     }).then(cleanup => {
       cleanupSnapshot = cleanup;
     }).catch(console.error);
@@ -734,7 +762,7 @@ export default function App() {
   const handleRecordSuccess = async () => {
     // 【C】拍照记录已由 recordMedicationIntake 写入 Dexie 并同步到 payload
     // 这里只刷新 UI
-    await loadData();
+    await loadData(false, 'manual-refresh');
   };
 
   // 处理同步提示接受
@@ -742,7 +770,7 @@ export default function App() {
     if (syncPrompt) {
       await mergeRemoteLog(syncPrompt);
       setSyncPrompt(null);
-      await loadData();
+      await loadData(false, 'sync-prompt-accepted');
     }
   };
 
@@ -1364,7 +1392,7 @@ export default function App() {
                         
                         // 重新加载数据
                         console.log('🔄 重新加载数据...');
-                        await loadData();
+                        await loadData(true, 'manual-sync-button');
                         
                         alert('✅ 所有药品数据已清除！\n\n已清除:\n- 本地数据库\n- 云端快照\n- Supabase数据库');
                         console.log('🎉 清除完成！');
@@ -1681,7 +1709,7 @@ export default function App() {
                       fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:addMedication',message:'Added medication via home form',data:{id:newMedication.id,name:newMedication.name,hasUUID:!(String(newMedication.id).startsWith('local_'))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'P'})}).catch(()=>{});
                       // #endregion
                       
-                      await loadData();
+                      await loadData(false, 'medication-updated');
                       
                       setNewMedName('');
                       setNewMedDosage('');
@@ -2024,7 +2052,7 @@ export default function App() {
                         for (const log of logs) {
                           await mergeRemoteLog(log);
                         }
-                        await loadData();
+                        await loadData(true, 'manual-sync-success');
                         alert('同步成功！');
                       } catch (error) {
                         console.error('同步失败:', error);
@@ -2234,7 +2262,7 @@ export default function App() {
                         console.warn('⚠️ 同步到 Supabase 失败:', pushError);
                       }
                       
-                      await loadData();
+                      await loadData(false, 'medication-updated');
                       setEditingMed(null);
                     });
                   }}

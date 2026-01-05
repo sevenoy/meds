@@ -363,16 +363,72 @@ export async function addLogToCloud(log: Omit<MedicationLog, 'id'>): Promise<Med
 /**
  * 初始化 Realtime 监听（仅监听其他设备的变更）
  */
-export function initCloudOnlyRealtime(callbacks: {
+// Realtime 单例管理
+let realtimeInstance: {
+  userId: string;
+  cleanup: () => void;
+} | null = null;
+
+// 事件防抖和去重
+let medDebounceTimer: number | null = null;
+let logDebounceTimer: number | null = null;
+const processedMedIds = new Set<string>();
+const processedLogIds = new Set<string>();
+const MED_DEBOUNCE_MS = 400;
+const LOG_DEBOUNCE_MS = 400;
+const MAX_PROCESSED_IDS = 100; // 防止内存泄漏
+
+export async function initCloudOnlyRealtime(callbacks: {
   onMedicationChange: () => void;
   onLogChange: () => void;
-}): () => void {
+}): Promise<() => void> {
   if (!supabase) {
     console.warn('⚠️ Supabase 未配置，无法启动 Realtime');
     return () => {};
   }
 
+  // 【单例检查】同一 userId 只能 init 一次
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    console.warn('⚠️ 用户未登录，无法启动 Realtime');
+    return () => {};
+  }
+  
+  if (realtimeInstance && realtimeInstance.userId === userId) {
+    console.log('⏭️ Realtime 已存在，跳过重复初始化', { userId });
+    return realtimeInstance.cleanup; // 返回现有的清理函数
+  }
+  
+  // 清理旧实例（如果存在）
+  if (realtimeInstance) {
+    realtimeInstance.cleanup();
+    realtimeInstance = null;
+  }
+
   const deviceId = getDeviceId();
+  
+  // 防抖包装函数
+  const debouncedMedChange = () => {
+    if (medDebounceTimer) {
+      clearTimeout(medDebounceTimer);
+    }
+    medDebounceTimer = window.setTimeout(() => {
+      medDebounceTimer = null;
+      processedMedIds.clear(); // 清空已处理ID，允许同一ID再次触发
+      callbacks.onMedicationChange();
+    }, MED_DEBOUNCE_MS);
+  };
+
+  const debouncedLogChange = () => {
+    if (logDebounceTimer) {
+      clearTimeout(logDebounceTimer);
+    }
+    logDebounceTimer = window.setTimeout(() => {
+      logDebounceTimer = null;
+      processedLogIds.clear(); // 清空已处理ID
+      callbacks.onLogChange();
+    }, LOG_DEBOUNCE_MS);
+  };
   
   // 监听 medications 表变更
   const medicationsChannel = supabase
@@ -387,10 +443,29 @@ export function initCloudOnlyRealtime(callbacks: {
       (payload) => {
         const newRow = payload.new as any;
         // 过滤自身更新
-        if (newRow?.device_id !== deviceId) {
-          console.log('🔔 检测到其他设备的药品变更');
-          callbacks.onMedicationChange();
+        if (newRow?.device_id === deviceId) {
+          return;
         }
+        
+        // 【去重】检查是否已处理过此 ID
+        const medId = newRow?.id;
+        if (medId && processedMedIds.has(medId)) {
+          console.log('⏭️ 已处理过此药品变更，跳过', { medId });
+          return;
+        }
+        
+        // 记录已处理的 ID
+        if (medId) {
+          processedMedIds.add(medId);
+          // 防止内存泄漏：限制 Set 大小
+          if (processedMedIds.size > MAX_PROCESSED_IDS) {
+            const firstId = Array.from(processedMedIds)[0];
+            processedMedIds.delete(firstId);
+          }
+        }
+        
+        console.log('🔔 检测到其他设备的药品变更', { medId, eventType: payload.eventType });
+        debouncedMedChange();
       }
     )
     .subscribe();
@@ -408,21 +483,57 @@ export function initCloudOnlyRealtime(callbacks: {
       (payload) => {
         const newRow = payload.new as any;
         // 过滤自身更新
-        if (newRow?.device_id !== deviceId) {
-          console.log('🔔 检测到其他设备的服药记录变更');
-          callbacks.onLogChange();
+        if (newRow?.device_id === deviceId) {
+          return;
         }
+        
+        // 【去重】检查是否已处理过此 ID
+        const logId = newRow?.id;
+        if (logId && processedLogIds.has(logId)) {
+          console.log('⏭️ 已处理过此记录变更，跳过', { logId });
+          return;
+        }
+        
+        // 记录已处理的 ID
+        if (logId) {
+          processedLogIds.add(logId);
+          // 防止内存泄漏
+          if (processedLogIds.size > MAX_PROCESSED_IDS) {
+            const firstId = Array.from(processedLogIds)[0];
+            processedLogIds.delete(firstId);
+          }
+        }
+        
+        console.log('🔔 检测到其他设备的服药记录变更', { logId, eventType: payload.eventType });
+        debouncedLogChange();
       }
     )
     .subscribe();
 
   console.log('✅ 纯云端 Realtime 已启动');
 
-  // 返回清理函数
-  return () => {
+  // 清理函数
+  const cleanup = () => {
+    if (medDebounceTimer) {
+      clearTimeout(medDebounceTimer);
+      medDebounceTimer = null;
+    }
+    if (logDebounceTimer) {
+      clearTimeout(logDebounceTimer);
+      logDebounceTimer = null;
+    }
     supabase.removeChannel(medicationsChannel);
     supabase.removeChannel(logsChannel);
+    processedMedIds.clear();
+    processedLogIds.clear();
     console.log('🔌 纯云端 Realtime 已停止');
   };
+
+  // 保存单例实例
+  realtimeInstance = { userId, cleanup };
+  console.log('✅ Realtime 单例已创建', { userId });
+
+  // 返回清理函数
+  return cleanup;
 }
 
