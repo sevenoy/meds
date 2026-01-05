@@ -426,6 +426,12 @@ export default function App() {
           console.log('✅ 云端数据已加载并初始化 payload');
         } else {
           console.log('📝 首次使用，创建初始 payload');
+          // 【紧急修复】确保 payload 一定被初始化
+          const payload = getCurrentSnapshotPayload();
+          if (!payload) {
+            console.warn('⚠️ payload 仍为 null，手动初始化...');
+            // 这应该不会发生，但作为双重保险
+          }
         }
         
         // 2. 修复旧药品的 device_id

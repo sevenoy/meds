@@ -447,6 +447,20 @@ export async function cloudLoadV2(): Promise<{
 
   } catch (error: any) {
     console.error('❌ cloudLoadV2() 异常:', error);
+    
+    // 【紧急修复】即使失败,也要初始化一个空的 payload,防止"系统未初始化"错误
+    if (!currentSnapshotPayload) {
+      console.log('⚠️ 云端加载失败,初始化本地空 payload');
+      currentSnapshotPayload = {
+        ver: 1,
+        medications: [],
+        medication_logs: [],
+        user_settings: {},
+        snapshot_label: 'local_init',
+        __initialized: true
+      };
+    }
+    
     return { success: false, message: `读取异常: ${error.message || '未知错误'}` };
   }
 }

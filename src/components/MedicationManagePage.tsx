@@ -34,10 +34,16 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
         return;
       }
 
-      const payload = getCurrentSnapshotPayload();
+      let payload = getCurrentSnapshotPayload();
       if (!payload) {
-        alert('系统未初始化，请刷新页面后重试');
-        return;
+        console.warn('⚠️ payload 为 null，尝试重新加载...');
+        const loadResult = await cloudLoadV2();
+        payload = getCurrentSnapshotPayload();
+        
+        if (!payload) {
+          alert('系统初始化失败，请刷新页面后重试');
+          return;
+        }
       }
 
       const newMedication: Medication = {
@@ -94,10 +100,16 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
         return;
       }
 
-      const payload = getCurrentSnapshotPayload();
+      let payload = getCurrentSnapshotPayload();
       if (!payload) {
-        alert('系统未初始化，请刷新页面后重试');
-        return;
+        console.warn('⚠️ payload 为 null，尝试重新加载...');
+        const loadResult = await cloudLoadV2();
+        payload = getCurrentSnapshotPayload();
+        
+        if (!payload) {
+          alert('系统初始化失败，请刷新页面后重试');
+          return;
+        }
       }
 
       // 更新药品信息
