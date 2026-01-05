@@ -368,6 +368,11 @@ export async function cloudLoadV2(): Promise<{
 
     // 2. 获取当前登录用户
     const userId = await getCurrentUserId();
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'snapshot.ts:377',message:'cloudLoadV2 获取 userId',data:{userId:userId||null,hasUserId:!!userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
     if (!userId) {
       console.warn('⚠️ 用户未登录，初始化本地 payload');
       if (!currentSnapshotPayload) {
@@ -380,6 +385,11 @@ export async function cloudLoadV2(): Promise<{
           __initialized: true
         };
       }
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'snapshot.ts:395',message:'userId 为 null,返回失败',data:{payloadInitialized:!!currentSnapshotPayload},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      
       return { success: false, message: '用户未登录' };
     }
 

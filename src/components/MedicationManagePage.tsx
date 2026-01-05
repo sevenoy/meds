@@ -37,10 +37,18 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
       let payload = getCurrentSnapshotPayload();
       console.log('🔍 [添加药品] 当前 payload 状态:', payload ? '存在' : 'null');
       
+      // #region agent log
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MedicationManagePage.tsx:38',message:'添加药品-检查 payload',data:{hasPayload:!!payload,localStorageLogin:localStorage.getItem('isLoggedIn')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+      
       if (!payload) {
         console.warn('⚠️ payload 为 null，尝试重新加载...');
         const loadResult = await cloudLoadV2();
         console.log('🔍 cloudLoadV2 结果:', loadResult);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MedicationManagePage.tsx:50',message:'cloudLoadV2 调用结果',data:{success:loadResult.success,message:loadResult.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         
         payload = getCurrentSnapshotPayload();
         console.log('🔍 重新获取 payload 状态:', payload ? '存在' : '仍为 null');
