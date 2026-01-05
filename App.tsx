@@ -7,13 +7,23 @@ import { UpdateNotification } from './src/components/UpdateNotification';
 import { AvatarUpload } from './src/components/AvatarUpload';
 import { SyncStatusIndicator } from './src/components/SyncStatusIndicator';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
-import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId } from './src/db/localDB';
+import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId, db } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications, fixLegacyDeviceIds } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote, initRealtimeV2 } from './src/services/snapshot';
 import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
 import { APP_VERSION } from './src/config/version';
 import type { Medication, MedicationLog } from './src/types';
+
+// --- Helper Functions ---
+function getCurrentUser() {
+  try {
+    const raw = localStorage.getItem('current_user_v1');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
 
 // --- Types ---
 interface MedicationUI extends Medication {
@@ -1199,43 +1209,73 @@ export default function App() {
 
               <div 
                 onClick={async () => {
-                  if (confirm('⚠️ 警告：确定要清除所有药品数据吗？\n\n这将删除：\n- 所有药品记录\n- 所有服药记录\n- 云端数据也会被清除\n\n此操作不可恢复！')) {
+                  if (confirm('⚠️ 警告：确定要清除所有药品数据吗？\n\n这将删除：\n- 所有药品记录\n- 所有服药记录\n- 本地数据库数据\n- 云端数据\n\n此操作不可恢复！')) {
                     if (confirm('⚠️ 最后确认：真的要删除所有数据吗？')) {
                       try {
-                        // 使用 runWithUserAction 包裹用户操作
-                        runWithUserAction(async () => {
-                          const payload = getCurrentSnapshotPayload();
-                          if (!payload) {
-                            alert('系统未初始化，请刷新页面后重试');
-                            return;
-                          }
-                          
-                          // 清空 payload 中的所有药品和记录
+                        console.log('🗑️ 开始清除所有药品数据...');
+                        
+                        // 方法1: 清除本地 IndexedDB
+                        console.log('📦 清除本地 IndexedDB...');
+                        await db.medications.clear();
+                        await db.medicationLogs.clear();
+                        console.log('✅ 本地数据库已清空');
+                        
+                        // 方法2: 清除 payload
+                        const payload = getCurrentSnapshotPayload();
+                        if (payload) {
+                          console.log('📦 清除 payload...');
                           payload.medications = [];
                           payload.medication_logs = [];
                           
                           // 保存到云端
                           const result = await cloudSaveV2(payload);
-                          if (!result.success) {
-                            if (result.conflict) {
-                              alert('版本冲突，正在重新加载...');
-                              await cloudLoadV2();
-                            } else {
-                              alert(`清除数据失败: ${result.message}`);
-                            }
-                            return;
+                          if (result.success) {
+                            console.log('✅ 云端数据已清空');
+                          } else {
+                            console.warn('⚠️ 云端清空失败:', result.message);
                           }
-                          
-                          console.log('✅ 所有药品数据已从 payload 清除并同步到云端');
-                          
-                          // 重新加载数据
-                          await loadData();
-                          
-                          alert('✅ 所有药品数据已清除！');
-                        });
+                        }
+                        
+                        // 方法3: 直接清除 Supabase (如果使用)
+                        try {
+                          const user = getCurrentUser();
+                          if (user && window.supabaseClient) {
+                            console.log('📦 清除 Supabase 数据...');
+                            const userTag = `user:${user.username}`;
+                            
+                            // 删除所有药品
+                            const { error: medError } = await window.supabaseClient
+                              .from('medications')
+                              .delete()
+                              .contains('scene_tags', [userTag]);
+                            
+                            if (!medError) {
+                              console.log('✅ Supabase 药品数据已清空');
+                            }
+                            
+                            // 删除所有记录
+                            const { error: logError } = await window.supabaseClient
+                              .from('medication_logs')
+                              .delete()
+                              .contains('scene_tags', [userTag]);
+                            
+                            if (!logError) {
+                              console.log('✅ Supabase 记录数据已清空');
+                            }
+                          }
+                        } catch (e) {
+                          console.warn('⚠️ Supabase 清除失败:', e);
+                        }
+                        
+                        // 重新加载数据
+                        console.log('🔄 重新加载数据...');
+                        await loadData();
+                        
+                        alert('✅ 所有药品数据已清除！\n\n已清除:\n- 本地数据库\n- 云端快照\n- Supabase数据库');
+                        console.log('🎉 清除完成！');
                       } catch (error) {
-                        console.error('清除数据失败:', error);
-                        alert('❌ 清除数据失败，请重试');
+                        console.error('❌ 清除数据失败:', error);
+                        alert(`❌ 清除数据失败: ${error.message}\n\n请查看控制台了解详情`);
                       }
                     }
                   }
@@ -1311,6 +1351,77 @@ export default function App() {
               */}
 
               <div 
+                onClick={async () => {
+                  try {
+                    console.log('🔍 开始诊断数据来源...');
+                    
+                    // 1. 检查本地 IndexedDB
+                    const localMeds = await db.medications.toArray();
+                    const localLogs = await db.medicationLogs.toArray();
+                    console.log('📦 本地 IndexedDB:', {
+                      medications: localMeds.length,
+                      logs: localLogs.length
+                    });
+                    
+                    // 2. 检查 payload
+                    const payload = getCurrentSnapshotPayload();
+                    console.log('📦 Payload:', {
+                      medications: payload?.medications?.length || 0,
+                      logs: payload?.medication_logs?.length || 0
+                    });
+                    
+                    // 3. 检查 Supabase
+                    const user = getCurrentUser();
+                    if (user && window.supabaseClient) {
+                      const userTag = `user:${user.username}`;
+                      
+                      const { data: supaMeds } = await window.supabaseClient
+                        .from('medications')
+                        .select('*')
+                        .contains('scene_tags', [userTag]);
+                      
+                      const { data: supaLogs } = await window.supabaseClient
+                        .from('medication_logs')
+                        .select('*')
+                        .contains('scene_tags', [userTag]);
+                      
+                      console.log('📦 Supabase:', {
+                        medications: supaMeds?.length || 0,
+                        logs: supaLogs?.length || 0
+                      });
+                    }
+                    
+                    // 4. 检查当前显示的数据
+                    console.log('📦 当前显示:', {
+                      medications: medications.length,
+                      logs: timelineLogs.length
+                    });
+                    
+                    alert(`📊 数据诊断报告:\n\n` +
+                      `本地数据库: ${localMeds.length} 个药品, ${localLogs.length} 条记录\n` +
+                      `Payload: ${payload?.medications?.length || 0} 个药品, ${payload?.medication_logs?.length || 0} 条记录\n` +
+                      `当前显示: ${medications.length} 个药品, ${timelineLogs.length} 条记录\n\n` +
+                      `详细信息请查看控制台 (F12)`);
+                  } catch (error) {
+                    console.error('❌ 诊断失败:', error);
+                    alert(`❌ 诊断失败: ${error.message}`);
+                  }
+                }}
+                className="bg-blue-50 rounded-2xl p-5 shadow-sm border border-blue-100 flex items-center justify-between hover:bg-blue-100 transition-all cursor-pointer active:scale-98"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Info className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-black italic tracking-tighter text-blue-600">数据诊断</p>
+                    <p className="text-xs text-blue-400 font-bold">查看数据来源和数量</p>
+                  </div>
+                </div>
+                <span className="text-blue-400">›</span>
+              </div>
+
+              <div 
                 onClick={() => {
                   if (confirm('确定要退出登录吗？')) {
                     localStorage.removeItem('isLoggedIn');
@@ -1329,7 +1440,7 @@ export default function App() {
                     <p className="text-xs text-red-400 font-bold">当前用户：{userName}</p>
                   </div>
                 </div>
-                <span className="text-red-400">›</span>
+                <parameter name="text-red-400">›</span>
               </div>
             </div>
           </div>
