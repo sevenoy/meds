@@ -22,13 +22,15 @@ export async function fixLegacyDeviceIds(): Promise<void> {
   }
   
   const deviceId = getDeviceId();
-  const fixFlag = `device_id_fixed_v2_${userId}_${deviceId}`;
+  // 【重要】只使用 userId 作为标志,不包含 deviceId
+  // 因为清除 localStorage 后 deviceId 会变,导致标志失效
+  const fixFlag = `device_id_fixed_v3_${userId}`;
   const flagValue = localStorage.getItem(fixFlag);
   
   console.log('🔍 [fixLegacyDeviceIds] 检查修复标志', { 
     userId: userId.substring(0, 8) + '...', 
     deviceId: deviceId.substring(0, 20) + '...', 
-    fixFlag: fixFlag.substring(0, 50) + '...', 
+    fixFlag: fixFlag, 
     flagValue: flagValue,
     allKeys: Object.keys(localStorage).filter(k => k.includes('device_id'))
   });
@@ -57,12 +59,13 @@ export async function fixLegacyDeviceIds(): Promise<void> {
     fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:40',message:'Inside runWithRemoteFlag',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
     // #endregion
     try {
-      // 修复所有不属于当前设备的药品（包括 null 和其他设备的 device_id）
+      // 【重要修复】只修复 device_id 为 NULL 的记录,不修改其他设备的记录
+      // 这样避免在清除localStorage后重复更新所有记录,触发大量Realtime事件
       const { data, error } = await supabase!
         .from('medications')
         .update({ device_id: deviceId })
         .eq('user_id', userId)
-        .neq('device_id', deviceId)  // 修复所有不等于当前设备 ID 的药品
+        .is('device_id', null)  // 只修复 device_id 为 NULL 的药品
         .select();
       
       // #region agent log
