@@ -314,7 +314,19 @@ export default function App() {
       // 【修复】优先从云端同步最新数据
       try {
         console.log('☁️ 从云端拉取最新数据...');
-        await pullRemoteChanges();
+        
+        // 1. 同步药品
+        await syncMedications();
+        
+        // 2. 同步服药记录
+        const remoteLogs = await pullRemoteChanges();
+        console.log(`📥 从云端拉取到 ${remoteLogs.length} 条服药记录`);
+        
+        // 3. 合并到本地数据库
+        for (const log of remoteLogs) {
+          await mergeRemoteLog(log);
+        }
+        
         console.log('✅ 云端数据已同步到本地');
       } catch (syncError) {
         console.warn('⚠️ 云端同步失败,使用本地数据:', syncError);
@@ -491,7 +503,13 @@ export default function App() {
         
         // 【修复】从云端重新同步数据
         try {
-          await pullRemoteChanges();
+          // 同步药品和服药记录
+          await syncMedications();
+          const remoteLogs = await pullRemoteChanges();
+          for (const log of remoteLogs) {
+            await mergeRemoteLog(log);
+          }
+          
           await loadData();
           
           // 显示提示
@@ -516,7 +534,13 @@ export default function App() {
         
         // 【修复】从云端重新同步数据
         try {
-          await pullRemoteChanges();
+          // 同步药品和服药记录
+          await syncMedications();
+          const remoteLogs = await pullRemoteChanges();
+          for (const log of remoteLogs) {
+            await mergeRemoteLog(log);
+          }
+          
           await loadData();
           
           // 显示提示
