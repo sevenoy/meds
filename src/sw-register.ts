@@ -88,9 +88,19 @@ export async function forcePwaUpdateOncePerVersion(reason: 'login' | 'manual' = 
     console.warn('⚠️ [PWA] registration.update() 失败:', e);
   }
 
-  // 清缓存 + 让 waiting 立即接管（若存在）
-  await postMessageAll(reg, { type: 'CLEAR_CACHE' });
-  await postMessageAll(reg, { type: 'SKIP_WAITING' });
+  // 【修复清缓存策略】只在用户主动操作时清缓存，禁止在启动流程自动触发
+  // 如果 reason === 'manual'，说明是用户主动点击更新按钮，才清缓存
+  if (reason === 'manual') {
+    await postMessageAll(reg, { type: 'CLEAR_CACHE' });
+    console.log('🧹 [PWA] 用户主动更新，已清除缓存');
+  }
+  
+  // SKIP_WAITING：只在检测到新 SW 且用户确认时触发
+  // 如果 reason === 'manual' 或存在 waiting SW，才跳过等待
+  if (reason === 'manual' || reg.waiting) {
+    await postMessageAll(reg, { type: 'SKIP_WAITING' });
+    console.log('⏭️ [PWA] 跳过等待，立即激活新 SW');
+  }
 
   // 兜底：如果没有 controllerchange，也在短时间后刷新一次
   await Promise.race([

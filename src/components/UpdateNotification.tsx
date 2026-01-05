@@ -3,6 +3,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
+import { forcePwaUpdateOncePerVersion } from '../sw-register';
 
 interface UpdateLog {
   [version: string]: {
@@ -95,33 +96,15 @@ export const UpdateNotification: React.FC = () => {
     // 记录已显示
     localStorage.setItem('update_notification_shown', currentVersion);
     
-    // 设置刷新标志
-    sessionStorage.setItem('sw_manual_refresh', 'true');
-    sessionStorage.setItem('sw_refreshing', 'true');
-    sessionStorage.setItem('sw_refresh_time', Date.now().toString());
-    
-    // 清除所有缓存
-    if ('caches' in window) {
-      try {
-      const cacheNames = await caches.keys();
-      await Promise.all(cacheNames.map(name => caches.delete(name)));
-        console.log('🗑️ 已清除所有缓存:', cacheNames.length);
-      } catch (err) {
-        console.warn('清除缓存失败:', err);
-      }
+    // 【修复清缓存策略】使用 forcePwaUpdateOncePerVersion('manual') 统一处理
+    // 这会触发 CLEAR_CACHE 和 SKIP_WAITING，但只在用户主动操作时
+    try {
+      await forcePwaUpdateOncePerVersion('manual');
+    } catch (error) {
+      console.error('❌ 更新失败:', error);
+      // 如果 forcePwaUpdateOncePerVersion 失败，直接刷新
+      window.location.reload();
     }
-    
-    // 通知 Service Worker 跳过等待
-    if (registration && registration.waiting) {
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      console.log('📤 已通知 Service Worker 跳过等待');
-    }
-    
-    // 延迟一小段时间确保标志已设置，然后刷新
-    setTimeout(() => {
-    console.log('🔄 正在刷新页面...');
-    window.location.reload();
-    }, 50);
   };
 
   const handleDismiss = () => {

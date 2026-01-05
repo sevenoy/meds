@@ -505,11 +505,11 @@ export default function App() {
   useEffect(() => {
     if (!isLoggedIn) return;
     
-    // 【PWA强制更新】每台设备在首次登录该版本时自动强制更新一次，避免多设备缓存无法手动清理
-    // 注意：必须发布时递增 APP_VERSION，否则同版本无法保证拿到新资源
-    forcePwaUpdateOncePerVersion('login').catch((e) => {
-      console.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
-    });
+    // 【修复清缓存策略】禁止在启动流程自动触发清缓存，只在用户主动操作时触发
+    // 移除自动调用 forcePwaUpdateOncePerVersion，避免每次启动都清缓存导致启动慢
+    // forcePwaUpdateOncePerVersion('login').catch((e) => {
+    //   console.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
+    // }); // ❌ 已移除：禁止在启动流程自动清缓存
 
     // 【修复1】先初始化 payload，再修复 device_id
     const initializeApp = async () => {
@@ -1667,70 +1667,67 @@ export default function App() {
 
                 <button
                   onClick={async () => {
-                    runWithUserAction(async () => {
-                      if (!newMedName || !newMedDosage || !newMedTime) {
-                        alert('请填写完整信息');
+                    // 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
+                    if (!newMedName || !newMedDosage || !newMedTime) {
+                      alert('请填写完整信息');
+                      return;
+                    }
+
+                    // 生成 UUID
+                    const newMedication: Medication = {
+                      id: (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                      name: newMedName,
+                      dosage: newMedDosage,
+                      scheduled_time: newMedTime,
+                      accent: newMedAccent,
+                      device_id: getDeviceId()
+                    };
+
+                    // 【Optimistic UI】立即更新本地 state（UI 立即生效）
+                    setMedications(prev => [...prev, {
+                      ...newMedication,
+                      status: 'pending',
+                      lastTakenAt: undefined,
+                      uploadedAt: undefined,
+                      lastLog: undefined
+                    }]);
+
+                    // 【云端化】后台异步写入云端，不阻塞 UI
+                    try {
+                      const savedMed = await upsertMedicationToCloud(newMedication);
+                      if (!savedMed) {
+                        // 失败时回滚：从本地 state 移除
+                        setMedications(prev => prev.filter(m => m.id !== newMedication.id));
+                        alert('添加药品失败，请重试');
                         return;
                       }
-
-                      const payload = getCurrentSnapshotPayload();
-                      if (!payload) {
-                        alert('系统未初始化，请刷新页面后重试');
-                        return;
-                      }
-
-                      // 关键修复：使用 UUID 作为 id（本地/云端一致），避免 local_xxx 导致无法同步到 Supabase medications
-                      const newMedication = {
-                        id: (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-                        name: newMedName,
-                        dosage: newMedDosage,
-                        scheduled_time: newMedTime,
-                        accent: newMedAccent,
-                        device_id: getDeviceId()
-                      };
-
-                      payload.medications = payload.medications || [];
-                      payload.medications.push(newMedication);
-
-                      // 【云端化】直接写入云端，不使用本地 IndexedDB
-                      try {
-                        await upsertMedicationToCloud(newMedication as any);
-                      } catch (e) {
-                        console.warn('⚠️ 写入云端药品失败:', e);
-                      }
-
-                      const result = await cloudSaveV2(payload);
-                      if (!result.success) {
-                        if (result.conflict) {
-                          alert('版本冲突，正在重新加载...');
-                          await cloudLoadV2();
-                        } else {
-                          alert(`添加药品失败: ${result.message}`);
-                        }
-                        return;
-                      }
-
-                      console.log('✅ 新药品已成功写入 payload 并同步到云端');
+                      console.log('✅ 新药品已直接写入云端:', savedMed.name);
                       
-                      // 关键修复：同步到 Supabase medications（之前误用 pushLocalChanges，它只推送 logs）
-                      try {
-                        await syncMedications();
-                        console.log('✅ 新药品已同步到 Supabase（medications）');
-                      } catch (syncError) {
-                        console.warn('⚠️ 同步到 Supabase 失败:', syncError);
+                      // 成功：用云端返回的数据更新本地 state（确保 ID 等字段一致）
+                      if (savedMed.id !== newMedication.id) {
+                        setMedications(prev => prev.filter(m => m.id !== newMedication.id));
+                        setMedications(prev => [...prev, {
+                          ...savedMed,
+                          status: 'pending',
+                          lastTakenAt: undefined,
+                          uploadedAt: undefined,
+                          lastLog: undefined
+                        }]);
                       }
-
-                      // #region agent log
-                      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:addMedication',message:'Added medication via home form',data:{id:newMedication.id,name:newMedication.name,hasUUID:!(String(newMedication.id).startsWith('local_'))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'P'})}).catch(()=>{});
-                      // #endregion
-                      
-                      await loadData(false, 'medication-updated');
-                      
-                      setNewMedName('');
-                      setNewMedDosage('');
-                      setNewMedTime('');
-                      setNewMedAccent('#E0F3A2');
-                    });
+                    } catch (error: any) {
+                      // 失败时回滚
+                      setMedications(prev => prev.filter(m => m.id !== newMedication.id));
+                      const errorMsg = error?.message || '添加药品失败，请重试';
+                      console.error('❌ 添加药品失败:', errorMsg, error);
+                      alert(`添加药品失败: ${errorMsg}`);
+                      return;
+                    }
+                    
+                    // 【禁止全量 reload】不再调用 loadData()，只做局部更新
+                    setNewMedName('');
+                    setNewMedDosage('');
+                    setNewMedTime('');
+                    setNewMedAccent('#E0F3A2');
                   }}
                   className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
@@ -2232,54 +2229,65 @@ export default function App() {
                 </button>
                 <button
                   onClick={async () => {
-                    runWithUserAction(async () => {
-                      if (!editMedName || !editMedDosage || !editMedTime) {
-                        alert('请填写完整信息');
+                    // 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
+                    if (!editMedName || !editMedDosage || !editMedTime) {
+                      alert('请填写完整信息');
+                      return;
+                    }
+
+                    if (!editingMed) return;
+
+                    // 【Optimistic UI】立即更新本地 state（UI 立即生效）
+                    const updatedMed: Medication = {
+                      ...editingMed,
+                      name: editMedName,
+                      dosage: editMedDosage,
+                      scheduled_time: editMedTime,
+                      accent: editMedAccent
+                    };
+                    
+                    // 保存原始值用于回滚
+                    const originalMed = { ...editingMed };
+                    
+                    // 立即更新 UI
+                    setMedications(prev => prev.map(m => m.id === editingMed.id ? {
+                      ...m,
+                      ...updatedMed
+                    } : m));
+
+                    // 【云端化】后台异步更新云端，不阻塞 UI
+                    try {
+                      const savedMed = await upsertMedicationToCloud(updatedMed);
+                      if (!savedMed) {
+                        // 失败时回滚：恢复原始值
+                        setMedications(prev => prev.map(m => m.id === editingMed.id ? {
+                          ...m,
+                          ...originalMed
+                        } : m));
+                        alert('更新药品失败，请重试');
                         return;
                       }
-
-                      const payload = getCurrentSnapshotPayload();
-                      if (!payload) {
-                        alert('系统未初始化，请刷新页面后重试');
-                        return;
-                      }
-
-                      // 更新药品信息
-                      const medIndex = (payload.medications || []).findIndex((m: any) => m.id === editingMed.id);
-                      if (medIndex !== -1) {
-                        payload.medications[medIndex] = {
-                          ...payload.medications[medIndex],
-                          name: editMedName,
-                          dosage: editMedDosage,
-                          scheduled_time: editMedTime,
-                          accent: editMedAccent
-                        };
-                      }
-
-                      const result = await cloudSaveV2(payload);
-                      if (!result.success) {
-                        if (result.conflict) {
-                          alert('版本冲突，正在重新加载...');
-                          await cloudLoadV2();
-                        } else {
-                          alert(`更新药品失败: ${result.message}`);
-                        }
-                        return;
-                      }
-
-                      console.log('✅ 药品已成功更新并同步到云端');
+                      console.log('✅ 药品已直接更新到云端:', savedMed.name);
                       
-                      // 【修复】立即同步到 Supabase,确保多设备同步
-                      try {
-                        await pushLocalChanges();
-                        console.log('✅ 药品更新已同步到 Supabase');
-                      } catch (pushError) {
-                        console.warn('⚠️ 同步到 Supabase 失败:', pushError);
-                      }
-                      
-                      await loadData(false, 'medication-updated');
-                      setEditingMed(null);
-                    });
+                      // 成功：用云端返回的数据更新本地 state（确保字段一致）
+                      setMedications(prev => prev.map(m => m.id === editingMed.id ? {
+                        ...m,
+                        ...savedMed
+                      } : m));
+                    } catch (error: any) {
+                      // 失败时回滚
+                      setMedications(prev => prev.map(m => m.id === editingMed.id ? {
+                        ...m,
+                        ...originalMed
+                      } : m));
+                      const errorMsg = error?.message || '更新药品失败，请重试';
+                      console.error('❌ 更新药品失败:', errorMsg, error);
+                      alert(`更新药品失败: ${errorMsg}`);
+                      return;
+                    }
+                    
+                    // 【禁止全量 reload】不再调用 loadData()，只做局部更新
+                    setEditingMed(null);
                   }}
                   className="flex-1 px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all"
                 >

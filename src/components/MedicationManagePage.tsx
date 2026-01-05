@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Plus, Pill, Trash2, X, ChevronLeft, Edit2 } from 'lucide-react';
 import type { Medication } from '../types';
-import { getDeviceId, upsertMedication } from '../db/localDB';
-import { runWithUserAction, getCurrentSnapshotPayload, cloudSaveV2, cloudLoadV2 } from '../services/snapshot';
+import { getDeviceId } from '../db/localDB';
+// 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
+// import { runWithUserAction, getCurrentSnapshotPayload, cloudSaveV2, cloudLoadV2 } from '../services/snapshot'; // ❌ 已移除
 // 【云端化】引入纯云端服务
 import { upsertMedicationToCloud, deleteMedicationFromCloud } from '../services/cloudOnly';
 
@@ -48,33 +49,13 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
   const [editMedAccent, setEditMedAccent] = useState<string>('#E0F3A2');
 
   const handleAddMedication = async () => {
-    runWithUserAction(async () => {
-      if (!newMedName || !newMedDosage || !newMedTime) {
-        alert('请填写完整信息');
-        return;
-      }
+    // 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
+    if (!newMedName || !newMedDosage || !newMedTime) {
+      alert('请填写完整信息');
+      return;
+    }
 
-      let payload = getCurrentSnapshotPayload();
-      console.log('🔍 [添加药品] 当前 payload 状态:', payload ? '存在' : 'null');
-      
-      if (!payload) {
-        console.warn('⚠️ payload 为 null，尝试重新加载...');
-        const loadResult = await cloudLoadV2();
-        console.log('🔍 cloudLoadV2 结果:', loadResult);
-        
-        payload = getCurrentSnapshotPayload();
-        console.log('🔍 重新获取 payload 状态:', payload ? '存在' : '仍为 null');
-        
-        if (!payload) {
-          console.error('❌ payload 初始化失败，cloudLoadV2 返回:', loadResult);
-          alert('系统初始化失败，请刷新页面后重试\n\n请打开控制台查看详细日志');
-          return;
-        }
-        
-        console.log('✅ payload 已成功初始化');
-      }
-
-      const newMedication: Medication = {
+    const newMedication: Medication = {
         // 关键修复：创建时直接生成 UUID，避免 local_xxx → UUID 的双写/重复/23502
         id: generateUUID(),
         name: newMedName,
@@ -125,7 +106,6 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
       setNewMedDosage('');
       setNewMedTime('');
       setNewMedAccent('#E0F3A2');
-    });
   };
 
   const handleEditMedication = (med: Medication) => {
@@ -139,33 +119,13 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
   const handleSaveEdit = async () => {
     if (!editingMed) return;
     
-    runWithUserAction(async () => {
-      if (!editMedName || !editMedDosage || !editMedTime) {
-        alert('请填写完整信息');
-        return;
-      }
+    // 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
+    if (!editMedName || !editMedDosage || !editMedTime) {
+      alert('请填写完整信息');
+      return;
+    }
 
-      let payload = getCurrentSnapshotPayload();
-      console.log('🔍 [编辑药品] 当前 payload 状态:', payload ? '存在' : 'null');
-      
-      if (!payload) {
-        console.warn('⚠️ payload 为 null，尝试重新加载...');
-        const loadResult = await cloudLoadV2();
-        console.log('🔍 cloudLoadV2 结果:', loadResult);
-        
-        payload = getCurrentSnapshotPayload();
-        console.log('🔍 重新获取 payload 状态:', payload ? '存在' : '仍为 null');
-        
-        if (!payload) {
-          console.error('❌ payload 初始化失败，cloudLoadV2 返回:', loadResult);
-          alert('系统初始化失败，请刷新页面后重试\n\n请打开控制台查看详细日志');
-          return;
-        }
-        
-        console.log('✅ payload 已成功初始化');
-      }
-
-      // 【Optimistic UI】立即更新本地 state（UI 立即生效）
+    // 【Optimistic UI】立即更新本地 state（UI 立即生效）
       const updatedMed: Medication = {
         ...editingMed,
         name: editMedName,
@@ -214,12 +174,11 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
       // await onDataChange(); // 已移除
       
       setEditingMed(null);
-    });
   };
 
   const handleDeleteMedication = async (med: Medication) => {
-    runWithUserAction(async () => {
-      if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+    // 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
+    if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
         // 【Optimistic UI】立即从本地 state 移除（UI 立即生效）
         if (onMedicationDeleted) {
           onMedicationDeleted(med.id);
@@ -252,7 +211,6 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
         // 【禁止全量 reload】不再调用 onDataChange()，只做局部更新
         // await onDataChange(); // 已移除
       }
-    });
   };
 
   return (
