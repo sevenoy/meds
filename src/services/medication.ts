@@ -72,6 +72,12 @@ export async function recordMedicationIntake(
   // 6. 保存到本地数据库（仅用于 UI 展示，不会触发同步）
   const savedId = await addMedicationLog(log);
   console.log('💾 记录已保存到本地数据库，ID:', savedId);
+
+  // 【关键修复】把 dirty 记录推送到 Supabase 的 medication_logs 表，才能跨设备同步
+  // 不阻塞 UI：失败会保留 dirty 状态，稍后可重试
+  pushLocalChanges().catch((e) => {
+    console.warn('⚠️ pushLocalChanges 失败（稍后重试）:', e);
+  });
   
   // 验证保存的数据
   const savedLog = await getMedicationLogs(medicationId);

@@ -8,7 +8,7 @@ import { AvatarUpload } from './src/components/AvatarUpload';
 import { SyncStatusIndicator } from './src/components/SyncStatusIndicator';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId, db } from './src/db/localDB';
-import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications, fixLegacyDeviceIds, detectConflict } from './src/services/sync';
+import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications, fixLegacyDeviceIds, detectConflict, pullMedicationsFromCloud } from './src/services/sync';
 import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
 import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote, initRealtimeV2 } from './src/services/snapshot';
 import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
@@ -537,7 +537,12 @@ export default function App() {
           console.log('⏭ 忽略远程触发的药品变更');
           return;
         }
-        console.log('🔔 检测到药品变更（新Realtime），刷新本地 UI...');
+        console.log('🔔 检测到药品变更（新Realtime），拉取云端药品并刷新本地 UI...');
+        try {
+          await pullMedicationsFromCloud();
+        } catch (e) {
+          console.warn('⚠️ 拉取云端药品失败:', e);
+        }
         await loadData(false);
       },
       onLogChange: async () => {
@@ -545,7 +550,24 @@ export default function App() {
           console.log('⏭ 忽略远程触发的记录变更');
           return;
         }
-        console.log('🔔 检测到服药记录变更（新Realtime），刷新本地 UI...');
+        console.log('🔔 检测到服药记录变更（新Realtime），拉取云端记录并刷新本地 UI...');
+        try {
+          const lastSyncTime = localStorage.getItem('meds_logs_last_pull') || undefined;
+          const remoteLogs = await pullRemoteChanges(lastSyncTime);
+          if (remoteLogs.length > 0) {
+            // 批量合并（使用 bulkPut）
+            await db.medicationLogs.bulkPut(remoteLogs.map((l) => ({ ...l, sync_state: 'clean' })));
+            const newest = remoteLogs
+              .map((l) => l.updated_at || l.created_at)
+              .filter(Boolean)
+              .map((t) => new Date(t as string).toISOString())
+              .sort()
+              .pop();
+            if (newest) localStorage.setItem('meds_logs_last_pull', newest);
+          }
+        } catch (e) {
+          console.warn('⚠️ 拉取云端记录失败:', e);
+        }
         await loadData(false);
       },
       onSettingsChange: async () => {

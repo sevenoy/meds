@@ -338,6 +338,46 @@ export async function syncMedications(): Promise<void> {
 }
 
 /**
+ * 仅从云端拉取 medications 并覆盖写入本地（不做本地→云端推送）。
+ * 用于 Realtime 回调场景，避免回环/风暴。
+ */
+export async function pullMedicationsFromCloud(): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+
+  const localMeds = await getMedications();
+  const localMap = new Map(localMeds.map((m) => [m.id, m]));
+
+  const { data: cloudMeds, error } = await supabase!
+    .from('medications')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('❌ pullMedicationsFromCloud 失败:', error);
+    return;
+  }
+
+  if (!cloudMeds || cloudMeds.length === 0) return;
+
+  const medsToPut = cloudMeds
+    .filter((m: any) => m?.id)
+    .map((cloudMed: any) => {
+      const existing = localMap.get(cloudMed.id);
+      return {
+        id: cloudMed.id,
+        name: cloudMed.name,
+        dosage: cloudMed.dosage,
+        scheduled_time: cloudMed.scheduled_time,
+        user_id: cloudMed.user_id,
+        accent: cloudMed.accent || existing?.accent || '#E8F5E9'
+      };
+    });
+
+  await db.medications.bulkPut(medsToPut);
+}
+
+/**
  * 推送本地未同步的记录到服务器
  */
 export async function pushLocalChanges(): Promise<void> {
