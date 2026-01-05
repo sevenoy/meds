@@ -33,33 +33,40 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         setLoading(false);
         return;
       } else {
-        // 登录模式：本地认证（不连接 Supabase）
-        console.log('🔐 尝试登录（本地认证）:', email);
+        // 登录模式：使用 Supabase 认证
+        console.log('🔐 尝试登录（Supabase 认证）:', email);
         
-        // 硬编码的用户名和密码
-        const validUsername = 'sevenoy';
-        const validPassword = 'jiajia';
+        // 【修复】将用户名转换为 Supabase 邮箱格式
+        const emailToUse = email.includes('@') ? email : `${email}@gmail.com`;
         
-          // 检查用户名和密码（不区分大小写）
-          if (email.toLowerCase().trim() === validUsername && password === validPassword) {
-            // 本地认证成功，直接允许登录（不连接 Supabase）
-            console.log('✅ 本地认证成功');
-            
-            // 设置登录状态（使用本地存储）
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('userEmail', 'sevenoy@gmail.com');
-            localStorage.setItem('userName', 'sevenoy');
-            
-            // 登录成功，允许进入应用
-            setLoading(false);
-            onLoginSuccess();
-          } else {
-          // 登录失败
-          console.error('❌ 登录失败：用户名或密码错误');
-          setError('用户名或密码错误（提示：sevenoy / jiajia）');
+        // 调用 Supabase 登录
+        const result = await signIn(emailToUse, password);
+        
+        if (result.error) {
+          console.error('❌ Supabase 登录失败:', result.error);
+          setError(`登录失败: ${result.error.message}`);
           setLoading(false);
           return;
         }
+        
+        if (!result.data.user) {
+          console.error('❌ 登录失败：未返回用户信息');
+          setError('登录失败：未返回用户信息');
+          setLoading(false);
+          return;
+        }
+        
+        // Supabase 登录成功
+        console.log('✅ Supabase 登录成功:', result.data.user.email);
+        
+        // 设置登录状态（使用本地存储）
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userEmail', result.data.user.email || emailToUse);
+        localStorage.setItem('userName', email);
+        
+        // 登录成功，允许进入应用
+        setLoading(false);
+        onLoginSuccess();
       }
     } catch (err) {
       console.error('❌ 操作异常:', err);
