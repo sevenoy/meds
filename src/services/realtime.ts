@@ -60,27 +60,23 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         table: 'medications',
         filter: `user_id=eq.${userId}`
       }, (payload) => {
-        console.log('[Realtime] 药品变更', payload);
-        
-        // 检查是否是自己设备的更新
+        // 【性能优化】先检查是否是自己设备的更新，避免不必要的日志输出
         const newData = payload.new as any;
-        console.log('[Realtime] 检查 device_id:', {
-          payloadDeviceId: newData?.device_id,
-          currentDeviceId: deviceId,
-          isMatch: newData?.device_id === deviceId
+        if (newData && newData.device_id === deviceId) {
+          // 完全静默忽略自己设备的更新，不输出任何日志
+          return;
+        }
+        
+        // 只有其他设备的更新才输出日志
+        console.log('[Realtime] 药品变更（其他设备）', {
+          eventType: payload.eventType,
+          medicationId: newData?.id,
+          deviceId: newData?.device_id
         });
         
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate',message:'Received UPDATE event',data:{payloadDeviceId:newData?.device_id,currentDeviceId:deviceId,isApplyingRemote:isApplyingRemote,medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C,D'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate',message:'Received UPDATE event (other device)',data:{payloadDeviceId:newData?.device_id,currentDeviceId:deviceId,isApplyingRemote:isApplyingRemote,medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C,D'})}).catch(()=>{});
         // #endregion
-        
-        if (newData && newData.device_id === deviceId) {
-          console.log('[Realtime] 忽略自己设备的药品更新');
-          // #region agent log
-          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'realtime.ts:onUpdate:ignored',message:'Ignored own device update',data:{medicationId:newData?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
-          return;
-        }
         
         if (!isApplyingRemote && callbacks.onMedicationChange) {
           // #region agent log
@@ -100,14 +96,18 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         table: 'medication_logs',
         filter: `user_id=eq.${userId}`
       }, (payload) => {
-        console.log('[Realtime] 服药记录变更', payload);
-        
-        // 检查是否是自己设备的更新
+        // 【性能优化】先检查是否是自己设备的更新
         const newData = payload.new as any;
         if (newData && newData.device_id === deviceId) {
-          console.log('[Realtime] 忽略自己设备的记录更新');
+          // 完全静默忽略自己设备的更新
           return;
         }
+        
+        console.log('[Realtime] 服药记录变更（其他设备）', {
+          eventType: payload.eventType,
+          logId: newData?.id,
+          deviceId: newData?.device_id
+        });
         
         if (!isApplyingRemote && callbacks.onLogChange) {
           callbacks.onLogChange();
@@ -120,14 +120,17 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
         table: 'user_settings',
         filter: `user_id=eq.${userId}`
       }, (payload) => {
-        console.log('[Realtime] 用户设置变更', payload);
-        
-        // 检查是否是自己设备的更新
+        // 【性能优化】先检查是否是自己设备的更新
         const newData = payload.new as any;
         if (newData && newData.device_id === deviceId) {
-          console.log('[Realtime] 忽略自己设备的设置更新');
+          // 完全静默忽略自己设备的更新
           return;
         }
+        
+        console.log('[Realtime] 用户设置变更（其他设备）', {
+          eventType: payload.eventType,
+          deviceId: newData?.device_id
+        });
         
         if (!isApplyingRemote && callbacks.onSettingsChange) {
           callbacks.onSettingsChange();
