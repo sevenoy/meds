@@ -13,6 +13,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './src/sw-register';
+import './src/index.css'; // Tailwind CSS
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error("Could not find root element");
