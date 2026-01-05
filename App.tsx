@@ -1299,12 +1299,21 @@ export default function App() {
                     if (confirm('⚠️ 最后确认：真的要删除所有数据吗？')) {
                       try {
                         console.log('🗑️ 开始清除所有药品数据...');
+                        // #region agent log
+                        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1301',message:'开始清除所有药品数据',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                        // #endregion
                         
                         // 方法1: 清除本地 IndexedDB
                         console.log('📦 清除本地 IndexedDB...');
+                        // #region agent log
+                        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1305',message:'清除本地IndexedDB',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                        // #endregion
                         await db.medications.clear();
                         await db.medicationLogs.clear();
                         console.log('✅ 本地数据库已清空');
+                        // #region agent log
+                        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1307',message:'本地数据库已清空',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                        // #endregion
                         
                         // 方法2: 清除 payload
                         const payload = getCurrentSnapshotPayload();
@@ -1324,19 +1333,33 @@ export default function App() {
                         
                         // 方法3: 直接清除 Supabase 数据库
                         try {
+                          // #region agent log
+                          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1327',message:'开始清除Supabase',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                          // #endregion
                           const { getCurrentUserId } = await import('./src/lib/supabase');
                           const { supabase } = await import('./src/lib/supabase');
                           const userId = await getCurrentUserId();
+                          
+                          // #region agent log
+                          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1332',message:'获取userId和supabase',data:{hasUserId:!!userId,hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                          // #endregion
                           
                           if (userId && supabase) {
                             console.log('📦 清除 Supabase 数据...', { userId });
                             
                             // 删除所有药品
+                            // #region agent log
+                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1338',message:'删除Supabase药品',data:{userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // #endregion
                             const { error: medError, count: medCount } = await supabase
                               .from('medications')
                               .delete()
                               .eq('user_id', userId)
                               .select('*', { count: 'exact', head: false });
+                            
+                            // #region agent log
+                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1345',message:'删除药品结果',data:{hasError:!!medError,errorMsg:medError?.message,count:medCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // #endregion
                             
                             if (medError) {
                               console.error('❌ 清除 Supabase 药品失败:', medError);
@@ -1345,11 +1368,18 @@ export default function App() {
                             }
                             
                             // 删除所有记录
+                            // #region agent log
+                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1353',message:'删除Supabase记录',data:{userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // #endregion
                             const { error: logError, count: logCount } = await supabase
                               .from('medication_logs')
                               .delete()
                               .eq('user_id', userId)
                               .select('*', { count: 'exact', head: false });
+                            
+                            // #region agent log
+                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1360',message:'删除记录结果',data:{hasError:!!logError,errorMsg:logError?.message,count:logCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // #endregion
                             
                             if (logError) {
                               console.error('❌ 清除 Supabase 记录失败:', logError);
@@ -1358,9 +1388,15 @@ export default function App() {
                             }
                           } else {
                             console.warn('⚠️ 无法获取 userId 或 supabase 客户端');
+                            // #region agent log
+                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1369',message:'无法获取userId或supabase',data:{hasUserId:!!userId,hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // #endregion
                           }
                         } catch (e) {
                           console.error('❌ Supabase 清除失败:', e);
+                          // #region agent log
+                          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1374',message:'Supabase清除异常',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                          // #endregion
                         }
                         
                         // 重新加载数据

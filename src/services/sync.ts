@@ -153,6 +153,10 @@ export async function syncMedications(): Promise<void> {
     const localMeds = await getMedications();
     const deviceId = getDeviceId();
     
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:153',message:'syncMedications开始',data:{localMedsCount:localMeds.length,deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+    // #endregion
+    
     // 【性能优化】批量推送本地medications到云端
     if (localMeds.length > 0) {
       const medsToSync = localMeds.map(med => {
@@ -173,17 +177,24 @@ export async function syncMedications(): Promise<void> {
         return sanitizePayload(medData);
       }).filter(med => med); // 过滤掉无效数据
       
-      if (medsToSync.length > 0) {
-        // 批量upsert（Supabase会自动处理insert/update）
-        const { data: syncedMeds, error: syncError } = await supabase!
-          .from('medications')
-          .upsert(medsToSync, { onConflict: 'id' })
-          .select();
-        
-        if (syncError) {
-          console.error('❌ 批量同步 medications 失败:', syncError);
-        } else {
-          console.log(`✅ 批量同步 ${syncedMeds?.length || 0} 条药品到云端`);
+        if (medsToSync.length > 0) {
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:175',message:'批量upsert开始',data:{count:medsToSync.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+          // #endregion
+          // 批量upsert（Supabase会自动处理insert/update）
+          const { data: syncedMeds, error: syncError } = await supabase!
+            .from('medications')
+            .upsert(medsToSync, { onConflict: 'id' })
+            .select();
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:182',message:'批量upsert结果',data:{hasError:!!syncError,errorMsg:syncError?.message,syncedCount:syncedMeds?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+          // #endregion
+          
+          if (syncError) {
+            console.error('❌ 批量同步 medications 失败:', syncError);
+          } else {
+            console.log(`✅ 批量同步 ${syncedMeds?.length || 0} 条药品到云端`);
           
           // 更新本地记录中非UUID的ID
           if (syncedMeds) {
@@ -203,10 +214,17 @@ export async function syncMedications(): Promise<void> {
     }
     
     // 拉取云端medications（批量）
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:205',message:'拉取云端medications',data:{userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+    // #endregion
     const { data: cloudMeds } = await supabase!
       .from('medications')
       .select('*')
       .eq('user_id', userId);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:212',message:'拉取云端medications结果',data:{cloudMedsCount:cloudMeds?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+    // #endregion
     
     if (cloudMeds && cloudMeds.length > 0) {
       // 【性能优化】批量添加云端有但本地没有的药品
@@ -225,12 +243,21 @@ export async function syncMedications(): Promise<void> {
         }));
         
         // 批量添加到本地
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:230',message:'批量添加到本地',data:{count:medsToAdd.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+        // #endregion
         await db.medications.bulkPut(medsToAdd);
         console.log(`✅ 批量添加 ${medsToAdd.length} 条云端药品到本地`);
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:233',message:'批量添加完成',data:{count:medsToAdd.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+        // #endregion
       }
     }
     
     console.log('✅ Medications同步完成');
+    // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:238',message:'syncMedications完成',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+    // #endregion
   } catch (error) {
     console.error('❌ Medications同步失败:', error);
   }
