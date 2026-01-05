@@ -71,10 +71,24 @@ export async function fixLegacyDeviceIds(): Promise<void> {
       
       if (error) {
         console.error('❌ 修复药品 device_id 失败:', error);
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:73',message:'Update failed',data:{error:error?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
+        // #endregion
       } else {
         console.log('✅ 已修复所有药品的 device_id，共', data?.length || 0, '条');
+        console.log('🔖 [fixLegacyDeviceIds] 准备设置标志', { fixFlag, currentKeys: Object.keys(localStorage).filter(k => k.includes('device_id')) });
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:77',message:'Before setItem',data:{fixFlag:fixFlag,count:data?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
+        // #endregion
+        
         // 标记已完成修复
         localStorage.setItem(fixFlag, 'true');
+        
+        const verifyValue = localStorage.getItem(fixFlag);
+        console.log('✅ [fixLegacyDeviceIds] 标志已设置', { fixFlag, savedValue: verifyValue, allKeys: Object.keys(localStorage).filter(k => k.includes('device_id')) });
+        // #region agent log
+        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:85',message:'After setItem',data:{fixFlag:fixFlag,verifyValue:verifyValue,allDeviceIdKeys:Object.keys(localStorage).filter(k=>k.includes('device_id'))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
+        // #endregion
       }
     } catch (error) {
       console.error('❌ 修复药品 device_id 异常:', error);
