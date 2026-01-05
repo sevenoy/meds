@@ -12,6 +12,13 @@ import type { MedicationLog, ConflictInfo, Medication } from '../types';
  * 使用 runWithRemoteFlag 防止触发 Realtime 回调导致无限循环
  */
 export async function fixLegacyDeviceIds(): Promise<void> {
+  // 检查是否已经执行过修复
+  const fixedFlag = localStorage.getItem('device_id_fixed_v2');
+  if (fixedFlag === 'true') {
+    console.log('⏭️ device_id 已修复,跳过');
+    return;
+  }
+  
   const userId = await getCurrentUserId();
   if (!userId) {
     // #region agent log
@@ -48,6 +55,8 @@ export async function fixLegacyDeviceIds(): Promise<void> {
         console.error('❌ 修复药品 device_id 失败:', error);
       } else {
         console.log('✅ 已修复所有药品的 device_id，共', data?.length || 0, '条');
+        // 标记已完成修复
+        localStorage.setItem('device_id_fixed_v2', 'true');
       }
     } catch (error) {
       console.error('❌ 修复药品 device_id 异常:', error);
