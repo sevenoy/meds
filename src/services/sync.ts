@@ -4,6 +4,7 @@ import { supabase, getCurrentUserId } from '../lib/supabase';
 import { db, getUnsyncedLogs, markLogSynced, updateMedicationLog, getDeviceId, getMedications, upsertMedication } from '../db/localDB';
 import { isApplyingRemote } from './snapshot';
 import { runWithRemoteFlag } from './realtime';
+import { sanitizeMedicationForDb } from './cloudOnly';
 import type { MedicationLog, ConflictInfo, Medication } from '../types';
 
 function shouldSendDebugIngest(): boolean {
@@ -227,7 +228,7 @@ export async function syncMedications(): Promise<void> {
       const medsToSync = localMeds.map(med => {
         // ensureLocalMedicationIdsAreUUID 后，这里应当永远为 UUID；再做一次兜底
         const safeId = med.id && isValidUUID(med.id) ? med.id : generateUUID();
-        const medData: any = {
+        const medData: Medication = {
           id: safeId,
           user_id: userId,
           name: med.name,
@@ -236,7 +237,8 @@ export async function syncMedications(): Promise<void> {
           device_id: deviceId,
           updated_at: new Date().toISOString()
         };
-        return sanitizePayload(medData);
+        // 【修复 PGRST204】使用统一的 sanitize 函数，删除 UI-only 字段
+        return sanitizeMedicationForDb(medData);
       }).filter(med => med); // 过滤掉无效数据
       
         if (medsToSync.length > 0) {

@@ -78,13 +78,13 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
       };
 
       // 【云端化】直接写入云端，不再使用 payload 和本地数据库
-      const savedMed = await upsertMedicationToCloud(newMedication);
-      if (!savedMed) {
-        alert('添加药品失败，请重试');
-        return;
-      }
-
-      console.log('✅ 新药品已直接写入云端:', savedMed.name);
+      try {
+        const savedMed = await upsertMedicationToCloud(newMedication);
+        if (!savedMed) {
+          alert('添加药品失败，请重试');
+          return;
+        }
+        console.log('✅ 新药品已直接写入云端:', savedMed.name);
       
       await onDataChange();
       
@@ -143,13 +143,20 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
           accent: editMedAccent
         };
         // 【云端化】直接更新云端，不再使用 payload
-        const savedMed = await upsertMedicationToCloud(updatedMed);
-        if (!savedMed) {
-          alert('更新药品失败，请重试');
+        try {
+          const savedMed = await upsertMedicationToCloud(updatedMed);
+          if (!savedMed) {
+            alert('更新药品失败，请重试');
+            return;
+          }
+          console.log('✅ 药品已直接更新到云端:', savedMed.name);
+        } catch (error: any) {
+          // 【修复 PGRST204】显示具体错误消息
+          const errorMsg = error?.message || '更新药品失败，请重试';
+          console.error('❌ 更新药品失败:', errorMsg, error);
+          alert(`更新药品失败: ${errorMsg}`);
           return;
         }
-
-        console.log('✅ 药品已直接更新到云端:', savedMed.name);
       }
       await onDataChange();
       setEditingMed(null);

@@ -237,6 +237,48 @@ export async function getLogsFromCloud(medicationId?: string): Promise<Medicatio
 }
 
 /**
+ * 清理药品数据，只保留数据库列（白名单）
+ * 删除所有 UI-only 字段（如 accent, status, lastTakenAt, lastLog 等）
+ * 
+ * @export 导出供其他模块使用（如 sync.ts）
+ */
+export function sanitizeMedicationForDb(medication: Medication): any {
+  // 数据库列白名单（根据 supabase schema）
+  const dbFields = [
+    'id',
+    'user_id',
+    'name',
+    'dosage',
+    'scheduled_time',
+    'device_id',
+    'updated_at'
+  ];
+  
+  const sanitized: any = {};
+  
+  // 只保留白名单字段
+  for (const field of dbFields) {
+    if (field in medication || (field === 'updated_at' && !medication.updated_at)) {
+      sanitized[field] = (medication as any)[field];
+    }
+  }
+  
+  // 确保必要字段存在
+  if (!sanitized.updated_at) {
+    sanitized.updated_at = new Date().toISOString();
+  }
+  
+  // 显式删除 UI-only 字段（防御性编程）
+  delete sanitized.accent;
+  delete sanitized.status;
+  delete sanitized.lastTakenAt;
+  delete sanitized.lastLog;
+  delete sanitized.uploadedAt;
+  
+  return sanitized;
+}
+
+/**
  * 添加或更新药品（直接写入云端）
  */
 export async function upsertMedicationToCloud(medication: Medication): Promise<Medication | null> {
@@ -248,12 +290,14 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
 
   try {
     const deviceId = getDeviceId();
-    const medicationData = {
+    
+    // 【修复 PGRST204】写入前 sanitize，删除 UI-only 字段
+    const medicationData = sanitizeMedicationForDb({
       ...medication,
       user_id: userId,
       device_id: deviceId,
       updated_at: new Date().toISOString()
-    };
+    });
 
     // 如果有 id，使用 upsert；否则 insert
     if (medication.id) {
@@ -272,8 +316,9 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
       // #endregion
 
       if (error) {
-        console.error('❌ 更新药品失败:', error);
-        return null;
+        const errorMsg = error.message || `错误代码: ${error.code || 'unknown'}`;
+        console.error('❌ 更新药品失败:', errorMsg, error);
+        throw new Error(`更新药品失败: ${errorMsg}`);
       }
 
       console.log('✅ 药品已更新到云端:', data.name);
@@ -288,16 +333,18 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
         .single();
 
       if (error) {
-        console.error('❌ 添加药品失败:', error);
-        return null;
+        const errorMsg = error.message || `错误代码: ${error.code || 'unknown'}`;
+        console.error('❌ 添加药品失败:', errorMsg, error);
+        throw new Error(`添加药品失败: ${errorMsg}`);
       }
 
       console.log('✅ 药品已添加到云端:', data.name);
       return data;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 保存药品异常:', error);
-    return null;
+    // 重新抛出错误，让调用者可以显示具体错误消息
+    throw error;
   }
 }
 
