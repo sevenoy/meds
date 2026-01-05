@@ -14,29 +14,39 @@ import type { MedicationLog, ConflictInfo, Medication } from '../types';
 export async function fixLegacyDeviceIds(): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) {
+    console.log('❌ [fixLegacyDeviceIds] 无 userId，跳过修复');
     // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:15',message:'No userId, skipping fix',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:15',message:'No userId, skipping fix',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
     // #endregion
     return;
   }
   
   const deviceId = getDeviceId();
   const fixFlag = `device_id_fixed_v2_${userId}_${deviceId}`;
+  const flagValue = localStorage.getItem(fixFlag);
+  
+  console.log('🔍 [fixLegacyDeviceIds] 检查修复标志', { 
+    userId: userId.substring(0, 8) + '...', 
+    deviceId: deviceId.substring(0, 20) + '...', 
+    fixFlag: fixFlag.substring(0, 50) + '...', 
+    flagValue: flagValue,
+    allKeys: Object.keys(localStorage).filter(k => k.includes('device_id'))
+  });
   
   // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:25',message:'Checking fix flag',data:{fixFlag:fixFlag,isFixed:localStorage.getItem(fixFlag)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:25',message:'Checking fix flag',data:{fixFlag:fixFlag,flagValue:flagValue,allDeviceIdKeys:Object.keys(localStorage).filter(k=>k.includes('device_id'))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F,G'})}).catch(()=>{});
   // #endregion
   
   // 检查是否已经执行过修复
-  if (localStorage.getItem(fixFlag)) {
-    console.log('⏭️ device_id 已修复,跳过');
+  if (flagValue) {
+    console.log('⏭️ device_id 已修复,跳过', { fixFlag });
     // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:30',message:'Skipping fixLegacyDeviceIds',data:{userId:userId,deviceId:deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:35',message:'Skipping fixLegacyDeviceIds',data:{userId:userId,deviceId:deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
     // #endregion
     return;
   }
   
-  console.log('🔧 开始修复所有药品的 device_id...', { deviceId });
+  console.log('🔧 开始修复所有药品的 device_id...', { deviceId, fixFlag });
   // #region agent log
   fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:36',message:'Starting fixLegacyDeviceIds',data:{userId:userId,deviceId:deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
   // #endregion
