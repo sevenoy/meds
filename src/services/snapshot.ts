@@ -309,39 +309,109 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
       return { success: false, message: `获取版本失败: ${loadResult.message}` };
     }
 
-    const currentVersion = loadResult.version || 1;
+    let currentVersion = loadResult.version || 1;
     console.log('📌 当前云端 version:', currentVersion);
 
-    // 4. 执行 UPDATE（乐观锁）
+    // 4. 执行 UPDATE（乐观锁）- 支持冲突重试
     const deviceId = getDeviceId();
-    const { data: updatedState, error: updateError } = await supabase
-      .from('app_state')
-      .update({
-        payload: payload,
-        version: currentVersion + 1,
-        updated_by: deviceId
-        // updated_at 由数据库 DEFAULT now() 自动设置
-      })
-      .eq('owner_id', userId)
-      .eq('version', currentVersion) // 乐观锁：只有 version 匹配才更新
-      .select('id, payload, version, updated_at, updated_by')
-      .single();
+    const maxRetries = 1; // 最多重试 1 次
+    let retryCount = 0;
+    
+    while (retryCount <= maxRetries) {
+      // 4.1 执行 UPDATE（乐观锁）
+      const { data: updatedStateArray, error: updateError } = await supabase
+        .from('app_state')
+        .update({
+          payload: payload,
+          version: currentVersion + 1,
+          updated_by: deviceId
+          // updated_at 由数据库 DEFAULT now() 自动设置
+        })
+        .eq('owner_id', userId)
+        .eq('version', currentVersion) // 乐观锁：只有 version 匹配才更新
+        .select('id, payload, version, updated_at, updated_by');
 
-    // 5. 检查更新结果
-    if (updateError) {
-      console.error('❌ UPDATE 操作失败:', updateError);
-      return { success: false, message: `更新失败: ${updateError.message}` };
-    }
+      // 4.2 检查更新错误（非 PGRST116）
+      if (updateError) {
+        // PGRST116 是 0 rows 时调用 single() 的错误，我们已经避免使用 single()，所以这里不应该出现
+        // 但为了容错，仍然检查
+        if (updateError.code === 'PGRST116') {
+          // 这是 0 rows 的情况，进入冲突处理
+          console.log('🔍 检测到乐观锁冲突（0 rows），进入冲突处理分支');
+        } else {
+          console.error('❌ UPDATE 操作失败:', updateError);
+          return { success: false, message: `更新失败: ${updateError.message}` };
+        }
+      }
 
-    // 6. 如果 UPDATE 影响行数 = 0（data 为 null），返回冲突
-    if (!updatedState) {
-      console.warn('⚠️ cloudSaveV2() 检测到冲突：version 不匹配，更新失败');
-      return { 
-        success: false, 
-        conflict: true, 
-        message: '版本冲突：云端数据已被其他设备修改，请刷新后重试' 
+      // 4.3 检查更新结果：0 rows = 冲突
+      const updatedState = updatedStateArray && updatedStateArray.length > 0 ? updatedStateArray[0] : null;
+      
+      if (!updatedState) {
+        // 冲突：version 不匹配，需要重新加载最新数据
+        console.warn(`⚠️ cloudSaveV2() 检测到冲突（尝试 ${retryCount + 1}/${maxRetries + 1}）：version 不匹配，更新失败`);
+        
+        if (retryCount < maxRetries) {
+          // 冲突处理：重新加载最新数据
+          console.log('🔄 重新加载最新云端数据以解决冲突...');
+          const reloadResult = await cloudLoadV2();
+          
+          if (!reloadResult.success) {
+            console.error('❌ 重新加载失败:', reloadResult.message);
+            return { 
+              success: false, 
+              conflict: true, 
+              message: '版本冲突：无法重新加载云端数据，请刷新后重试' 
+            };
+          }
+          
+          // 更新 currentVersion 为最新值
+          const newVersion = reloadResult.version || currentVersion;
+          console.log(`📌 冲突解决：重新加载后 version ${currentVersion} → ${newVersion}`);
+          
+          // 【策略：以当前编辑为准】直接使用当前 payload，但更新 version
+          // 注意：这里采用"以当前编辑为准"的覆盖策略
+          // 如果需要合并策略，可以在这里实现 payload 合并逻辑
+          currentVersion = newVersion;
+          retryCount++;
+          
+          // 继续重试
+          continue;
+        } else {
+          // 重试次数用完，返回冲突错误
+          console.error('❌ 冲突重试失败：已达到最大重试次数');
+          return { 
+            success: false, 
+            conflict: true, 
+            message: '同步冲突，请稍后重试。云端数据已被其他设备修改。' 
+          };
+        }
+      }
+
+      // 4.4 更新成功
+      console.log('✅ cloudSaveV2() 保存成功:', {
+        version: updatedState.version,
+        updated_at: updatedState.updated_at,
+        updated_by: updatedState.updated_by,
+        retryCount: retryCount > 0 ? `重试 ${retryCount} 次` : '首次成功'
+      });
+
+      // 【2】在 cloudSaveV2 成功后，更新 currentSnapshotPayload（deep clone，使用去重后的数据）
+      currentSnapshotPayload = structuredClone(payload);
+
+      return {
+        success: true,
+        version: updatedState.version || (currentVersion + 1),
+        updated_at: updatedState.updated_at
       };
     }
+    
+    // 理论上不会到达这里，但为了类型安全
+    return { 
+      success: false, 
+      conflict: true, 
+      message: '同步冲突，请稍后重试' 
+    };
 
     // 7. 成功时返回新 version 和 updated_at
     console.log('✅ cloudSaveV2() 保存成功:', {
