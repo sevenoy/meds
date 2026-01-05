@@ -196,16 +196,30 @@ export async function syncMedications(): Promise<void> {
           } else {
             console.log(`✅ 批量同步 ${syncedMeds?.length || 0} 条药品到云端`);
           
-          // 更新本地记录中非UUID的ID
+          // 【重要修复】更新本地记录中非UUID的ID
+          // 匹配逻辑：通过name + dosage + scheduled_time匹配，因为local_xxx的ID无法直接匹配
           if (syncedMeds) {
             for (const syncedMed of syncedMeds) {
-              const localMed = localMeds.find(m => 
-                (m.id && !isValidUUID(m.id) && m.name === syncedMed.name) ||
-                m.id === syncedMed.id
-              );
+              // 先尝试通过ID匹配（如果是UUID）
+              let localMed = localMeds.find(m => m.id === syncedMed.id);
+              
+              // 如果没找到，通过name + dosage + scheduled_time匹配（用于匹配local_xxx的ID）
+              if (!localMed) {
+                localMed = localMeds.find(m => 
+                  !isValidUUID(m.id) && 
+                  m.name === syncedMed.name &&
+                  m.dosage === syncedMed.dosage &&
+                  m.scheduled_time === syncedMed.scheduled_time
+                );
+              }
+              
               if (localMed && localMed.id !== syncedMed.id) {
+                console.log(`🔄 更新本地药品ID: ${localMed.id} → ${syncedMed.id} (${localMed.name})`);
                 const updatedMed = { ...localMed, id: syncedMed.id };
                 await upsertMedication(updatedMed);
+                // #region agent log
+                fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:217',message:'更新本地药品ID',data:{oldId:localMed.id,newId:syncedMed.id,name:localMed.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'M'})}).catch(()=>{});
+                // #endregion
               }
             }
           }

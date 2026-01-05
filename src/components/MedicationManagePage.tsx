@@ -90,6 +90,16 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
       }
 
       console.log('✅ 新药品已成功写入 payload 并同步到云端');
+      
+      // 【重要修复】立即同步到Supabase，确保药品ID正确映射
+      try {
+        const { syncMedications } = await import('../services/sync');
+        await syncMedications();
+        console.log('✅ 新药品已同步到 Supabase');
+      } catch (syncError) {
+        console.warn('⚠️ 同步到 Supabase 失败:', syncError);
+      }
+      
       await onDataChange();
       
       setNewMedName('');
