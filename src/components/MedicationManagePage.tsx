@@ -21,12 +21,19 @@ interface MedicationManagePageProps {
   medications: Medication[];
   onBack: () => void;
   onDataChange: () => void;
+  // 【Optimistic UI】新增：用于立即更新本地 state 的回调
+  onMedicationUpdated?: (medication: Medication) => void;
+  onMedicationDeleted?: (medicationId: string) => void;
+  onMedicationAdded?: (medication: Medication) => void;
 }
 
 export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
   medications,
   onBack,
-  onDataChange
+  onDataChange,
+  onMedicationUpdated,
+  onMedicationDeleted,
+  onMedicationAdded
 }) => {
   const [newMedName, setNewMedName] = useState('');
   const [newMedDosage, setNewMedDosage] = useState('');
@@ -77,16 +84,42 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
         device_id: getDeviceId()
       };
 
-      // 【云端化】直接写入云端，不再使用 payload 和本地数据库
+      // 【Optimistic UI】立即更新本地 state（UI 立即生效）
+      if (onMedicationAdded) {
+        onMedicationAdded(newMedication);
+      }
+      
+      // 【云端化】后台异步写入云端，不阻塞 UI
       try {
         const savedMed = await upsertMedicationToCloud(newMedication);
         if (!savedMed) {
+          // 失败时回滚：从本地 state 移除
+          if (onMedicationDeleted) {
+            onMedicationDeleted(newMedication.id);
+          }
           alert('添加药品失败，请重试');
           return;
         }
         console.log('✅ 新药品已直接写入云端:', savedMed.name);
+        
+        // 成功：用云端返回的数据更新本地 state（确保 ID 等字段一致）
+        if (onMedicationUpdated && savedMed.id !== newMedication.id) {
+          onMedicationDeleted?.(newMedication.id);
+          onMedicationAdded?.(savedMed);
+        }
+      } catch (error: any) {
+        // 失败时回滚
+        if (onMedicationDeleted) {
+          onMedicationDeleted(newMedication.id);
+        }
+        const errorMsg = error?.message || '添加药品失败，请重试';
+        console.error('❌ 添加药品失败:', errorMsg, error);
+        alert(`添加药品失败: ${errorMsg}`);
+        return;
+      }
       
-      await onDataChange();
+      // 【禁止全量 reload】不再调用 onDataChange()，只做局部更新
+      // await onDataChange(); // 已移除
       
       setNewMedName('');
       setNewMedDosage('');
@@ -132,33 +165,54 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
         console.log('✅ payload 已成功初始化');
       }
 
-      // 更新药品信息
-      const medIndex = (payload.medications || []).findIndex((m: any) => m.id === editingMed.id);
-      if (medIndex !== -1) {
-        const updatedMed: Medication = {
-          ...payload.medications[medIndex],
-          name: editMedName,
-          dosage: editMedDosage,
-          scheduled_time: editMedTime,
-          accent: editMedAccent
-        };
-        // 【云端化】直接更新云端，不再使用 payload
-        try {
-          const savedMed = await upsertMedicationToCloud(updatedMed);
-          if (!savedMed) {
-            alert('更新药品失败，请重试');
-            return;
+      // 【Optimistic UI】立即更新本地 state（UI 立即生效）
+      const updatedMed: Medication = {
+        ...editingMed,
+        name: editMedName,
+        dosage: editMedDosage,
+        scheduled_time: editMedTime,
+        accent: editMedAccent
+      };
+      
+      // 保存原始值用于回滚
+      const originalMed = { ...editingMed };
+      
+      // 立即更新 UI
+      if (onMedicationUpdated) {
+        onMedicationUpdated(updatedMed);
+      }
+      
+      // 【云端化】后台异步更新云端，不阻塞 UI
+      try {
+        const savedMed = await upsertMedicationToCloud(updatedMed);
+        if (!savedMed) {
+          // 失败时回滚：恢复原始值
+          if (onMedicationUpdated) {
+            onMedicationUpdated(originalMed);
           }
-          console.log('✅ 药品已直接更新到云端:', savedMed.name);
-        } catch (error: any) {
-          // 【修复 PGRST204】显示具体错误消息
-          const errorMsg = error?.message || '更新药品失败，请重试';
-          console.error('❌ 更新药品失败:', errorMsg, error);
-          alert(`更新药品失败: ${errorMsg}`);
+          alert('更新药品失败，请重试');
           return;
         }
+        console.log('✅ 药品已直接更新到云端:', savedMed.name);
+        
+        // 成功：用云端返回的数据更新本地 state（确保字段一致）
+        if (onMedicationUpdated) {
+          onMedicationUpdated(savedMed);
+        }
+      } catch (error: any) {
+        // 失败时回滚
+        if (onMedicationUpdated) {
+          onMedicationUpdated(originalMed);
+        }
+        const errorMsg = error?.message || '更新药品失败，请重试';
+        console.error('❌ 更新药品失败:', errorMsg, error);
+        alert(`更新药品失败: ${errorMsg}`);
+        return;
       }
-      await onDataChange();
+      
+      // 【禁止全量 reload】不再调用 onDataChange()，只做局部更新
+      // await onDataChange(); // 已移除
+      
       setEditingMed(null);
     });
   };
@@ -166,15 +220,37 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
   const handleDeleteMedication = async (med: Medication) => {
     runWithUserAction(async () => {
       if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-        // 【云端化】直接从云端删除（级联删除会自动删除相关记录）
-        const success = await deleteMedicationFromCloud(med.id);
-        if (!success) {
-          alert('删除药品失败，请重试');
+        // 【Optimistic UI】立即从本地 state 移除（UI 立即生效）
+        if (onMedicationDeleted) {
+          onMedicationDeleted(med.id);
+        }
+        
+        // 【云端化】后台异步删除云端，不阻塞 UI
+        try {
+          const success = await deleteMedicationFromCloud(med.id);
+          if (!success) {
+            // 失败时回滚：重新添加回本地 state
+            if (onMedicationAdded) {
+              onMedicationAdded(med);
+            }
+            alert('删除药品失败，请重试');
+            return;
+          }
+
+          console.log('✅ 药品已从云端删除:', med.name);
+        } catch (error: any) {
+          // 失败时回滚
+          if (onMedicationAdded) {
+            onMedicationAdded(med);
+          }
+          const errorMsg = error?.message || '删除药品失败，请重试';
+          console.error('❌ 删除药品失败:', errorMsg, error);
+          alert(`删除药品失败: ${errorMsg}`);
           return;
         }
-
-        console.log('✅ 药品已从云端删除:', med.name);
-        await onDataChange();
+        
+        // 【禁止全量 reload】不再调用 onDataChange()，只做局部更新
+        // await onDataChange(); // 已移除
       }
     });
   };

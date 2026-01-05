@@ -546,16 +546,26 @@ export async function initCloudOnlyRealtime(callbacks: {
         table: 'medications'
       },
       (payload) => {
-        const newRow = payload.new as any;
+        // 【修复 device_id 过滤】正确处理 UPDATE/INSERT/DELETE 事件
+        let eventDeviceId: string | null = null;
+        if (payload.eventType === 'DELETE') {
+          // DELETE 事件：使用 payload.old.device_id
+          eventDeviceId = (payload.old as any)?.device_id;
+        } else {
+          // INSERT/UPDATE 事件：使用 payload.new.device_id
+          eventDeviceId = (payload.new as any)?.device_id;
+        }
+        
         // 过滤自身更新
-        if (newRow?.device_id === deviceId) {
+        if (eventDeviceId === deviceId) {
+          console.log('⏭️ 忽略自身更新', { eventType: payload.eventType, deviceId: eventDeviceId });
           return;
         }
         
         // 【去重】检查是否已处理过此 ID
-        const medId = newRow?.id;
+        const medId = (payload.new as any)?.id || (payload.old as any)?.id;
         if (medId && processedMedIds.has(medId)) {
-          console.log('⏭️ 已处理过此药品变更，跳过', { medId });
+          console.log('⏭️ 已处理过此药品变更，跳过', { medId, eventType: payload.eventType });
           return;
         }
         
@@ -569,7 +579,7 @@ export async function initCloudOnlyRealtime(callbacks: {
           }
         }
         
-        console.log('🔔 检测到其他设备的药品变更', { medId, eventType: payload.eventType });
+        console.log('🔔 检测到其他设备的药品变更', { medId, eventType: payload.eventType, eventDeviceId });
         debouncedMedChange();
       }
     )
@@ -586,16 +596,26 @@ export async function initCloudOnlyRealtime(callbacks: {
         table: 'medication_logs'
       },
       (payload) => {
-        const newRow = payload.new as any;
+        // 【修复 device_id 过滤】正确处理 UPDATE/INSERT/DELETE 事件
+        let eventDeviceId: string | null = null;
+        if (payload.eventType === 'DELETE') {
+          // DELETE 事件：使用 payload.old.device_id
+          eventDeviceId = (payload.old as any)?.device_id;
+        } else {
+          // INSERT/UPDATE 事件：使用 payload.new.device_id
+          eventDeviceId = (payload.new as any)?.device_id;
+        }
+        
         // 过滤自身更新
-        if (newRow?.device_id === deviceId) {
+        if (eventDeviceId === deviceId) {
+          console.log('⏭️ 忽略自身更新', { eventType: payload.eventType, deviceId: eventDeviceId });
           return;
         }
         
         // 【去重】检查是否已处理过此 ID
-        const logId = newRow?.id;
+        const logId = (payload.new as any)?.id || (payload.old as any)?.id;
         if (logId && processedLogIds.has(logId)) {
-          console.log('⏭️ 已处理过此记录变更，跳过', { logId });
+          console.log('⏭️ 已处理过此记录变更，跳过', { logId, eventType: payload.eventType });
           return;
         }
         
@@ -609,7 +629,7 @@ export async function initCloudOnlyRealtime(callbacks: {
           }
         }
         
-        console.log('🔔 检测到其他设备的服药记录变更', { logId, eventType: payload.eventType });
+        console.log('🔔 检测到其他设备的服药记录变更', { logId, eventType: payload.eventType, eventDeviceId });
         debouncedLogChange();
       }
     )

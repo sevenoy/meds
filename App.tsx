@@ -314,6 +314,9 @@ export default function App() {
   // 【防重入锁】防止 loadData 并发执行
   const syncInProgressRef = React.useRef(false);
   const loadDataTriggerSourceRef = React.useRef<string>('');
+  
+  // 【初始化阶段标记】防止 Realtime 在初始化阶段误触发
+  const isInitializingRef = React.useRef(true);
 
   // 加载数据（用 useCallback 缓存，避免每次渲染都创建新函数）
   const loadData = useCallback(async (syncFromCloud: boolean = false, triggerSource: string = 'unknown') => {
@@ -436,37 +439,36 @@ export default function App() {
       //   console.log('✅ 默认药物已初始化');
       // }
       
-      // 【云端化】转换药物列表并检查状态（从云端读取记录）
-      const medsWithStatus: MedicationUI[] = await Promise.all(
-        meds.map(async (med) => {
-          const taken = await isMedicationTakenToday(med.id);
-          const logs = await getLogsFromCloud(med.id);
-          const todayLogs = logs.filter(log => {
-            const logDate = new Date(log.taken_at);
-            const today = new Date();
-            return logDate.toDateString() === today.toDateString();
-          });
-          const lastLog = todayLogs[0];
-          
-          return {
-            ...med,
-            status: taken ? 'completed' : 'pending',
-            lastTakenAt: lastLog?.taken_at,
-            uploadedAt: lastLog?.uploaded_at,
-            lastLog
-          };
-        })
-      );
+      // 【修复重复请求】一次性读取所有 logs，避免 N 次请求
+      const allLogs = await getLogsFromCloud();
+      console.log(`📝 从云端加载 ${allLogs.length} 条服药记录`);
+      
+      // 【修复重复请求】使用已读取的 allLogs，避免重复请求
+      const medsWithStatus: MedicationUI[] = meds.map((med) => {
+        // 从 allLogs 中筛选该药品的记录
+        const medLogs = allLogs.filter(log => log.medication_id === med.id);
+        const todayLogs = medLogs.filter(log => {
+          const logDate = new Date(log.taken_at);
+          const today = new Date();
+          return logDate.toDateString() === today.toDateString();
+        });
+        const lastLog = todayLogs[0];
+        const taken = todayLogs.length > 0;
+        
+        return {
+          ...med,
+          status: taken ? 'completed' : 'pending',
+          lastTakenAt: lastLog?.taken_at,
+          uploadedAt: lastLog?.uploaded_at,
+          lastLog
+        };
+      });
       
       console.log(`✅ 药物状态已更新，共 ${medsWithStatus.length} 个`);
       setMedications(medsWithStatus);
       
-      // 【云端化】直接从云端读取所有服药记录，不使用本地缓存
-      const allLogs = await getLogsFromCloud();
-      console.log(`📝 从云端加载 ${allLogs.length} 条服药记录`);
-      
-      // 按日期降序排序
-      const sortedLogs = allLogs.sort((a, b) => 
+      // 按日期降序排序（使用已读取的 allLogs）
+      const sortedLogs = [...allLogs].sort((a, b) => 
         new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
       );
       
@@ -548,7 +550,8 @@ export default function App() {
         await loadData(true, 'app-init');
         console.log('✅ 应用初始化完成');
         
-        // 4. 标记应用已初始化
+        // 4. 标记应用已初始化，允许 Realtime 事件触发
+        isInitializingRef.current = false;
         setAppInitialized(true);
       } catch (error) {
         console.error('❌ 应用初始化失败:', error);
@@ -585,11 +588,23 @@ export default function App() {
     let cloudRealtimeCleanup: (() => void) | null = null;
     initCloudOnlyRealtime({
       onMedicationChange: async () => {
-        console.log('🔔 检测到其他设备的药品变更，重新加载...');
+        // 【修复误触发】初始化阶段忽略 Realtime 事件
+        if (isInitializingRef.current) {
+          console.log('⏭️ 初始化阶段，忽略 Realtime 药品变更事件');
+          return;
+        }
+        console.log('🔔 检测到其他设备的药品变更，轻量刷新...');
+        // 【轻量刷新】只刷新药品列表，不触发全量 loadData
         await loadData(false, 'realtime-medication-change');
       },
       onLogChange: async () => {
-        console.log('🔔 检测到其他设备的服药记录变更，重新加载...');
+        // 【修复误触发】初始化阶段忽略 Realtime 事件
+        if (isInitializingRef.current) {
+          console.log('⏭️ 初始化阶段，忽略 Realtime 记录变更事件');
+          return;
+        }
+        console.log('🔔 检测到其他设备的服药记录变更，轻量刷新...');
+        // 【轻量刷新】只刷新记录列表，不触发全量 loadData
         await loadData(false, 'realtime-log-change');
       }
     }).then(cleanup => {
