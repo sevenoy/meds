@@ -383,9 +383,9 @@ export default function App() {
         }
       }
       
-      // 加载药物列表(已从云端同步)
-      const meds = await getTodayMedications();
-      console.log(`📋 已加载 ${meds.length} 个药物:`, meds.map(m => m.name));
+      // 【云端化】直接从云端读取药物列表，不使用本地缓存
+      const meds = await getMedicationsFromCloud();
+      console.log(`📋 从云端加载 ${meds.length} 个药物:`, meds.map(m => m.name));
       
       // 【禁用默认初始化】让用户手动添加药品,以便测试真实的同步功能
       // 如果需要默认药品,用户可以通过"药品管理"手动添加
@@ -409,11 +409,11 @@ export default function App() {
       //   console.log('✅ 默认药物已初始化');
       // }
       
-      // 转换药物列表并检查状态
+      // 【云端化】转换药物列表并检查状态（从云端读取记录）
       const medsWithStatus: MedicationUI[] = await Promise.all(
         meds.map(async (med) => {
           const taken = await isMedicationTakenToday(med.id);
-          const logs = await getMedicationLogs(med.id);
+          const logs = await getLogsFromCloud(med.id);
           const todayLogs = logs.filter(log => {
             const logDate = new Date(log.taken_at);
             const today = new Date();
@@ -434,9 +434,9 @@ export default function App() {
       console.log(`✅ 药物状态已更新，共 ${medsWithStatus.length} 个`);
       setMedications(medsWithStatus);
       
-      // 加载时间线数据（所有记录，不限于7天）
-      const allLogs = await getMedicationLogs();
-      console.log(`📝 已加载 ${allLogs.length} 条服药记录`);
+      // 【云端化】直接从云端读取所有服药记录，不使用本地缓存
+      const allLogs = await getLogsFromCloud();
+      console.log(`📝 从云端加载 ${allLogs.length} 条服药记录`);
       
       // 按日期降序排序
       const sortedLogs = allLogs.sort((a, b) => 
@@ -544,80 +544,19 @@ export default function App() {
       }
     }).catch(console.error);
     
-    // 【启用新的 Realtime 即时同步】参考技术文档实现
-    let newRealtimeCleanup: (() => void) | null = null;
-    // 新 Realtime（表级变更）只做“去抖刷新 UI”，不要在这里触发 cloud pull，否则会被批量 UPDATE 打爆
-    initNewRealtimeSync({
+    // 【云端化】启用纯云端 Realtime（仅监听其他设备的变更）
+    let cloudRealtimeCleanup: (() => void) | null = null;
+    cloudRealtimeCleanup = initCloudOnlyRealtime({
       onMedicationChange: async () => {
-        if (isApplyingRemoteChange()) {
-          console.log('⏭ 忽略远程触发的药品变更');
-          return;
-        }
-        console.log('🔔 检测到药品变更（新Realtime），拉取云端药品并刷新本地 UI...');
-        try {
-          await pullMedicationsFromCloud();
-        } catch (e) {
-          console.warn('⚠️ 拉取云端药品失败:', e);
-        }
+        console.log('🔔 检测到其他设备的药品变更，重新加载...');
         await loadData(false);
       },
       onLogChange: async () => {
-        if (isApplyingRemoteChange()) {
-          console.log('⏭ 忽略远程触发的记录变更');
-          return;
-        }
-        console.log('🔔 检测到服药记录变更（新Realtime），拉取云端记录并刷新本地 UI...');
-        try {
-          const lastSyncTime = localStorage.getItem('meds_logs_last_pull') || undefined;
-          const remoteLogs = await pullRemoteChanges(lastSyncTime);
-          if (remoteLogs.length > 0) {
-            // 【修复】智能合并：保留本地 image_path（DataURL），优先使用云端其他字段
-            for (const remoteLog of remoteLogs) {
-              const existingLog = await db.medicationLogs.get(remoteLog.id);
-              const mergedLog = {
-                ...remoteLog,
-                // 如果本地有 DataURL 图片而云端没有，保留本地的
-                image_path: remoteLog.image_path || existingLog?.image_path,
-                sync_state: 'clean' as const
-              };
-              await db.medicationLogs.put(mergedLog);
-            }
-            const newest = remoteLogs
-              .map((l) => l.updated_at || l.created_at)
-              .filter(Boolean)
-              .map((t) => new Date(t as string).toISOString())
-              .sort()
-              .pop();
-            if (newest) localStorage.setItem('meds_logs_last_pull', newest);
-          }
-        } catch (e) {
-          console.warn('⚠️ 拉取云端记录失败:', e);
-        }
+        console.log('🔔 检测到其他设备的服药记录变更，重新加载...');
         await loadData(false);
-      },
-      onSettingsChange: async () => {
-        if (isApplyingRemoteChange()) {
-          console.log('⏭ 忽略远程触发的设置变更');
-          return;
-        }
-        console.log('🔔 检测到设置变更（新Realtime），自动刷新...');
-        try {
-          const settings = await getUserSettings();
-          if (settings.avatar_url) {
-            setAvatarUrl(settings.avatar_url);
-          }
-        } catch (error) {
-          console.error('❌ 加载设置失败:', error);
-        }
-      },
-      onConnectionStatusChange: (status) => {
-        console.log('🔗 Realtime 连接状态变更:', status);
-        setRealtimeStatus(status);
       }
-    }).then(cleanup => {
-      newRealtimeCleanup = cleanup;
-      console.log('✅ 新 Realtime 服务已启动（基于 Supabase Realtime）');
-    }).catch(console.error);
+    });
+    console.log('✅ 纯云端 Realtime 已启动');
     
     // 【本地认证模式】禁用旧的 Realtime 同步
     /*
@@ -765,16 +704,15 @@ export default function App() {
     //   // 删除所有 loadData() / cloudSaveV2() 调用
     // }, 3000); // 每3秒同步一次
     
-    // 【本地认证模式】不需要清理定时器
-    // 返回清理函数
+    // 【云端化】返回清理函数
     return () => {
       if (realtimeCleanup) {
         realtimeCleanup();
         console.log('🔌 Realtime V2 已断开');
       }
-      if (newRealtimeCleanup) {
-        newRealtimeCleanup();
-        console.log('🔌 新 Realtime 服务已断开');
+      if (cloudRealtimeCleanup) {
+        cloudRealtimeCleanup();
+        console.log('🔌 纯云端 Realtime 已断开');
       }
     };
   }, [isLoggedIn]);
@@ -1681,11 +1619,11 @@ export default function App() {
                       payload.medications = payload.medications || [];
                       payload.medications.push(newMedication);
 
-                      // 关键修复：写入本地 IndexedDB（UI 读取 getTodayMedications() 只看本地 DB）
+                      // 【云端化】直接写入云端，不使用本地 IndexedDB
                       try {
-                        await upsertMedication(newMedication as any);
+                        await upsertMedicationToCloud(newMedication as any);
                       } catch (e) {
-                        console.warn('⚠️ 写入本地药品失败:', e);
+                        console.warn('⚠️ 写入云端药品失败:', e);
                       }
 
                       const result = await cloudSaveV2(payload);

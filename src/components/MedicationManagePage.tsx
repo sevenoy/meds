@@ -3,6 +3,8 @@ import { Plus, Pill, Trash2, X, ChevronLeft, Edit2 } from 'lucide-react';
 import type { Medication } from '../types';
 import { getDeviceId, upsertMedication } from '../db/localDB';
 import { runWithUserAction, getCurrentSnapshotPayload, cloudSaveV2, cloudLoadV2 } from '../services/snapshot';
+// 【云端化】引入纯云端服务
+import { upsertMedicationToCloud, deleteMedicationFromCloud } from '../services/cloudOnly';
 
 function generateUUID(): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,25 +77,14 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
         device_id: getDeviceId()
       };
 
-      payload.medications = payload.medications || [];
-      payload.medications.push(newMedication);
-
-      // 同时保存到本地数据库
-      await upsertMedication(newMedication);
-      console.log('✅ 新药品已保存到本地数据库');
-
-      const result = await cloudSaveV2(payload);
-      if (!result.success) {
-        if (result.conflict) {
-          alert('版本冲突，正在重新加载...');
-          await cloudLoadV2();
-        } else {
-          alert(`添加药品失败: ${result.message}`);
-        }
+      // 【云端化】直接写入云端，不再使用 payload 和本地数据库
+      const savedMed = await upsertMedicationToCloud(newMedication);
+      if (!savedMed) {
+        alert('添加药品失败，请重试');
         return;
       }
 
-      console.log('✅ 新药品已成功写入 payload 并同步到云端');
+      console.log('✅ 新药品已直接写入云端:', savedMed.name);
       
       await onDataChange();
       
@@ -151,25 +142,15 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
           scheduled_time: editMedTime,
           accent: editMedAccent
         };
-        payload.medications[medIndex] = updatedMed;
-        
-        // 同时更新本地数据库
-        await upsertMedication(updatedMed);
-        console.log('✅ 药品已更新到本地数据库');
-      }
-
-      const result = await cloudSaveV2(payload);
-      if (!result.success) {
-        if (result.conflict) {
-          alert('版本冲突，正在重新加载...');
-          await cloudLoadV2();
-        } else {
-          alert(`更新药品失败: ${result.message}`);
+        // 【云端化】直接更新云端，不再使用 payload
+        const savedMed = await upsertMedicationToCloud(updatedMed);
+        if (!savedMed) {
+          alert('更新药品失败，请重试');
+          return;
         }
-        return;
-      }
 
-      console.log('✅ 药品已成功更新并同步到云端');
+        console.log('✅ 药品已直接更新到云端:', savedMed.name);
+      }
       await onDataChange();
       setEditingMed(null);
     });
@@ -178,29 +159,14 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
   const handleDeleteMedication = async (med: Medication) => {
     runWithUserAction(async () => {
       if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
-        const payload = getCurrentSnapshotPayload();
-        if (!payload) {
-          alert('系统未初始化，请刷新页面后重试');
+        // 【云端化】直接从云端删除（级联删除会自动删除相关记录）
+        const success = await deleteMedicationFromCloud(med.id);
+        if (!success) {
+          alert('删除药品失败，请重试');
           return;
         }
 
-        // 从 payload 中删除药品
-        payload.medications = (payload.medications || []).filter((m: any) => m.id !== med.id);
-        // 删除相关的服药记录
-        payload.medication_logs = (payload.medication_logs || []).filter((l: any) => l.medication_id !== med.id);
-
-        const result = await cloudSaveV2(payload);
-        if (!result.success) {
-          if (result.conflict) {
-            alert('版本冲突，正在重新加载...');
-            await cloudLoadV2();
-          } else {
-            alert(`删除药品失败: ${result.message}`);
-          }
-          return;
-        }
-
-        console.log('✅ 药品已成功从 payload 删除并同步到云端');
+        console.log('✅ 药品已从云端删除:', med.name);
         await onDataChange();
       }
     });
