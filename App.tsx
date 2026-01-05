@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight, ChevronDown, Database } from 'lucide-react';
 import { CameraModal } from './src/components/CameraModal';
 import { SyncPrompt } from './src/components/SyncPrompt';
@@ -219,12 +219,14 @@ const TimelineItem: React.FC<{
                 <img 
                   src={log.image_path} 
                   alt="验证凭证" 
+                  loading="lazy"
                   className="w-full h-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
                 />
                 <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-80 h-80">
                   <img 
                     src={log.image_path} 
                     alt="预览" 
+                    loading="lazy"
                     className="w-full h-full object-cover rounded-2xl shadow-2xl border-4 border-white"
                   />
                 </div>
@@ -305,8 +307,8 @@ export default function App() {
   const [editMedTime, setEditMedTime] = useState('');
   const [editMedAccent, setEditMedAccent] = useState<string>('#E0F3A2');
 
-  // 加载数据
-  const loadData = async (syncFromCloud: boolean = false) => {
+  // 加载数据（用 useCallback 缓存，避免每次渲染都创建新函数）
+  const loadData = useCallback(async (syncFromCloud: boolean = false) => {
     try {
       setLoading(true);
       
@@ -448,7 +450,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // 空依赖数组，因为内部使用的都是稳定的 API 函数
 
   // 检查登录状态
   useEffect(() => {
@@ -555,8 +557,17 @@ export default function App() {
           const lastSyncTime = localStorage.getItem('meds_logs_last_pull') || undefined;
           const remoteLogs = await pullRemoteChanges(lastSyncTime);
           if (remoteLogs.length > 0) {
-            // 批量合并（使用 bulkPut）
-            await db.medicationLogs.bulkPut(remoteLogs.map((l) => ({ ...l, sync_state: 'clean' })));
+            // 【修复】智能合并：保留本地 image_path（DataURL），优先使用云端其他字段
+            for (const remoteLog of remoteLogs) {
+              const existingLog = await db.medicationLogs.get(remoteLog.id);
+              const mergedLog = {
+                ...remoteLog,
+                // 如果本地有 DataURL 图片而云端没有，保留本地的
+                image_path: remoteLog.image_path || existingLog?.image_path,
+                sync_state: 'clean' as const
+              };
+              await db.medicationLogs.put(mergedLog);
+            }
             const newest = remoteLogs
               .map((l) => l.updated_at || l.created_at)
               .filter(Boolean)

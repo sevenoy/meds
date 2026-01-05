@@ -3,7 +3,7 @@
  */
 
 // ⚠️ 注意：此版本号必须随应用版本更新，否则会导致旧 SW 长期占用缓存，页面永远跑旧代码
-const VERSION = 'V260105.27';
+const VERSION = 'V260105.28';
 const CACHE_NAME = `meds-cache-${VERSION}`;
 
 // 获取 base 路径（从 Service Worker 的 location 推断）

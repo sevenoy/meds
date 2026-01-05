@@ -490,36 +490,46 @@ export async function pushLocalChanges(): Promise<void> {
  */
 export async function pullRemoteChanges(lastSyncTime?: string): Promise<MedicationLog[]> {
   const userId = await getCurrentUserId();
-  if (!userId) return [];
-  
-  let query = supabase!
-    .from('medication_logs')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-  
-  if (lastSyncTime) {
-    query = query.gt('updated_at', lastSyncTime);
-  }
-  
-  const { data, error } = await query;
-  
-  if (error) {
-    console.error('拉取失败:', error);
-    // 如果是字段不存在的错误，返回空数组（表结构可能未更新）
-    if (error.message?.includes('column') || error.code === 'PGRST204') {
-      console.warn('⚠️ 数据库表结构可能未更新，请执行 supabase-schema-fix.sql');
-      return [];
-    }
+  if (!userId) {
+    console.warn('⚠️ pullRemoteChanges: 用户未登录');
     return [];
   }
   
-  // 转换数据，添加本地字段
-  return (data || []).map(log => ({
-    ...log,
-    sync_state: 'clean' as SyncState,
-    local_id: undefined // 云端数据没有 local_id
-  }));
+  try {
+    let query = supabase!
+      .from('medication_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (lastSyncTime) {
+      query = query.gt('updated_at', lastSyncTime);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('❌ pullRemoteChanges 拉取失败:', error);
+      // 如果是字段不存在的错误，返回空数组（表结构可能未更新）
+      if (error.message?.includes('column') || error.code === 'PGRST204') {
+        console.warn('⚠️ 数据库表结构可能未更新，请执行 supabase-schema-fix.sql');
+        return [];
+      }
+      return [];
+    }
+    
+    console.log(`📥 pullRemoteChanges: 拉取到 ${data?.length || 0} 条记录`);
+    
+    // 转换数据，添加本地字段
+    return (data || []).map(log => ({
+      ...log,
+      sync_state: 'clean' as SyncState,
+      local_id: undefined // 云端数据没有 local_id
+    }));
+  } catch (error: any) {
+    console.error('❌ pullRemoteChanges 异常:', error);
+    return [];
+  }
 }
 
 /**

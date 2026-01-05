@@ -584,31 +584,36 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
 
     console.log(`🔄 去重前: ${payload.medications?.length || 0} 条，去重后: ${cleanMeds.length} 条`);
 
-    // 1-3. 全量覆盖写入：放进同一个事务，避免并发写入导致 ConstraintError
-    await db.transaction('rw', db.medications, db.medicationLogs, async () => {
-      await db.medications.clear();
-      await db.medicationLogs.clear();
-      console.log('✅ 已清空所有本地数据');
+    // 【修复】仅在云端有数据时才清空+覆盖，否则保留本地数据（避免新设备首次登录被清空）
+    if (cleanMeds.length > 0 || cleanLogs.length > 0) {
+      // 1-3. 全量覆盖写入：放进同一个事务，避免并发写入导致 ConstraintError
+      await db.transaction('rw', db.medications, db.medicationLogs, async () => {
+        await db.medications.clear();
+        await db.medicationLogs.clear();
+        console.log('✅ 已清空所有本地数据');
 
-      // 使用 bulkPut（幂等），避免 bulkAdd 因 key 冲突报错
-      if (cleanMeds.length > 0) {
-        await db.medications.bulkPut(cleanMeds as any);
-        console.log(`✅ 已批量写入 ${cleanMeds.length} 条药品记录（已去重）`);
-      }
+        // 使用 bulkPut（幂等），避免 bulkAdd 因 key 冲突报错
+        if (cleanMeds.length > 0) {
+          await db.medications.bulkPut(cleanMeds as any);
+          console.log(`✅ 已批量写入 ${cleanMeds.length} 条药品记录（已去重）`);
+        }
 
-      if (cleanLogs.length > 0) {
-        const logsToPut = cleanLogs.map((log: any) => {
-          const id = log.id || `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-          return {
-            ...log,
-            id,
-            sync_state: 'clean'
-          };
-        });
-        await db.medicationLogs.bulkPut(logsToPut);
-        console.log(`✅ 已批量写入 ${logsToPut.length} 条服药记录`);
-      }
-    });
+        if (cleanLogs.length > 0) {
+          const logsToPut = cleanLogs.map((log: any) => {
+            const id = log.id || `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+            return {
+              ...log,
+              id,
+              sync_state: 'clean'
+            };
+          });
+          await db.medicationLogs.bulkPut(logsToPut);
+          console.log(`✅ 已批量写入 ${logsToPut.length} 条服药记录`);
+        }
+      });
+    } else {
+      console.log('⏭ 云端快照为空，保留本地数据（避免误清空）');
+    }
 
     // 4. 更新用户设置
     if (payload.user_settings) {
