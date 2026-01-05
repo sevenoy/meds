@@ -14,6 +14,8 @@ import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDa
 import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
 import { forcePwaUpdateOncePerVersion } from './src/sw-register';
 import { APP_VERSION } from './src/config/version';
+// 【新增】纯云端服务
+import { enforceVersionSync, getMedicationsFromCloud, getLogsFromCloud, upsertMedicationToCloud, deleteMedicationFromCloud, addLogToCloud, initCloudOnlyRealtime } from './src/services/cloudOnly';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Helper Functions ---
@@ -474,6 +476,18 @@ export default function App() {
     const initializeApp = async () => {
       try {
         console.log('🚀 开始初始化应用...');
+        
+        // 【新增】0. 强制版本同步检查（所有设备必须版本一致）
+        try {
+          await enforceVersionSync();
+          console.log('✅ 版本检查通过');
+        } catch (error: any) {
+          if (error.message === 'VERSION_MISMATCH') {
+            // 版本不匹配，已经触发刷新，阻止后续初始化
+            return;
+          }
+          console.warn('⚠️ 版本检查失败，继续初始化:', error);
+        }
         
         // 1. 加载云端快照，初始化 currentSnapshotPayload
         const loadResult = await cloudLoadV2();

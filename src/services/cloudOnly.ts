@@ -1,0 +1,379 @@
+/**
+ * 纯云端服务 - 完全移除 IndexedDB，所有数据从 Supabase 读取
+ * 架构：所有设备必须版本一致，所有数据实时从云端读取
+ */
+
+import { supabase, getCurrentUserId } from '../lib/supabase';
+import { APP_VERSION } from '../config/version';
+import type { Medication, MedicationLog } from '../types';
+
+/**
+ * 获取设备ID（用于 Realtime 过滤自身更新）
+ */
+export function getDeviceId(): string {
+  let deviceId = localStorage.getItem('device_id');
+  if (!deviceId) {
+    deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('device_id', deviceId);
+  }
+  return deviceId;
+}
+
+/**
+ * 检查并强制版本同步
+ * 如果云端 required_version 与当前版本不一致，强制清除缓存并刷新
+ */
+export async function enforceVersionSync(): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) {
+    console.warn('⚠️ 用户未登录或 Supabase 未配置，跳过版本检查');
+    return;
+  }
+
+  try {
+    // 1. 查询云端 required_version
+    const { data, error } = await supabase
+      .from('app_state')
+      .select('required_version')
+      .eq('owner_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('❌ 版本检查失败:', error);
+      return;
+    }
+
+    const requiredVersion = data?.required_version;
+    console.log('🔍 版本检查:', { currentVersion: APP_VERSION, requiredVersion });
+
+    // 2. 如果云端有 required_version 且与当前版本不一致
+    if (requiredVersion && requiredVersion !== APP_VERSION) {
+      console.warn('🚨 版本不一致，强制更新!', {
+        currentVersion: APP_VERSION,
+        requiredVersion
+      });
+
+      // 3. 清除所有缓存
+      try {
+        // 清除 Service Worker 缓存
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          await Promise.all(cacheNames.map(name => caches.delete(name)));
+          console.log('✅ 已清除 Service Worker 缓存');
+        }
+
+        // 注销所有 Service Worker
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(reg => reg.unregister()));
+          console.log('✅ 已注销 Service Worker');
+        }
+
+        // 清除 localStorage（保留 device_id）
+        const deviceId = localStorage.getItem('device_id');
+        localStorage.clear();
+        if (deviceId) localStorage.setItem('device_id', deviceId);
+        console.log('✅ 已清除 localStorage');
+
+        // 清除 sessionStorage
+        sessionStorage.clear();
+        console.log('✅ 已清除 sessionStorage');
+
+        // 清除 IndexedDB（如果存在）
+        if ('indexedDB' in window) {
+          const dbs = await indexedDB.databases();
+          for (const db of dbs) {
+            if (db.name) {
+              indexedDB.deleteDatabase(db.name);
+              console.log(`✅ 已删除 IndexedDB: ${db.name}`);
+            }
+          }
+        }
+
+      } catch (cleanupError) {
+        console.warn('⚠️ 清理缓存时出错:', cleanupError);
+      }
+
+      // 4. 显示提示并强制刷新
+      alert(`检测到新版本 ${requiredVersion}，即将自动更新...`);
+      window.location.reload();
+      
+      // 阻止后续代码执行
+      throw new Error('VERSION_MISMATCH');
+    }
+
+    // 5. 如果云端没有 required_version，设置为当前版本
+    if (!requiredVersion) {
+      console.log('📝 云端未设置 required_version，设置为当前版本:', APP_VERSION);
+      await supabase
+        .from('app_state')
+        .update({ required_version: APP_VERSION })
+        .eq('owner_id', userId);
+    }
+
+  } catch (error: any) {
+    if (error.message === 'VERSION_MISMATCH') {
+      throw error; // 重新抛出，阻止应用初始化
+    }
+    console.error('❌ 版本检查异常:', error);
+  }
+}
+
+/**
+ * 从云端读取所有药品（不使用本地缓存）
+ */
+export async function getMedicationsFromCloud(): Promise<Medication[]> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) {
+    console.warn('⚠️ 用户未登录或 Supabase 未配置');
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('medications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('scheduled_time', { ascending: true });
+
+    if (error) {
+      console.error('❌ 读取药品失败:', error);
+      return [];
+    }
+
+    console.log(`📥 从云端读取到 ${data?.length || 0} 个药品`);
+    return data || [];
+  } catch (error) {
+    console.error('❌ 读取药品异常:', error);
+    return [];
+  }
+}
+
+/**
+ * 从云端读取所有服药记录（不使用本地缓存）
+ */
+export async function getLogsFromCloud(medicationId?: string): Promise<MedicationLog[]> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) {
+    console.warn('⚠️ 用户未登录或 Supabase 未配置');
+    return [];
+  }
+
+  try {
+    let query = supabase
+      .from('medication_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('taken_at', { ascending: false });
+
+    if (medicationId) {
+      query = query.eq('medication_id', medicationId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('❌ 读取服药记录失败:', error);
+      return [];
+    }
+
+    console.log(`📥 从云端读取到 ${data?.length || 0} 条服药记录`);
+    return data || [];
+  } catch (error) {
+    console.error('❌ 读取服药记录异常:', error);
+    return [];
+  }
+}
+
+/**
+ * 添加或更新药品（直接写入云端）
+ */
+export async function upsertMedicationToCloud(medication: Medication): Promise<Medication | null> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) {
+    console.error('❌ 用户未登录或 Supabase 未配置');
+    return null;
+  }
+
+  try {
+    const deviceId = getDeviceId();
+    const medicationData = {
+      ...medication,
+      user_id: userId,
+      device_id: deviceId,
+      updated_at: new Date().toISOString()
+    };
+
+    // 如果有 id，使用 upsert；否则 insert
+    if (medication.id) {
+      const { data, error } = await supabase
+        .from('medications')
+        .upsert(medicationData, { onConflict: 'id' })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ 更新药品失败:', error);
+        return null;
+      }
+
+      console.log('✅ 药品已更新到云端:', data.name);
+      return data;
+    } else {
+      // 新增药品，让数据库自动生成 UUID
+      const { id, ...insertData } = medicationData;
+      const { data, error } = await supabase
+        .from('medications')
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ 添加药品失败:', error);
+        return null;
+      }
+
+      console.log('✅ 药品已添加到云端:', data.name);
+      return data;
+    }
+  } catch (error) {
+    console.error('❌ 保存药品异常:', error);
+    return null;
+  }
+}
+
+/**
+ * 删除药品（直接从云端删除）
+ */
+export async function deleteMedicationFromCloud(medicationId: string): Promise<boolean> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) {
+    console.error('❌ 用户未登录或 Supabase 未配置');
+    return false;
+  }
+
+  try {
+    // 1. 删除药品（级联删除会自动删除相关记录）
+    const { error } = await supabase
+      .from('medications')
+      .delete()
+      .eq('id', medicationId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('❌ 删除药品失败:', error);
+      return false;
+    }
+
+    console.log('✅ 药品已从云端删除');
+    return true;
+  } catch (error) {
+    console.error('❌ 删除药品异常:', error);
+    return false;
+  }
+}
+
+/**
+ * 添加服药记录（直接写入云端）
+ */
+export async function addLogToCloud(log: Omit<MedicationLog, 'id'>): Promise<MedicationLog | null> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) {
+    console.error('❌ 用户未登录或 Supabase 未配置');
+    return null;
+  }
+
+  try {
+    const deviceId = getDeviceId();
+    const logData = {
+      ...log,
+      user_id: userId,
+      device_id: deviceId,
+      created_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('medication_logs')
+      .insert(logData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ 添加服药记录失败:', error);
+      return null;
+    }
+
+    console.log('✅ 服药记录已添加到云端');
+    return data;
+  } catch (error) {
+    console.error('❌ 添加服药记录异常:', error);
+    return null;
+  }
+}
+
+/**
+ * 初始化 Realtime 监听（仅监听其他设备的变更）
+ */
+export function initCloudOnlyRealtime(callbacks: {
+  onMedicationChange: () => void;
+  onLogChange: () => void;
+}): () => void {
+  if (!supabase) {
+    console.warn('⚠️ Supabase 未配置，无法启动 Realtime');
+    return () => {};
+  }
+
+  const deviceId = getDeviceId();
+  
+  // 监听 medications 表变更
+  const medicationsChannel = supabase
+    .channel('medications-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'medications'
+      },
+      (payload) => {
+        const newRow = payload.new as any;
+        // 过滤自身更新
+        if (newRow?.device_id !== deviceId) {
+          console.log('🔔 检测到其他设备的药品变更');
+          callbacks.onMedicationChange();
+        }
+      }
+    )
+    .subscribe();
+
+  // 监听 medication_logs 表变更
+  const logsChannel = supabase
+    .channel('medication-logs-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'medication_logs'
+      },
+      (payload) => {
+        const newRow = payload.new as any;
+        // 过滤自身更新
+        if (newRow?.device_id !== deviceId) {
+          console.log('🔔 检测到其他设备的服药记录变更');
+          callbacks.onLogChange();
+        }
+      }
+    )
+    .subscribe();
+
+  console.log('✅ 纯云端 Realtime 已启动');
+
+  // 返回清理函数
+  return () => {
+    supabase.removeChannel(medicationsChannel);
+    supabase.removeChannel(logsChannel);
+    console.log('🔌 纯云端 Realtime 已停止');
+  };
+}
+
