@@ -378,7 +378,7 @@ export default function App() {
     }
     
     return '用户';
-  });
+  };
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(localStorage.getItem('reminderEnabled') === 'true');
   const [syncEnabled, setSyncEnabled] = useState(localStorage.getItem('syncEnabled') === 'true');
