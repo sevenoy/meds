@@ -218,6 +218,43 @@ export async function getMedicationsFromCloud(): Promise<Medication[]> {
 }
 
 /**
+ * 快速加载今日服药记录（首屏优化）
+ */
+export async function getTodayLogsFromCloud(): Promise<MedicationLog[]> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) {
+    console.warn('⚠️ 用户未登录或 Supabase 未配置');
+    return [];
+  }
+
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const { data, error } = await supabase
+      .from('medication_logs')
+      .select('id,medication_id,taken_at,created_at,device_id,status,time_source,image_path')
+      .eq('user_id', userId)
+      .gte('taken_at', today.toISOString())
+      .lt('taken_at', tomorrow.toISOString())
+      .order('taken_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ 读取今日服药记录失败:', error);
+      return [];
+    }
+
+    console.log(`📥 [快速加载] 从云端读取到 ${data?.length || 0} 条今日服药记录`);
+    return data || [];
+  } catch (error) {
+    console.error('❌ 读取今日服药记录异常:', error);
+    return [];
+  }
+}
+
+/**
  * 从云端读取服药记录（瘦身版本：只拉取必要字段，限制数量）
  * 
  * @param medicationId 可选：只拉取特定药品的记录
@@ -236,8 +273,8 @@ export async function getLogsFromCloud(
   }
 
   try {
-    // 【强制瘦身】只拉取必要字段，不拉取 image_path 等大字段
-    const selectFields = 'id,medication_id,taken_at,created_at,device_id,status,time_source';
+    // 【修复图片多设备一致性】必须拉取 image_path 字段，确保图片在多设备间可见
+    const selectFields = 'id,medication_id,taken_at,created_at,device_id,status,time_source,image_path';
     
     // 计算日期限制（最近 N 天）
     const daysAgo = new Date();

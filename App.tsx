@@ -16,7 +16,7 @@ import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime
 import { forcePwaUpdateOncePerVersion } from './src/sw-register';
 import { APP_VERSION } from './src/config/version';
 // 【新增】纯云端服务
-import { enforceVersionSync, getMedicationsFromCloud, getLogsFromCloud, upsertMedicationToCloud, deleteMedicationFromCloud, addLogToCloud, initCloudOnlyRealtime } from './src/services/cloudOnly';
+import { enforceVersionSync, getMedicationsFromCloud, getLogsFromCloud, getTodayLogsFromCloud, upsertMedicationToCloud, deleteMedicationFromCloud, addLogToCloud, initCloudOnlyRealtime } from './src/services/cloudOnly';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Helper Functions ---
@@ -462,8 +462,8 @@ export default function App() {
       
       console.log('🔄 开始加载数据...', { triggerSource, syncFromCloud, prevMedCount: prevMeds.length, prevLogCount: prevLogs.length });
       
-      // 【修复 A】如果 triggerSource 不是 app-init 或 syncFromCloud=false，必须直接使用 prevMeds/prevLogs
-      if (triggerSource !== 'app-init' || !syncFromCloud) {
+      // 【修复 A】如果 triggerSource 不是 app-init/app-init-background 或 syncFromCloud=false，必须直接使用 prevMeds/prevLogs
+      if ((triggerSource !== 'app-init' && triggerSource !== 'app-init-background') || !syncFromCloud) {
         console.log('⏭️ [非初始化/跳过云端] 使用 prevMeds/prevLogs，仅更新 derived 结果', { triggerSource, syncFromCloud });
         // 使用 prevMeds/prevLogs，仅更新 derived（status/map/sorted）结果
         newMeds = prevMeds;
@@ -619,6 +619,69 @@ export default function App() {
     }
   }, []); // 空依赖数组，因为内部使用的都是稳定的 API 函数
 
+  // 【首屏优化】快速加载：只加载今日记录和药品列表，立即进入主页
+  const loadDataFast = useCallback(async () => {
+    try {
+      console.log('⚡ [首屏优化] 开始快速加载...');
+      
+      // 1. 快速加载药品列表（必须）
+      const rawMeds = await getMedicationsFromCloud();
+      const meds: Medication[] = rawMeds;
+      
+      // 转换为 MedicationUI
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const medsUI: MedicationUI[] = meds.map(med => ({
+        ...med,
+        status: 'pending',
+        lastTakenAt: undefined,
+        uploadedAt: undefined,
+        lastLog: undefined
+      }));
+      
+      safeSetMedications(medsUI, 'fast-load');
+      
+      // 2. 快速加载今日记录（必须）
+      const todayLogs = await getTodayLogsFromCloud();
+      const sortedTodayLogs = [...todayLogs].sort((a, b) => 
+        new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+      );
+      
+      // 更新 lastLogByMedicationId Map（仅今日记录）
+      const todayLastLogMap = new Map<string, MedicationLog>();
+      for (const log of todayLogs) {
+        const medId = log.medication_id;
+        const existing = todayLastLogMap.get(medId);
+        if (!existing || new Date(log.taken_at) > new Date(existing.taken_at)) {
+          todayLastLogMap.set(medId, log);
+        }
+      }
+      lastLogByMedicationIdRef.current = todayLastLogMap;
+      
+      // 更新药品状态（基于今日记录）
+      const updatedMeds = medsUI.map(med => {
+        const lastLog = todayLastLogMap.get(med.id);
+        const taken = lastLog && new Date(lastLog.taken_at) >= today;
+        return {
+          ...med,
+          status: taken ? 'completed' : 'pending',
+          lastTakenAt: lastLog?.taken_at,
+          lastLog
+        };
+      });
+      safeSetMedications(updatedMeds, 'fast-load-updated');
+      
+      safeSetTimelineLogs(sortedTodayLogs, 'fast-load');
+      
+      console.log(`⚡ [首屏优化] 快速加载完成（${medsUI.length} 个药品，${todayLogs.length} 条今日记录）`);
+    } catch (error) {
+      console.error('❌ 快速加载失败:', error);
+      // 失败时至少设置空数组，避免白屏
+      safeSetMedications([], 'fast-load-error');
+      safeSetTimelineLogs([], 'fast-load-error');
+    }
+  }, []);
+
   // 检查登录状态
   useEffect(() => {
     // 检查是否已登录
@@ -637,80 +700,93 @@ export default function App() {
     //   console.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
     // }); // ❌ 已移除：禁止在启动流程自动清缓存
     
-    // 【修复1】先初始化 payload，再修复 device_id
+    // 【首屏优化】立即进入主页，延迟加载非关键数据
     const initializeApp = async () => {
       try {
-        console.log('🚀 开始初始化应用...');
+        console.log('🚀 开始初始化应用（首屏优化模式）...');
         
-        // 【新增】0. 强制版本同步检查（所有设备必须版本一致）
-        try {
-          await enforceVersionSync();
-          console.log('✅ 版本检查通过');
-        } catch (error: any) {
-          if (error.message === 'VERSION_MISMATCH') {
-            // 版本不匹配，已经触发刷新，阻止后续初始化
-            return;
+        // 【首屏优化】1. 快速加载：立即加载今日记录和药品列表，不阻塞 UI
+        setLoading(false); // 立即取消 loading，允许进入主页
+        loadDataFast(); // 非阻塞加载
+        
+        // 【延迟加载】2. 后台加载完整数据（不阻塞 UI）
+        (async () => {
+          try {
+            // 版本检查（后台执行）
+            try {
+              await enforceVersionSync();
+              console.log('✅ 版本检查通过');
+            } catch (error: any) {
+              if (error.message === 'VERSION_MISMATCH') {
+                return;
+              }
+              console.warn('⚠️ 版本检查失败，继续初始化:', error);
+            }
+            
+            // 加载云端快照（后台执行）
+            const loadResult = await cloudLoadV2();
+            if (loadResult.success && loadResult.payload) {
+              console.log('✅ 云端数据已加载并初始化 payload');
+            } else {
+              console.log('📝 首次使用，创建初始 payload');
+              const payload = getCurrentSnapshotPayload();
+              if (!payload) {
+                console.warn('⚠️ payload 仍为 null，手动初始化...');
+              }
+            }
+            
+            // 修复旧药品的 device_id（后台执行）
+            await fixLegacyDeviceIds();
+            console.log('🔧 device_id 修复完成');
+            
+            // 加载完整数据（后台执行，不阻塞 UI）
+            await loadData(true, 'app-init-background');
+            console.log('✅ 完整数据加载完成');
+            
+            // 标记应用已初始化
+            isInitializingRef.current = false;
+            setAppInitialized(true);
+          } catch (error) {
+            console.error('❌ 后台初始化失败:', error);
+            isInitializingRef.current = false;
+            setAppInitialized(true);
           }
-          console.warn('⚠️ 版本检查失败，继续初始化:', error);
-        }
-        
-        // 1. 加载云端快照，初始化 currentSnapshotPayload
-        const loadResult = await cloudLoadV2();
-        if (loadResult.success && loadResult.payload) {
-          console.log('✅ 云端数据已加载并初始化 payload');
-        } else {
-          console.log('📝 首次使用，创建初始 payload');
-          // 【紧急修复】确保 payload 一定被初始化
-          const payload = getCurrentSnapshotPayload();
-          if (!payload) {
-            console.warn('⚠️ payload 仍为 null，手动初始化...');
-            // 这应该不会发生，但作为双重保险
-          }
-        }
-        
-        // 2. 修复旧药品的 device_id
-        await fixLegacyDeviceIds();
-        console.log('🔧 device_id 修复完成');
-        
-        // 3. 加载数据到 UI
-        await loadData(true, 'app-init');
-        console.log('✅ 应用初始化完成');
-        
-        // 4. 标记应用已初始化，允许 Realtime 事件触发
-        isInitializingRef.current = false;
-        setAppInitialized(true);
+        })();
       } catch (error) {
         console.error('❌ 应用初始化失败:', error);
-        // 即使失败也加载数据并标记初始化完成
-        await loadData(false, 'app-init-error');
+        setLoading(false);
+        isInitializingRef.current = false;
         setAppInitialized(true);
       }
     };
     
     initializeApp();
     
-    // 【新增】启用 Realtime V2 多设备即时同步
+    // 【延迟加载】启用 Realtime V2 多设备即时同步（后台执行，不阻塞 UI）
     let realtimeCleanup: (() => void) | null = null;
-    initRealtimeV2().then(cleanup => {
-      realtimeCleanup = cleanup;
-      console.log('✅ Realtime V2 多设备即时同步已启用');
-      setRealtimeStatus('connected');
-    }).catch(error => {
-      console.error('❌ Realtime V2 启动失败:', error);
-      setRealtimeStatus('disconnected');
-    });
+    setTimeout(() => {
+      initRealtimeV2().then(cleanup => {
+        realtimeCleanup = cleanup;
+        console.log('✅ Realtime V2 多设备即时同步已启用');
+        setRealtimeStatus('connected');
+      }).catch(error => {
+        console.error('❌ Realtime V2 启动失败:', error);
+        setRealtimeStatus('disconnected');
+      });
+    }, 1000); // 延迟 1 秒启动
     
-    // 加载用户设置
-    getUserSettings().then(settings => {
-      console.log('📋 用户设置已加载:', settings);
-      // 应用用户设置到应用状态
-      if (settings.avatar_url) {
-        setAvatarUrl(settings.avatar_url);
-        console.log('👤 用户头像已加载');
-      }
-    }).catch(console.error);
+    // 【延迟加载】加载用户设置（后台执行，不阻塞 UI）
+    setTimeout(() => {
+      getUserSettings().then(settings => {
+        console.log('📋 用户设置已加载:', settings);
+        if (settings.avatar_url) {
+          setAvatarUrl(settings.avatar_url);
+          console.log('👤 用户头像已加载');
+        }
+      }).catch(console.error);
+    }, 500); // 延迟 0.5 秒加载
     
-    // 【云端化】启用纯云端 Realtime（仅监听其他设备的变更）
+    // 【延迟加载】启用纯云端 Realtime（后台执行，不阻塞 UI）
     let cloudRealtimeCleanup: (() => void) | null = null;
     initCloudOnlyRealtime({
       onMedicationChange: (payload) => {
@@ -1448,9 +1524,9 @@ export default function App() {
                       const dateDisplay = isToday ? '今天' : date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
 
                       return (
-                        <div key={dateKey} className="mb-12">
+                        <div key={dateKey} className="mb-2">
                           {/* 日期标题 - 更醒目的设计 */}
-                          <div className="flex items-center gap-4 mb-6">
+                          <div className="flex items-center gap-4 mb-2">
                             <div className={`px-6 py-3 rounded-full ${isToday ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' : 'bg-gray-100 text-gray-700'} font-black italic text-base`}>
                               {dateDisplay}
                             </div>
