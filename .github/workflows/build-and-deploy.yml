@@ -9,6 +9,8 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 允许写入内容（提交和推送）
     
     steps:
       - name: 检出代码
@@ -41,9 +43,8 @@ jobs:
           git diff --staged --quiet || git commit -m "chore: 自动构建产物 - $(date +'%Y-%m-%d %H:%M:%S')"
       
       - name: 推送到 GitHub
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
-          force: false
+        run: |
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
