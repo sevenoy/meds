@@ -56,9 +56,12 @@ export async function recordMedicationIntake(
     throw error;
   }
   
-  // 5. 创建记录
+  // 5. 生成 ID
+  const logId = (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `log_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  
+  // 6. 创建记录对象
   const log: MedicationLog = {
-    id: '', // 将由 addMedicationLog 生成
+    id: logId,
     medication_id: medicationId,
     user_id: userId || undefined,
     taken_at: takenAtDate.toISOString(),
@@ -78,55 +81,27 @@ export async function recordMedicationIntake(
     image_hash: log.image_hash?.substring(0, 20) + '...'
   });
   
-  // 6. 保存到本地数据库（仅用于 UI 展示，不会触发同步）
-  const savedId = await addMedicationLog(log);
-  console.log('💾 记录已保存到本地数据库，ID:', savedId);
-
-  // 【关键修复】把 dirty 记录推送到 Supabase 的 medication_logs 表，才能跨设备同步
-  // 不阻塞 UI：失败会保留 dirty 状态，稍后可重试
-  pushLocalChanges().catch((e) => {
-    console.warn('⚠️ pushLocalChanges 失败（稍后重试）:', e);
+  // 7. 保存到本地数据库（仅用于 UI 展示，不会触发同步）
+  await addMedicationLog(log);
+  console.log('💾 记录已保存到本地数据库，ID:', log.id);
+  
+  // 8. 【修复 B】直接写入云端（addLogToCloud），成功后立即返回结果
+  const { addLogToCloud } = await import('./cloudOnly');
+  const cloudLog = await addLogToCloud({
+    ...log,
+    id: logId // 使用生成的 ID
   });
   
-  // 验证保存的数据
-  const savedLog = await getMedicationLogs(medicationId);
-  const justSaved = savedLog.find(l => l.id === savedId);
-  if (justSaved) {
-    console.log('✅ 验证保存的数据:', {
-      id: justSaved.id,
-      has_image_path: !!justSaved.image_path,
-      image_path_length: justSaved.image_path?.length || 0
-    });
-  } else {
-    console.warn('⚠️ 保存的记录未找到，可能有问题');
+  if (!cloudLog) {
+    console.error('❌ 云端写入失败，但本地已保存');
+    // 即使云端失败，也返回本地记录
+    return log;
   }
   
-  // 【C】拍照记录需要同步到 payload（但必须检查 isApplyingRemote）
-  const { isApplyingRemote, getCurrentSnapshotPayload, cloudSaveV2, runWithUserAction } = await import('./snapshot');
-  if (!isApplyingRemote()) {
-    // 拍照是用户操作，必须用 runWithUserAction 包裹
-    runWithUserAction(async () => {
-      const payload = getCurrentSnapshotPayload();
-      if (payload) {
-        payload.medication_logs = payload.medication_logs || [];
-        payload.medication_logs.push({
-          ...log,
-          id: savedId
-        });
-        // 异步保存，不阻塞 UI
-        const saveResult = await cloudSaveV2(payload);
-        if (!saveResult.success) {
-          console.error('❌ 同步服药记录失败:', saveResult.message);
-        } else {
-          console.log('✅ 服药记录已同步到云端');
-        }
-      } else {
-        console.warn('⚠️ 系统未初始化，服药记录仅保存到本地');
-      }
-    });
-  }
+  console.log('✅ [新增记录] 云端 upsert 成功:', cloudLog.id);
   
-  return log;
+  // 返回云端记录（包含云端生成的 ID 等字段，如果不同则使用云端 ID）
+  return cloudLog;
 }
 
 /**

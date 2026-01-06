@@ -7,10 +7,12 @@ import { fileToDataURL } from '../utils/crypto';
 import { extractTakenAt } from '../utils/exif';
 import type { Medication } from '../types';
 
+import type { MedicationLog } from '../types';
+
 interface CameraModalProps {
   medications: Medication[]; // 改为所有药品列表
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (log: MedicationLog) => void; // 【修复 B】传递新创建的 log
   preselectedMedicationId?: string | null; // 新增：预选的药品ID
 }
 
@@ -113,12 +115,14 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
         }
       }
       
-      await recordMedicationIntake(selectedMedicationId, selectedFile, confirmedDateTime);
+      // 【修复 B】云端 upsert 成功后，立即返回结果并更新 UI
+      const savedLog = await recordMedicationIntake(selectedMedicationId, selectedFile, confirmedDateTime);
       
       // 显示成功提示
       alert('✅ 服药记录已成功添加！');
       
-      onSuccess();
+      // 【修复 B】传递 savedLog 给 onSuccess，让 App 立即更新 state
+      onSuccess(savedLog);
       onClose();
     } catch (err) {
       // 【修复 B】捕获 bucket 不存在的错误并明确提示
