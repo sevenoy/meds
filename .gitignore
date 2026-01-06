@@ -8,7 +8,7 @@ coverage/
 *.log
 
 # Production
-dist/
+# dist/  # 允许提交构建产物以支持自动部署
 build/
 *.local
 
