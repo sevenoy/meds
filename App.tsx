@@ -310,7 +310,7 @@ export default function App() {
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [selectedMedicationId, setSelectedMedicationId] = useState<string | null>(null); // 新增：选中的药物ID
   const [syncPrompt, setSyncPrompt] = useState<MedicationLog | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true); // 只在应用初始化时使用
   const [appInitialized, setAppInitialized] = useState(false); // 新增：应用是否已初始化
   
   // Realtime 同步状态
@@ -458,7 +458,7 @@ export default function App() {
       fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:entry',message:'loadData called',data:{syncFromCloud:syncFromCloud,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
       // #endregion
       
-      setLoading(true);
+      // 【Realtime 统一模型】不再设置 loading，数据由 Realtime 驱动
       
       console.log('🔄 开始加载数据...', { triggerSource, syncFromCloud, prevMedCount: prevMeds.length, prevLogCount: prevLogs.length });
       
@@ -615,7 +615,7 @@ export default function App() {
       // 【释放锁】
       syncInProgressRef.current = false;
       loadDataTriggerSourceRef.current = '';
-      setLoading(false);
+      // 【Realtime 统一模型】不再设置 loading，数据由 Realtime 驱动
     }
   }, []); // 空依赖数组，因为内部使用的都是稳定的 API 函数
 
@@ -705,8 +705,9 @@ export default function App() {
       try {
         console.log('🚀 开始初始化应用（首屏优化模式）...');
         
-        // 【首屏优化】1. 快速加载：立即加载今日记录和药品列表，不阻塞 UI
-        setLoading(false); // 立即取消 loading，允许进入主页
+        // 【Realtime 统一模型】初始化：只加载一次数据，之后全部由 Realtime 驱动
+        // 1. 快速加载：立即加载今日记录和药品列表，不阻塞 UI
+        setInitialLoading(false); // 立即取消 loading，允许进入主页
         loadDataFast(); // 非阻塞加载
         
         // 【延迟加载】2. 后台加载完整数据（不阻塞 UI）
@@ -739,13 +740,14 @@ export default function App() {
             await fixLegacyDeviceIds();
             console.log('🔧 device_id 修复完成');
             
-            // 加载完整数据（后台执行，不阻塞 UI）
+            // 【Realtime 统一模型】初始化时只加载一次完整数据，之后全部由 Realtime 驱动
             await loadData(true, 'app-init-background');
             console.log('✅ 完整数据加载完成');
             
-            // 标记应用已初始化
+            // 标记应用已初始化（Realtime 现在可以处理所有事件）
             isInitializingRef.current = false;
             setAppInitialized(true);
+            console.log('✅ 应用已初始化，Realtime 现在可以处理所有事件');
           } catch (error) {
             console.error('❌ 后台初始化失败:', error);
             isInitializingRef.current = false;
@@ -754,7 +756,7 @@ export default function App() {
         })();
       } catch (error) {
         console.error('❌ 应用初始化失败:', error);
-        setLoading(false);
+        setInitialLoading(false);
         isInitializingRef.current = false;
         setAppInitialized(true);
       }
@@ -786,16 +788,12 @@ export default function App() {
       }).catch(console.error);
     }, 500); // 延迟 0.5 秒加载
     
-    // 【延迟加载】启用纯云端 Realtime（后台执行，不阻塞 UI）
+    // 【Realtime 统一模型】立即启动 Realtime，确保数据实时同步
     let cloudRealtimeCleanup: (() => void) | null = null;
     initCloudOnlyRealtime({
       onMedicationChange: (payload) => {
-        // 【强制修复】Realtime 事件绝对不能触发 loadData，只做局部更新
-        // 初始化阶段忽略 Realtime 事件
-        if (isInitializingRef.current) {
-          console.log('⏭️ 初始化阶段，忽略 Realtime 药品变更事件');
-          return;
-        }
+        // 【Realtime 统一模型】Realtime 是唯一数据源，立即处理所有事件
+        // 不再忽略初始化阶段的事件，确保数据一致性
         
         // 【局部更新】根据 payload 直接更新 state，不触发全量拉取
         const { eventType, new: newData, old: oldData } = payload;
@@ -846,12 +844,8 @@ export default function App() {
         }
       },
       onLogChange: (payload) => {
-        // 【强制修复】Realtime 事件绝对不能触发 loadData，只做局部更新
-        // 初始化阶段忽略 Realtime 事件
-        if (isInitializingRef.current) {
-          console.log('⏭️ 初始化阶段，忽略 Realtime 记录变更事件');
-          return;
-        }
+        // 【Realtime 统一模型】Realtime 是唯一数据源，立即处理所有事件
+        // 不再忽略初始化阶段的事件，确保数据一致性
         
         // 【局部更新】根据 payload 直接更新 state，不触发全量拉取
         const { eventType, new: newData, old: oldData } = payload;
@@ -953,7 +947,7 @@ export default function App() {
         // 自动合并远程记录
         mergeRemoteLog(log).then(() => {
           console.log('✅ 服药记录已自动同步');
-          loadData(false, 'medication-taken');
+          // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
         }).catch(console.error);
       },
       // 处理药品列表更新（自动同步，无需确认）
@@ -969,9 +963,7 @@ export default function App() {
         try {
           // 先同步medications
           await syncMedications();
-          // 然后重新加载数据
-          await loadData(false, 'snapshot-applied');
-          
+          // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
           console.log('✅ 药品列表已自动同步');
           
           // 显示友好提示
@@ -1002,8 +994,7 @@ export default function App() {
         return;
       }
       
-      // 快照更新后刷新数据
-      loadData(false, 'realtime-snapshot-update');
+      // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
     }).then(cleanup => {
       cleanupSnapshot = cleanup;
     }).catch(console.error);
@@ -1154,7 +1145,7 @@ export default function App() {
     if (syncPrompt) {
       await mergeRemoteLog(syncPrompt);
       setSyncPrompt(null);
-      await loadData(false, 'sync-prompt-accepted');
+      // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
     }
   };
 
@@ -1180,7 +1171,8 @@ export default function App() {
     return <LoginPage onLoginSuccess={() => setIsLoggedIn(true)} />;
   }
 
-  if (loading) {
+  // 【Realtime 统一模型】只在应用初始化时显示 loading，页面切换不再显示
+  if (initialLoading && !appInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -1774,10 +1766,8 @@ export default function App() {
                           // #endregion
                         }
                         
-                        // 重新加载数据
-                        console.log('🔄 重新加载数据...');
-                        await loadData(true, 'manual-sync-button');
-                        
+                        // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
+                        console.log('🔄 数据已清除，等待 Realtime 同步...');
                         alert('✅ 所有药品数据已清除！\n\n已清除:\n- 本地数据库\n- 云端快照\n- Supabase数据库');
                         console.log('🎉 清除完成！');
                       } catch (error) {
@@ -2393,9 +2383,7 @@ export default function App() {
                     onClick={async () => {
                       const result = await saveSnapshotLegacy();
                       alert(result.message);
-                      if (result.success) {
-                        await loadData(); // 刷新数据
-                      }
+                      // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
                     }}
                     className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-2xl font-bold hover:bg-blue-600 transition-all shadow-md flex items-center justify-center gap-2"
                   >
@@ -2407,9 +2395,7 @@ export default function App() {
                     onClick={async () => {
                       const result = await loadSnapshotLegacy(false);
                       alert(result.message);
-                      if (result.success) {
-                        await loadData(); // 刷新数据
-                      }
+                      // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
                     }}
                     className="flex-1 px-4 py-3 bg-green-500 text-white rounded-2xl font-bold hover:bg-green-600 transition-all shadow-md flex items-center justify-center gap-2"
                   >
@@ -2439,7 +2425,7 @@ export default function App() {
                         for (const log of logs) {
                           await mergeRemoteLog(log);
                         }
-                        await loadData(true, 'manual-sync-success');
+                        // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
                         alert('同步成功！');
                       } catch (error) {
                         console.error('同步失败:', error);

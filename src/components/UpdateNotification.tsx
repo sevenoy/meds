@@ -25,8 +25,14 @@ export const UpdateNotification: React.FC = () => {
     // 获取当前版本号
     const currentVersion = (window as any).APP_VERSION || 'V251219.1';
     
-    // 检查是否已经显示过这个版本的提示
+    // 【修复升级提示】检查是否已经显示过这个版本的提示
+    // 如果版本号变化，清除旧的标记，确保新版本提示能显示
     const lastShownVersion = localStorage.getItem('update_notification_shown');
+    if (lastShownVersion && lastShownVersion !== currentVersion) {
+      // 版本已升级，清除旧标记
+      localStorage.removeItem('update_notification_shown');
+      console.log('🔄 检测到版本升级，清除旧版本标记', { lastShownVersion, currentVersion });
+    }
     if (lastShownVersion === currentVersion) {
       return;
     }
