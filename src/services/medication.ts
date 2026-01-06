@@ -44,8 +44,17 @@ export async function recordMedicationIntake(
   
   // 4. 上传图片
   console.log('📸 开始上传图片...', { userId, medicationId, fileName: imageFile.name });
-  const imagePath = await uploadImage(imageFile, userId!, medicationId);
-  console.log('✅ 图片上传成功，路径:', imagePath?.substring(0, 100) + '...');
+  let imagePath: string;
+  try {
+    imagePath = await uploadImage(imageFile, userId!, medicationId);
+    console.log('✅ 图片上传成功，路径:', imagePath?.substring(0, 100) + '...');
+  } catch (error: any) {
+    // 【修复 B】bucket 不存在时直接抛出错误，不允许继续创建记录
+    if (error?.message?.includes('Storage bucket medication-images 不存在')) {
+      throw new Error('Storage bucket medication-images 不存在，请先创建 bucket。请在 Supabase Dashboard 中创建该 bucket。');
+    }
+    throw error;
+  }
   
   // 5. 创建记录
   const log: MedicationLog = {

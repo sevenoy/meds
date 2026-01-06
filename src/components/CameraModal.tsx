@@ -121,7 +121,14 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '上传失败，请重试');
+      // 【修复 B】捕获 bucket 不存在的错误并明确提示
+      const errorMessage = err instanceof Error ? err.message : '上传失败，请重试';
+      if (errorMessage.includes('Storage bucket medication-images 不存在')) {
+        setError('Storage bucket medication-images 不存在，请先创建 bucket。请在 Supabase Dashboard 中创建该 bucket。');
+        alert('❌ Storage bucket medication-images 不存在，请先创建 bucket\n\n请在 Supabase Dashboard 中创建该 bucket 后再试。');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setUploading(false);
     }

@@ -5,56 +5,39 @@ import { fileToDataURL } from '../utils/crypto';
 
 /**
  * 上传照片到 Supabase Storage
- * 如果 Storage bucket 不存在，自动降级到 DataURL（本地存储）
+ * 【修复 B】禁止 DataURL 降级：bucket 不存在时直接停止图片写入
  */
 export async function uploadImage(
   file: File,
   userId: string,
   medicationId: string
 ): Promise<string> {
-  try {
-    const fileName = `${userId}/${medicationId}/${Date.now()}_${file.name}`;
-    const { data, error } = await supabase!.storage
-      .from('medication-images')
-      .upload(fileName, file);
-    
-    if (error) {
-      // 检查是否是 bucket 不存在的错误
-      if (error.message?.includes('Bucket not found') || error.message?.includes('not found')) {
-        console.warn('⚠️ Storage bucket 不存在，自动降级到 DataURL 模式');
-        console.warn('💡 提示：请在 Supabase Dashboard 中创建 medication-images bucket');
-        // 自动降级到 DataURL
-        return await fileToDataURL(file);
-      }
-      // 其他错误直接抛出
-      throw error;
+  const fileName = `${userId}/${medicationId}/${Date.now()}_${file.name}`;
+  const { data, error } = await supabase!.storage
+    .from('medication-images')
+    .upload(fileName, file);
+  
+  if (error) {
+    // 【修复 B】检查是否是 bucket 不存在的错误
+    if (error.message?.includes('Bucket not found') || 
+        error.message?.includes('not found') ||
+        error.statusCode === 400) {
+      const errorMsg = 'Storage bucket medication-images 不存在，请先创建 bucket';
+      console.error('❌', errorMsg);
+      // 【修复 B】不允许 fallback 到 data:image/...，直接抛出错误
+      throw new Error(errorMsg);
     }
-    
-    // 获取公共 URL
-    const { data: { publicUrl } } = supabase!.storage
-      .from('medication-images')
-      .getPublicUrl(fileName);
-    
-    console.log('✅ 图片已上传到 Supabase Storage:', publicUrl);
-    return publicUrl;
-  } catch (error: any) {
-    // 捕获所有错误，自动降级到 DataURL
-    console.error('❌ 上传图片失败，自动降级到 DataURL:', error);
-    console.warn('💡 提示：图片将保存在本地，不会同步到云端');
-    
-    // 显示用户友好的提示
-    const notification = document.createElement('div');
-    notification.className = 'fixed top-4 right-4 z-50 bg-orange-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
-    notification.textContent = '⚠️ 云端存储不可用，图片已保存到本地';
-    document.body.appendChild(notification);
-    setTimeout(() => {
-      notification.classList.add('animate-fade-out');
-      setTimeout(() => notification.remove(), 300);
-    }, 3000);
-    
-    // 降级到 DataURL
-    return await fileToDataURL(file);
+    // 其他错误直接抛出
+    throw error;
   }
+  
+  // 获取公共 URL
+  const { data: { publicUrl } } = supabase!.storage
+    .from('medication-images')
+    .getPublicUrl(fileName);
+  
+  console.log('✅ 图片已上传到 Supabase Storage:', publicUrl);
+  return publicUrl;
 }
 
 /**

@@ -416,6 +416,7 @@ export async function deleteMedicationFromCloud(medicationId: string): Promise<b
 
 /**
  * 添加服药记录（直接写入云端）
+ * 【修复 C】使用 upsert 处理 unique_hash 冲突
  */
 export async function addLogToCloud(log: Omit<MedicationLog, 'id'>): Promise<MedicationLog | null> {
   const userId = await getCurrentUserId();
@@ -433,13 +434,37 @@ export async function addLogToCloud(log: Omit<MedicationLog, 'id'>): Promise<Med
       created_at: new Date().toISOString()
     };
 
+    // 【修复 C】使用 upsert 处理 unique_hash 冲突
     const { data, error } = await supabase
       .from('medication_logs')
-      .insert(logData)
+      .upsert(logData, { 
+        onConflict: 'unique_hash',
+        ignoreDuplicates: true 
+      })
       .select()
       .single();
 
     if (error) {
+      // 【修复 C】如果 ignoreDuplicates 仍无法返回记录（23505 冲突），查询已存在的记录
+      if (error.code === '23505' && logData.image_hash) {
+        console.log('⚠️ 检测到 unique_hash 冲突，查询已存在的记录:', logData.image_hash);
+        const { data: existingLog, error: queryError } = await supabase
+          .from('medication_logs')
+          .select()
+          .eq('image_hash', logData.image_hash)
+          .maybeSingle();
+        
+        if (queryError) {
+          console.error('❌ 查询已存在记录失败:', queryError);
+          return null;
+        }
+        
+        if (existingLog) {
+          console.log('✅ 记录已存在（重复提交），返回已存在的记录');
+          return existingLog;
+        }
+      }
+      
       console.error('❌ 添加服药记录失败:', error);
       return null;
     }

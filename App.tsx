@@ -149,6 +149,10 @@ const TimelineItem: React.FC<{
   onMedicationClick?: (medicationId: string) => void;
   isLast?: boolean;
 }> = ({ log, medication, onMedicationClick, isLast }) => {
+  // 【修复 D】懒加载图片：点击时间才显示
+  const [showImage, setShowImage] = React.useState(false);
+  const [imageUrl, setImageUrl] = React.useState<string | null>(null);
+  
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -186,6 +190,41 @@ const TimelineItem: React.FC<{
     }
   };
 
+  // 【修复 D】处理图片 URL：支持 storage 路径和 DataURL
+  React.useEffect(() => {
+    if (showImage && log.image_path && !imageUrl) {
+      // 如果是 storage 路径（不包含 data:），生成 publicUrl
+      if (!log.image_path.startsWith('data:')) {
+        // 检查是否是完整的 URL
+        if (log.image_path.startsWith('http://') || log.image_path.startsWith('https://')) {
+          setImageUrl(log.image_path);
+        } else {
+          // 从路径中提取文件名，生成 publicUrl
+          // 假设路径格式为 userId/medicationId/timestamp_filename
+          // 需要从 supabase 获取 publicUrl
+          if (supabase) {
+            try {
+              const { data: { publicUrl } } = supabase.storage
+                .from('medication-images')
+                .getPublicUrl(log.image_path);
+              setImageUrl(publicUrl);
+            } catch (e) {
+              console.warn('⚠️ 生成 publicUrl 失败，使用原始路径:', e);
+              setImageUrl(log.image_path);
+            }
+          } else {
+            setImageUrl(log.image_path);
+          }
+        }
+      } else {
+        // DataURL 直接使用
+        setImageUrl(log.image_path);
+      }
+    }
+  }, [showImage, log.image_path, imageUrl]);
+
+  const hasImage = !!log.image_path;
+
   return (
     <div className={`relative pl-12 pb-8 border-l-2 border-black/10 ${isLast ? 'border-l-transparent pb-0' : ''}`}>
       <div className="absolute left-[-11px] top-0 w-5 h-5 rounded-full bg-black border-4 border-white" />
@@ -211,31 +250,47 @@ const TimelineItem: React.FC<{
               <p className="text-[10px] font-bold text-gray-400 tracking-widest mb-1">
                 拍摄时间 ({getTimeSourceText()})
               </p>
-              <div className="flex items-center gap-2">
+              {/* 【修复 D】点击时间展开/收起图片 */}
+              <button
+                onClick={() => {
+                  if (hasImage) {
+                    setShowImage(!showImage);
+                  }
+                }}
+                className="flex items-center gap-2 hover:opacity-70 transition-opacity cursor-pointer"
+              >
                 <Clock className="w-4 h-4 text-black" />
                 <span className="font-black italic text-base">{formatTime(log.taken_at)}</span>
-              </div>
+                {hasImage && (
+                  <span className="text-xs text-gray-400 ml-2">
+                    {showImage ? '▼' : '▶'} {showImage ? '收起' : '查看图片'}
+                  </span>
+                )}
+              </button>
             </div>
             
-            {log.image_path && (
-              <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden group relative cursor-pointer">
-                <img 
-                  src={log.image_path} 
-                  alt="验证凭证" 
-                  loading="lazy"
-                  className="w-full h-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
-                />
-                <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-80 h-80">
-                  <img 
-                    src={log.image_path} 
-                    alt="预览" 
-                    loading="lazy"
-                    className="w-full h-full object-cover rounded-2xl shadow-2xl border-4 border-white"
-                  />
-                </div>
+            {/* 【修复 D】默认不加载图片，仅显示小图标/标记 */}
+            {hasImage && !showImage && (
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                <Camera className="w-6 h-6 text-gray-400" />
               </div>
             )}
           </div>
+          
+          {/* 【修复 D】点击时间后才渲染图片 */}
+          {showImage && imageUrl && (
+            <div className="px-4 pb-4">
+              <img 
+                src={imageUrl} 
+                alt="验证凭证" 
+                className="max-w-[120px] h-auto rounded-xl object-cover"
+                onError={(e) => {
+                  console.error('❌ 图片加载失败:', imageUrl);
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -358,6 +413,11 @@ export default function App() {
         // 【唯一拉取点】只在应用初始化时拉取 medications
         console.log('☁️ [初始化] 从云端拉取 medications（唯一拉取点）');
         meds = await getMedicationsFromCloud();
+        // 【性能监控 E】打印 medications 请求耗时
+        if (medsStartTime > 0) {
+          const medsDuration = performance.now() - medsStartTime;
+          console.log(`⏱️ medications 请求耗时: ${medsDuration.toFixed(2)}ms`);
+        }
         console.log(`📋 [初始化] 从云端加载 ${meds.length} 个药物:`, meds.map(m => m.name));
       } else {
         // 【禁止重复拉取】非初始化阶段，使用当前 state
@@ -428,11 +488,18 @@ export default function App() {
       
       // 【强制修复】只在初始化时拉取 logs，非初始化阶段使用当前 state
       let allLogs: MedicationLog[] = [];
+      let sortedLogs: MedicationLog[] = []; // 【修复 A】在 try 块外定义，确保作用域正确
+      
       if (triggerSource === 'app-init' && syncFromCloud) {
         // 【唯一拉取点】只在应用初始化时拉取 logs（瘦身版本）
         console.log('☁️ [初始化] 从云端拉取 logs（唯一拉取点，瘦身版本）');
         allLogs = await getLogsFromCloud(undefined, 300, 60); // 最近60天，最多300条
-        console.log(`📝 [初始化] 从云端加载 ${allLogs.length} 条服药记录`);
+        // 【性能监控 E】打印 logs 请求耗时和渲染前条数
+        if (logsStartTime > 0) {
+          const logsDuration = performance.now() - logsStartTime;
+          console.log(`⏱️ logs 请求耗时: ${logsDuration.toFixed(2)}ms`);
+        }
+        console.log(`📝 [初始化] 从云端加载 ${allLogs.length} 条服药记录（渲染前 logs 条数: ${allLogs.length}）`);
         
         // 【性能优化】一次建索引：构建 lastLogByMedicationId Map
         const lastLogMap = new Map<string, MedicationLog>();
@@ -445,10 +512,18 @@ export default function App() {
         }
         lastLogByMedicationIdRef.current = lastLogMap;
         console.log(`✅ [性能优化] 已构建 lastLogByMedicationId Map，共 ${lastLogMap.size} 个药品的最新记录`);
+        
+        // 【修复 A】按日期降序排序（在同一作用域定义 sortedLogs）
+        sortedLogs = [...allLogs].sort((a, b) => 
+          new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+        );
+        console.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
+        setTimelineLogs(sortedLogs);
       } else {
         // 【禁止重复拉取】非初始化阶段，使用当前 state
         console.log('⏭️ [非初始化] 使用当前 logs state，不拉取云端数据', { triggerSource });
         allLogs = timelineLogs;
+        sortedLogs = timelineLogs; // 【修复 A】确保 sortedLogs 已定义
       }
       
       // 【性能优化】使用 Map 索引，避免每次扫描全量 logs
@@ -473,22 +548,25 @@ export default function App() {
       console.log(`✅ 药物状态已更新，共 ${medsWithStatus.length} 个（使用 Map 索引，无全量扫描）`);
       setMedications(medsWithStatus);
       
-      // 按日期降序排序（使用已读取的 allLogs，但只在初始化时排序）
-      if (triggerSource === 'app-init' && syncFromCloud) {
-        const sortedLogs = [...allLogs].sort((a, b) => 
-          new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
-        );
-        console.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
-        setTimelineLogs(sortedLogs);
+      // 【修复 A】确保 sortedLogs 已定义后再使用
+      const medCount = medsWithStatus.length;
+      const logCount = sortedLogs.length;
+      
+      // 【性能监控 E】打印耗时和统计
+      if (triggerSource === 'app-init') {
+        console.timeEnd('loadData_app_init');
+        console.log(`✅ loadData 完成（medCount: ${medCount}, logCount: ${logCount}）`);
+      } else {
+        console.log('✅ 数据加载完成', { triggerSource, medCount, logCount });
       }
       
-      console.log('✅ 数据加载完成', { triggerSource });
-      
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:success',message:'loadData completed',data:{medicationsCount:medsWithStatus.length,logsCount:sortedLogs.length,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:success',message:'loadData completed',data:{medicationsCount:medCount,logsCount:logCount,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
       // #endregion
     } catch (error: any) {
       console.error('❌ 加载数据失败:', error, { triggerSource });
+      // 【修复 A】loadData 失败时必须保持原 state 不被清空
+      // 不调用 setMedications([]) 或 setTimelineLogs([])，保持现有数据
       // #region agent log
       fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:error',message:'loadData failed',data:{error:error.message,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
       // #endregion
