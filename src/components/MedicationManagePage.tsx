@@ -274,22 +274,43 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
 
             <div>
               <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={newMedAccent}
-                  onChange={(e) => setNewMedAccent(e.target.value)}
-                  className="w-16 h-16 rounded-2xl border-2 border-gray-300 cursor-pointer"
-                  title="选择颜色"
-                />
-                <div className="flex-1">
-                  <div 
-                    className="w-full h-12 rounded-2xl border-2 border-gray-200"
-                    style={{ backgroundColor: newMedAccent }}
+              <div className="grid grid-cols-6 gap-3">
+                {[
+                  { value: '#E0F3A2', label: '青柠' },
+                  { value: '#FFD1DC', label: '浆果' },
+                  { value: '#BFEFFF', label: '薄荷' },
+                  { value: '#A8D8FF', label: '蓝色' },
+                  { value: '#D4A5FF', label: '紫色' },
+                  { value: '#FFB84D', label: '橙色' },
+                  { value: '#FF6B6B', label: '红色' },
+                  { value: '#4ECDC4', label: '青色' },
+                ].map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => setNewMedAccent(color.value)}
+                    className={`h-12 rounded-xl border-2 transition-all ${
+                      newMedAccent === color.value
+                        ? 'border-black scale-110 shadow-lg'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                    style={{ backgroundColor: color.value }}
+                    title={color.label}
                   />
-                  <p className="text-xs text-gray-500 mt-1 font-mono">{newMedAccent}</p>
-                </div>
+                ))}
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                已选择: {[
+                  { value: '#E0F3A2', label: '青柠' },
+                  { value: '#FFD1DC', label: '浆果' },
+                  { value: '#BFEFFF', label: '薄荷' },
+                  { value: '#A8D8FF', label: '蓝色' },
+                  { value: '#D4A5FF', label: '紫色' },
+                  { value: '#FFB84D', label: '橙色' },
+                  { value: '#FF6B6B', label: '红色' },
+                  { value: '#4ECDC4', label: '青色' },
+                ].find(c => c.value === newMedAccent)?.label || '自定义'}
+              </p>
             </div>
 
             <button
@@ -405,22 +426,43 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
 
               <div>
                 <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={editMedAccent}
-                    onChange={(e) => setEditMedAccent(e.target.value)}
-                    className="w-16 h-16 rounded-2xl border-2 border-gray-300 cursor-pointer"
-                    title="选择颜色"
-                  />
-                  <div className="flex-1">
-                    <div 
-                      className="w-full h-12 rounded-2xl border-2 border-gray-200"
-                      style={{ backgroundColor: editMedAccent }}
+                <div className="grid grid-cols-6 gap-3">
+                  {[
+                    { value: '#E0F3A2', label: '青柠' },
+                    { value: '#FFD1DC', label: '浆果' },
+                    { value: '#BFEFFF', label: '薄荷' },
+                    { value: '#A8D8FF', label: '蓝色' },
+                    { value: '#D4A5FF', label: '紫色' },
+                    { value: '#FFB84D', label: '橙色' },
+                    { value: '#FF6B6B', label: '红色' },
+                    { value: '#4ECDC4', label: '青色' },
+                  ].map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setEditMedAccent(color.value)}
+                      className={`h-12 rounded-xl border-2 transition-all ${
+                        editMedAccent === color.value
+                          ? 'border-black scale-110 shadow-lg'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.label}
                     />
-                    <p className="text-xs text-gray-500 mt-1 font-mono">{editMedAccent}</p>
-                  </div>
+                  ))}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  已选择: {[
+                    { value: '#E0F3A2', label: '青柠' },
+                    { value: '#FFD1DC', label: '浆果' },
+                    { value: '#BFEFFF', label: '薄荷' },
+                    { value: '#A8D8FF', label: '蓝色' },
+                    { value: '#D4A5FF', label: '紫色' },
+                    { value: '#FFB84D', label: '橙色' },
+                    { value: '#FF6B6B', label: '红色' },
+                    { value: '#4ECDC4', label: '青色' },
+                  ].find(c => c.value === editMedAccent)?.label || '自定义'}
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4">

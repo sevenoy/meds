@@ -10,7 +10,7 @@ import { DebugPanel } from './src/components/DebugPanel';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId, db } from './src/db/localDB';
 import { initRealtimeSync, mergeRemoteLog, pullRemoteChanges, pushLocalChanges, syncMedications, fixLegacyDeviceIds, detectConflict, pullMedicationsFromCloud } from './src/services/sync';
-import { initSettingsRealtimeSync, getUserSettings, saveUserSettings } from './src/services/userSettings';
+import { initSettingsRealtimeSync, getUserSettings, saveUserSettings, updateUserSettings } from './src/services/userSettings';
 import { saveSnapshotLegacy, loadSnapshotLegacy, initAutoSyncLegacy, markLocalDataDirty, cloudSaveV2, cloudLoadV2, applySnapshot, isApplyingSnapshot, runWithUserAction, isUserTriggered, getCurrentSnapshotPayload, isApplyingRemote, initRealtimeV2 } from './src/services/snapshot';
 import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime, isApplyingRemoteChange } from './src/services/realtime';
 import { forcePwaUpdateOncePerVersion } from './src/sw-register';
@@ -331,7 +331,37 @@ export default function App() {
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   // 用户信息
-  const [userName, setUserName] = useState(() => {
+  const [userName, setUserName] = useState('');
+  
+  // 【时间戳权威模型】从user_settings加载用户名
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const settings = await getUserSettings();
+        if (settings.userName) {
+          setUserName(settings.userName);
+        } else {
+          // 降级：从localStorage读取（兼容旧数据）
+          const savedName = localStorage.getItem('userName');
+          if (savedName) {
+            setUserName(savedName);
+            // 迁移到user_settings
+            await updateUserSettings({ userName: savedName });
+          }
+        }
+      } catch (error) {
+        console.error('❌ 加载用户名失败:', error);
+        // 降级：从localStorage读取
+        const savedName = localStorage.getItem('userName');
+        if (savedName) {
+          setUserName(savedName);
+        }
+      }
+    })();
+  }, []);
+  
+  // 旧的初始化逻辑（已废弃，保留兼容）
+  const _oldUserNameInit = () => {
     // 优先从 localStorage 获取
     const savedName = localStorage.getItem('userName');
     if (savedName) return savedName;
@@ -556,13 +586,40 @@ export default function App() {
         
         newMeds = mergedMeds;
         
-        // 【修复 B】Merge logs：合并现有 state 和云端数据
-        const existingLogMap = new Map(prevLogs.map(l => [l.id, l]));
-        const mergedLogs: MedicationLog[] = [...sortedLogs];
-        
-        // 添加本地有但云端没有的 logs（可能是 Realtime 新增的）
+        // 【时间戳权威模型】Merge logs：基于时间戳合并，新数据覆盖旧数据
+        const existingLogMap = new Map<string, MedicationLog>();
         prevLogs.forEach(log => {
-          if (!existingLogMap.has(log.id) && !mergedLogs.find(l => l.id === log.id)) {
+          existingLogMap.set(log.id, log);
+        });
+        
+        // 合并云端数据：基于时间戳决定是否更新
+        const mergedLogs: MedicationLog[] = [];
+        const processedIds = new Set<string>();
+        
+        // 1. 先处理云端数据
+        sortedLogs.forEach(cloudLog => {
+          const existing = existingLogMap.get(cloudLog.id);
+          if (existing) {
+            // 存在相同ID：比较时间戳，新的覆盖旧的
+            const cloudTime = new Date(cloudLog.updated_at || cloudLog.created_at || cloudLog.taken_at).getTime();
+            const localTime = new Date(existing.updated_at || existing.created_at || existing.taken_at).getTime();
+            if (cloudTime >= localTime) {
+              // 云端数据更新或相等，使用云端数据
+              mergedLogs.push(cloudLog);
+            } else {
+              // 本地数据更新，保留本地数据
+              mergedLogs.push(existing);
+            }
+          } else {
+            // 新记录，直接添加
+            mergedLogs.push(cloudLog);
+          }
+          processedIds.add(cloudLog.id);
+        });
+        
+        // 2. 添加本地有但云端没有的 logs（可能是 Realtime 新增的）
+        prevLogs.forEach(log => {
+          if (!processedIds.has(log.id)) {
             mergedLogs.push(log);
           }
         });
@@ -903,16 +960,30 @@ export default function App() {
               }), 'realtime-log-update-med-status');
             }
             
-            // 更新 timelineLogs
+            // 【时间戳权威模型】更新 timelineLogs：基于时间戳合并
             safeSetTimelineLogs(prev => {
               const existingIndex = prev.findIndex(l => l.id === logData.id);
               if (existingIndex >= 0) {
-                // 更新现有记录
-                const updated = [...prev];
-                updated[existingIndex] = { ...updated[existingIndex], ...logData };
-                return updated.sort((a, b) => 
-                  new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
-                );
+                // 更新现有记录：比较时间戳，新的覆盖旧的
+                const existing = prev[existingIndex];
+                const newTime = new Date(logData.updated_at || logData.created_at || logData.taken_at).getTime();
+                const existingTime = new Date(existing.updated_at || existing.created_at || existing.taken_at).getTime();
+                
+                if (newTime >= existingTime) {
+                  // 新数据时间戳更新或相等，使用新数据
+                  const updated = [...prev];
+                  updated[existingIndex] = { ...existing, ...logData };
+                  return updated.sort((a, b) => 
+                    new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+                  );
+                } else {
+                  // 旧数据时间戳更新，保留旧数据（拒绝覆盖）
+                  console.log('⏭️ [时间戳保护] 拒绝旧数据覆盖新数据:', logData.id, {
+                    newTime: new Date(newTime),
+                    existingTime: new Date(existingTime)
+                  });
+                  return prev;
+                }
               } else {
                 // 添加新记录
                 return [...prev, logData].sort((a, b) => 
@@ -1000,11 +1071,15 @@ export default function App() {
     }).catch(console.error);
     */
     
-    // 【本地认证模式】禁用用户设置实时同步
-    /*
-    // 初始化用户设置实时同步（参考技术白皮书的多设备同步机制）
+    // 【时间戳权威模型】启用用户设置实时同步
     const cleanupSettings = initSettingsRealtimeSync((settings) => {
       console.log('⚙️ 用户设置已更新:', settings);
+      
+      // 【时间戳权威模型】自动应用用户名更新（无需用户确认）
+      if (settings.userName && settings.userName !== userName) {
+        console.log('👤 检测到用户名更新，自动同步...');
+        setUserName(settings.userName);
+      }
       
       // 自动应用头像更新（无需用户确认）
       if (settings.avatar_url !== avatarUrl) {
@@ -1023,15 +1098,10 @@ export default function App() {
         }, 3000);
       }
       
-      // 对于其他设置变更，询问用户是否应用
-      if (Object.keys(settings).some(key => key !== 'avatar_url' && settings[key] !== undefined)) {
-        const shouldApply = confirm('其他设备更新了设置，是否立即应用？');
-        if (shouldApply) {
-          window.location.reload();
-        }
-      }
+      // 对于其他设置变更，自动应用（时间戳新的覆盖旧的）
+      // 不再询问用户，直接应用（基于时间戳权威模型）
+      console.log('✅ 用户设置已自动同步');
     });
-    */
     
     // 【本地认证模式】定时同步已禁用（见上方注释）
     // 定期同步（缩短到3秒，更快速的多设备同步）
@@ -1083,6 +1153,10 @@ export default function App() {
       if (cloudRealtimeCleanup) {
         cloudRealtimeCleanup();
         console.log('🔌 纯云端 Realtime 已断开');
+      }
+      if (cleanupSettings) {
+        cleanupSettings();
+        console.log('🔌 用户设置 Realtime 已断开');
       }
     };
   }, [isLoggedIn]);
@@ -2006,22 +2080,43 @@ export default function App() {
 
                 <div>
                   <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={newMedAccent}
-                      onChange={(e) => setNewMedAccent(e.target.value)}
-                      className="w-16 h-16 rounded-2xl border-2 border-gray-300 cursor-pointer"
-                      title="选择颜色"
-                    />
-                    <div className="flex-1">
-                      <div 
-                        className="w-full h-12 rounded-2xl border-2 border-gray-200"
-                        style={{ backgroundColor: newMedAccent }}
+                  <div className="grid grid-cols-6 gap-3">
+                    {[
+                      { value: '#E0F3A2', label: '青柠' },
+                      { value: '#FFD1DC', label: '浆果' },
+                      { value: '#BFEFFF', label: '薄荷' },
+                      { value: '#A8D8FF', label: '蓝色' },
+                      { value: '#D4A5FF', label: '紫色' },
+                      { value: '#FFB84D', label: '橙色' },
+                      { value: '#FF6B6B', label: '红色' },
+                      { value: '#4ECDC4', label: '青色' },
+                    ].map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => setNewMedAccent(color.value)}
+                        className={`h-12 rounded-xl border-2 transition-all ${
+                          newMedAccent === color.value
+                            ? 'border-black scale-110 shadow-lg'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.label}
                       />
-                      <p className="text-xs text-gray-500 mt-1 font-mono">{newMedAccent}</p>
-                    </div>
+                    ))}
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    已选择: {[
+                      { value: '#E0F3A2', label: '青柠' },
+                      { value: '#FFD1DC', label: '浆果' },
+                      { value: '#BFEFFF', label: '薄荷' },
+                      { value: '#A8D8FF', label: '蓝色' },
+                      { value: '#D4A5FF', label: '紫色' },
+                      { value: '#FFB84D', label: '橙色' },
+                      { value: '#FF6B6B', label: '红色' },
+                      { value: '#4ECDC4', label: '青色' },
+                    ].find(c => c.value === newMedAccent)?.label || '自定义'}
+                  </p>
                 </div>
 
                 <button
@@ -2274,9 +2369,16 @@ export default function App() {
               </div>
 
               <button
-                onClick={() => {
-                  localStorage.setItem('userName', userName);
-                  setShowProfileEdit(false);
+                onClick={async () => {
+                  // 【时间戳权威模型】保存用户名到user_settings表
+                  try {
+                    await updateUserSettings({ userName });
+                    console.log('✅ 用户名已保存到云端:', userName);
+                    setShowProfileEdit(false);
+                  } catch (error) {
+                    console.error('❌ 保存用户名失败:', error);
+                    alert('保存失败，请重试');
+                  }
                 }}
                 className="w-full px-6 py-4 bg-black text-white font-black italic rounded-full tracking-tighter hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
               >
@@ -2563,22 +2665,43 @@ export default function App() {
 
               <div>
                 <label className="block text-sm font-bold text-gray-600 mb-2">颜色主题</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={editMedAccent}
-                    onChange={(e) => setEditMedAccent(e.target.value)}
-                    className="w-16 h-16 rounded-2xl border-2 border-gray-300 cursor-pointer"
-                    title="选择颜色"
-                  />
-                  <div className="flex-1">
-                    <div 
-                      className="w-full h-12 rounded-2xl border-2 border-gray-200"
-                      style={{ backgroundColor: editMedAccent }}
+                <div className="grid grid-cols-6 gap-3">
+                  {[
+                    { value: '#E0F3A2', label: '青柠' },
+                    { value: '#FFD1DC', label: '浆果' },
+                    { value: '#BFEFFF', label: '薄荷' },
+                    { value: '#A8D8FF', label: '蓝色' },
+                    { value: '#D4A5FF', label: '紫色' },
+                    { value: '#FFB84D', label: '橙色' },
+                    { value: '#FF6B6B', label: '红色' },
+                    { value: '#4ECDC4', label: '青色' },
+                  ].map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setEditMedAccent(color.value)}
+                      className={`h-12 rounded-xl border-2 transition-all ${
+                        editMedAccent === color.value
+                          ? 'border-black scale-110 shadow-lg'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.label}
                     />
-                    <p className="text-xs text-gray-500 mt-1 font-mono">{editMedAccent}</p>
-                  </div>
+                  ))}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  已选择: {[
+                    { value: '#E0F3A2', label: '青柠' },
+                    { value: '#FFD1DC', label: '浆果' },
+                    { value: '#BFEFFF', label: '薄荷' },
+                    { value: '#A8D8FF', label: '蓝色' },
+                    { value: '#D4A5FF', label: '紫色' },
+                    { value: '#FFB84D', label: '橙色' },
+                    { value: '#FF6B6B', label: '红色' },
+                    { value: '#4ECDC4', label: '青色' },
+                  ].find(c => c.value === editMedAccent)?.label || '自定义'}
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4">
