@@ -286,3 +286,5 @@ export async function initRealtimeV2(): Promise<() => void> {
 - Promise 机制确保并发调用共享启动过程
 - try-finally 确保门闩被正确清除
 
+
+

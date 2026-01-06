@@ -242,3 +242,5 @@ await forcePwaUpdateOncePerVersion('manual');
 2. 按照验收证据逐条验证
 3. 监控线上日志，确认不再出现 `app_state` 写入和 `medication-updated` loadData
 
+
+

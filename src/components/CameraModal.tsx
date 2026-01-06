@@ -142,7 +142,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(243, 232, 255, 0.95) 0%, rgba(232, 225, 255, 0.95) 100%)', backdropFilter: 'blur(8px)' }}>
-      <div className="bg-white rounded-[40px] p-8 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-[40px] p-8 max-w-lg w-full shadow-2xl" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl font-black italic tracking-tighter">
             {step === 'select' ? '添加服药记录' : '确认信息'}

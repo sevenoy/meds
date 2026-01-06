@@ -221,3 +221,5 @@ if (error.code === '42703' || error.message?.includes('does not exist')) {
 - 代码在未迁移情况下完全正常运行
 - 迁移后版本检查功能自动启用
 
+
+

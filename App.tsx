@@ -267,7 +267,7 @@ const TimelineItem: React.FC<{
                   </span>
                 )}
               </button>
-            </div>
+              </div>
             
             {/* 【修复 D】默认不加载图片，仅显示小图标/标记 */}
             {hasImage && !showImage && (
@@ -275,22 +275,22 @@ const TimelineItem: React.FC<{
                 <Camera className="w-6 h-6 text-gray-400" />
               </div>
             )}
-          </div>
-          
+            </div>
+            
           {/* 【修复 D】点击时间后才渲染图片 */}
           {showImage && imageUrl && (
             <div className="px-4 pb-4">
-              <img 
+                <img 
                 src={imageUrl} 
-                alt="验证凭证" 
+                  alt="验证凭证" 
                 className="max-w-[120px] h-auto rounded-xl object-cover"
                 onError={(e) => {
                   console.error('❌ 图片加载失败:', imageUrl);
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
-            </div>
-          )}
+              </div>
+            )}
         </div>
       </div>
     </div>
@@ -508,21 +508,75 @@ export default function App() {
         console.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
         newLogs = sortedLogs;
         
-        // 计算 medications 的 status
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // 【修复 B】Merge 策略：合并现有 state 和云端数据
+        // 1. 以现有 state 为主（可能包含 Realtime 更新的数据）
+        const existingMedMap = new Map(prevMeds.map(m => [m.id, m]));
         
-        newMeds = meds.map((med) => {
-          const lastLog = lastLogMap.get(med.id);
-          const taken = lastLog && new Date(lastLog.taken_at) >= today;
-          
-          return {
-            ...med,
-            status: taken ? 'completed' : 'pending',
-            lastTakenAt: lastLog?.taken_at,
-            uploadedAt: lastLog?.created_at,
-            lastLog
-          };
+        // 2. 合并云端数据：只添加缺失的，更新已存在的（但保留本地计算的 status/lastLog）
+        const mergedMeds: MedicationUI[] = meds.map((med) => {
+          const existing = existingMedMap.get(med.id);
+          if (existing) {
+            // 已存在：保留本地计算的 status 和 lastLog，但更新其他字段（包括 accent）
+            const lastLog = lastLogMap.get(med.id);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const taken = lastLog && new Date(lastLog.taken_at) >= today;
+            
+            return {
+              ...existing,
+              ...med, // 更新云端字段（包括 accent）
+              status: existing.status || (taken ? 'completed' : 'pending'), // 保留现有 status
+              lastTakenAt: existing.lastTakenAt || lastLog?.taken_at,
+              uploadedAt: existing.uploadedAt || lastLog?.created_at,
+              lastLog: existing.lastLog || lastLog
+            };
+          } else {
+            // 新药品：计算 status
+            const lastLog = lastLogMap.get(med.id);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const taken = lastLog && new Date(lastLog.taken_at) >= today;
+            
+            return {
+              ...med,
+              status: taken ? 'completed' : 'pending',
+              lastTakenAt: lastLog?.taken_at,
+              uploadedAt: lastLog?.created_at,
+              lastLog
+            };
+          }
+        });
+        
+        // 3. 添加云端没有但本地有的药品（可能是 Realtime 新增的）
+        prevMeds.forEach(med => {
+          if (!meds.find(m => m.id === med.id)) {
+            mergedMeds.push(med);
+          }
+        });
+        
+        newMeds = mergedMeds;
+        
+        // 【修复 B】Merge logs：合并现有 state 和云端数据
+        const existingLogMap = new Map(prevLogs.map(l => [l.id, l]));
+        const mergedLogs: MedicationLog[] = [...sortedLogs];
+        
+        // 添加本地有但云端没有的 logs（可能是 Realtime 新增的）
+        prevLogs.forEach(log => {
+          if (!existingLogMap.has(log.id) && !mergedLogs.find(l => l.id === log.id)) {
+            mergedLogs.push(log);
+          }
+        });
+        
+        // 重新排序
+        newLogs = mergedLogs.sort((a, b) => 
+          new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+        );
+        
+        console.log('✅ [Merge] 数据合并完成', { 
+          medCount: newMeds.length, 
+          logCount: newLogs.length,
+          addedMeds: newMeds.length - meds.length,
+          addedLogs: newLogs.length - sortedLogs.length
         });
       }
       
@@ -582,7 +636,7 @@ export default function App() {
     // forcePwaUpdateOncePerVersion('login').catch((e) => {
     //   console.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
     // }); // ❌ 已移除：禁止在启动流程自动清缓存
-
+    
     // 【修复1】先初始化 payload，再修复 device_id
     const initializeApp = async () => {
       try {
@@ -689,15 +743,16 @@ export default function App() {
                 // 更新现有药品
                 const updated = [...prev];
                 const existingMed = updated[existingIndex];
-                // 【强制性能修复】保持现有 status 和 lastLog，不触发 logs 重算
+                // 【修复 A】确保所有字段（包括 accent/color）都被更新，但保留本地计算的 status 和 lastLog
                 updated[existingIndex] = {
                   ...existingMed,
-                  ...medData,
-                  status: existingMed.status || 'pending',
+                  ...medData, // 包含 accent、name、dosage、scheduled_time 等所有字段
+                  status: existingMed.status || 'pending', // 保留本地计算的 status
                   lastTakenAt: existingMed.lastTakenAt,
                   uploadedAt: existingMed.uploadedAt,
                   lastLog: existingMed.lastLog
                 };
+                console.log('✅ [Realtime] 已更新药品（包括颜色）:', medData.id, { accent: medData.accent });
                 return updated;
               } else {
                 // 添加新药品
@@ -1906,20 +1961,20 @@ export default function App() {
                 <button
                   onClick={async () => {
                     // 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
-                    if (!newMedName || !newMedDosage || !newMedTime) {
-                      alert('请填写完整信息');
-                      return;
-                    }
+                      if (!newMedName || !newMedDosage || !newMedTime) {
+                        alert('请填写完整信息');
+                        return;
+                      }
 
                     // 生成 UUID
                     const newMedication: Medication = {
-                      id: (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-                      name: newMedName,
-                      dosage: newMedDosage,
-                      scheduled_time: newMedTime,
-                      accent: newMedAccent,
-                      device_id: getDeviceId()
-                    };
+                        id: (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                        name: newMedName,
+                        dosage: newMedDosage,
+                        scheduled_time: newMedTime,
+                        accent: newMedAccent,
+                        device_id: getDeviceId()
+                      };
 
                     // 【强制性能修复】Optimistic UI：立即更新本地 state（UI 立即生效，<300ms）
                     safeSetMedications(prev => [...prev, {
@@ -1969,10 +2024,10 @@ export default function App() {
                     
                     // 【禁止全量 reload】不再调用 loadData()，只做局部更新
                     // 【强制性能修复】不触发 logs 重算，不更新 Map
-                    setNewMedName('');
-                    setNewMedDosage('');
-                    setNewMedTime('');
-                    setNewMedAccent('#E0F3A2');
+                      setNewMedName('');
+                      setNewMedDosage('');
+                      setNewMedTime('');
+                      setNewMedAccent('#E0F3A2');
                   }}
                   className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
@@ -2032,7 +2087,7 @@ export default function App() {
                           <button
                             onClick={async () => {
                               // 【强制性能修复】彻底移除 app_state 依赖，直接删除
-                              if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                                if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
                                 // 【强制性能修复】Optimistic UI：立即从本地 state 移除（UI 立即生效，<300ms）
                                 safeSetMedications(prev => prev.filter(m => m.id !== med.id), 'delete-medication-optimistic');
                                 
@@ -2112,7 +2167,7 @@ export default function App() {
       {/* 个人信息编辑 */}
       {showProfileEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(243, 232, 255, 0.95) 0%, rgba(232, 225, 255, 0.95) 100%)', backdropFilter: 'blur(8px)' }}>
-          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-black italic tracking-tighter">个人信息</h3>
               <button
@@ -2170,7 +2225,7 @@ export default function App() {
       {/* 提醒设置 */}
       {showReminderSettings && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-black italic tracking-tighter">提醒设置</h3>
               <button
@@ -2234,7 +2289,7 @@ export default function App() {
       {/* 数据同步设置 */}
       {showSyncSettings && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-black italic tracking-tighter">数据同步</h3>
               <button
@@ -2337,7 +2392,7 @@ export default function App() {
       {/* 关于应用 */}
       {showAbout && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-black italic tracking-tighter">关于应用</h3>
               <button
@@ -2400,7 +2455,7 @@ export default function App() {
       {/* 编辑药品模态框 */}
       {editingMed && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(243, 232, 255, 0.95) 0%, rgba(232, 225, 255, 0.95) 100%)', backdropFilter: 'blur(8px)' }}>
-          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl">
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-black italic tracking-tighter">编辑药品</h3>
               <button
@@ -2474,21 +2529,21 @@ export default function App() {
                 <button
                   onClick={async () => {
                     // 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
-                    if (!editMedName || !editMedDosage || !editMedTime) {
-                      alert('请填写完整信息');
-                      return;
-                    }
+                      if (!editMedName || !editMedDosage || !editMedTime) {
+                        alert('请填写完整信息');
+                        return;
+                      }
 
                     if (!editingMed) return;
 
                     // 【强制性能修复】Optimistic UI：立即更新本地 state（UI 立即生效，<300ms）
                     const updatedMed: Medication = {
                       ...editingMed,
-                      name: editMedName,
-                      dosage: editMedDosage,
-                      scheduled_time: editMedTime,
-                      accent: editMedAccent
-                    };
+                          name: editMedName,
+                          dosage: editMedDosage,
+                          scheduled_time: editMedTime,
+                          accent: editMedAccent
+                        };
                     
                     // 保存原始值用于回滚
                     const originalMed = { ...editingMed };

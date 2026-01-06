@@ -569,21 +569,9 @@ export async function initCloudOnlyRealtime(callbacks: {
         table: 'medications'
       },
       (payload) => {
-        // 【修复 device_id 过滤】正确处理 UPDATE/INSERT/DELETE 事件
-        let eventDeviceId: string | null = null;
-        if (payload.eventType === 'DELETE') {
-          // DELETE 事件：使用 payload.old.device_id
-          eventDeviceId = (payload.old as any)?.device_id;
-        } else {
-          // INSERT/UPDATE 事件：使用 payload.new.device_id
-          eventDeviceId = (payload.new as any)?.device_id;
-        }
-        
-        // 过滤自身更新
-        if (eventDeviceId === deviceId) {
-          console.log('⏭️ 忽略自身更新', { eventType: payload.eventType, deviceId: eventDeviceId });
-          return;
-        }
+        // 【修复 A】不过滤自身更新，因为可能来自其他设备或需要同步确认
+        // 移除 device_id 过滤，让所有变更都触发回调
+        // 回调函数会处理去重和合并逻辑
         
         // 【去重】检查是否已处理过此 ID
         const medId = (payload.new as any)?.id || (payload.old as any)?.id;
@@ -602,7 +590,7 @@ export async function initCloudOnlyRealtime(callbacks: {
           }
         }
         
-        console.log('🔔 检测到其他设备的药品变更', { medId, eventType: payload.eventType, eventDeviceId });
+        console.log('🔔 检测到药品变更（Realtime）', { medId, eventType: payload.eventType });
         // 【强制修复】直接传递 payload 给回调，不触发全量拉取
         callbacks.onMedicationChange({
           eventType: payload.eventType,
@@ -624,21 +612,9 @@ export async function initCloudOnlyRealtime(callbacks: {
         table: 'medication_logs'
       },
       (payload) => {
-        // 【修复 device_id 过滤】正确处理 UPDATE/INSERT/DELETE 事件
-        let eventDeviceId: string | null = null;
-        if (payload.eventType === 'DELETE') {
-          // DELETE 事件：使用 payload.old.device_id
-          eventDeviceId = (payload.old as any)?.device_id;
-        } else {
-          // INSERT/UPDATE 事件：使用 payload.new.device_id
-          eventDeviceId = (payload.new as any)?.device_id;
-        }
-        
-        // 过滤自身更新
-        if (eventDeviceId === deviceId) {
-          console.log('⏭️ 忽略自身更新', { eventType: payload.eventType, deviceId: eventDeviceId });
-          return;
-        }
+        // 【修复 B】不过滤自身更新，因为可能来自其他设备或需要同步确认
+        // 移除 device_id 过滤，让所有变更都触发回调
+        // 回调函数会处理去重和合并逻辑
         
         // 【去重】检查是否已处理过此 ID
         const logId = (payload.new as any)?.id || (payload.old as any)?.id;
@@ -657,7 +633,7 @@ export async function initCloudOnlyRealtime(callbacks: {
           }
         }
         
-        console.log('🔔 检测到其他设备的服药记录变更', { logId, eventType: payload.eventType, eventDeviceId });
+        console.log('🔔 检测到服药记录变更（Realtime）', { logId, eventType: payload.eventType });
         // 【强制修复】直接传递 payload 给回调，不触发全量拉取
         callbacks.onLogChange({
           eventType: payload.eventType,
