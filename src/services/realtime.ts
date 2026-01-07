@@ -130,7 +130,7 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
           // #endregion
         }
       })
-      // 订阅服药记录表变更
+      // 订阅服药记录表变更（与 medications 完全一致的机制）
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -150,6 +150,7 @@ export async function initRealtimeSync(callbacks: RealtimeCallbacks): Promise<()
           deviceId: newData?.device_id
         });
         
+        // 【一致性修复】与 medications 完全一致：统一触发 reloadLogs，不局部 patch state
         if (!isApplyingRemote && callbacks.onLogChange) {
           debounceCall('log', callbacks.onLogChange, 300);
         }

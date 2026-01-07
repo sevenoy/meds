@@ -81,11 +81,7 @@ export async function recordMedicationIntake(
     image_hash: log.image_hash?.substring(0, 20) + '...'
   });
   
-  // 7. 保存到本地数据库（仅用于 UI 展示，不会触发同步）
-  await addMedicationLog(log);
-  console.log('💾 记录已保存到本地数据库，ID:', log.id);
-  
-  // 8. 【修复 B】直接写入云端（addLogToCloud），成功后立即返回结果
+  // 7. 【一致性修复】先写入云端，成功后由 Realtime 广播，不直接更新本地 state
   const { addLogToCloud } = await import('./cloudOnly');
   const cloudLog = await addLogToCloud({
     ...log,
@@ -93,14 +89,17 @@ export async function recordMedicationIntake(
   });
   
   if (!cloudLog) {
-    console.error('❌ 云端写入失败，但本地已保存');
-    // 即使云端失败，也返回本地记录
-    return log;
+    console.error('❌ 云端写入失败，抛出错误');
+    throw new Error('云端写入失败，请重试');
   }
   
-  console.log('✅ [新增记录] 云端 upsert 成功:', cloudLog.id);
+  console.log('✅ [新增记录] 云端写入成功，等待 Realtime 广播:', cloudLog.id);
   
-  // 返回云端记录（包含云端生成的 ID 等字段，如果不同则使用云端 ID）
+  // 8. 【一致性修复】保存到本地数据库（仅用于离线缓存，Realtime 会统一刷新）
+  await addMedicationLog(cloudLog);
+  console.log('💾 记录已保存到本地数据库（缓存），ID:', cloudLog.id);
+  
+  // 返回云端记录（Realtime 会统一刷新所有设备）
   return cloudLog;
 }
 
