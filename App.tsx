@@ -427,6 +427,9 @@ export default function App() {
   const medicationsRef = React.useRef<MedicationUI[]>([]);
   const logsRef = React.useRef<MedicationLog[]>([]);
   
+  // 【修复B】logs Realtime 去抖定时器
+  const logDebounceTimerRef = React.useRef<number | null>(null);
+  
   // 【修复 C】同步 ref 和 state
   React.useEffect(() => {
     medicationsRef.current = medications;
@@ -784,12 +787,11 @@ export default function App() {
       try {
         console.log('🚀 开始初始化应用（首屏优化模式）...');
         
-        // 【Realtime 统一模型】初始化：只加载一次数据，之后全部由 Realtime 驱动
-        // 1. 快速加载：立即加载今日记录和药品列表，不阻塞 UI
-        setInitialLoading(false); // 立即取消 loading，允许进入主页
-        loadDataFast(); // 非阻塞加载
+        // 【修复B】初始化流程必须变成单步：只允许调用一次 reloadLogsFromCloud（全量拉取并替换）
+        // 禁止先塞 1 条"今日"再后台补历史，改为直接全量加载
+        setInitialLoading(false); // 立即取消 loading，允许进入主页（显示 skeleton）
         
-        // 【延迟加载】2. 后台加载完整数据（不阻塞 UI）
+        // 【修复B】单步全量加载：直接加载完整数据，不先加载今日
         (async () => {
           try {
             // 版本检查（后台执行）
@@ -819,16 +821,17 @@ export default function App() {
             await fixLegacyDeviceIds();
             console.log('🔧 device_id 修复完成');
             
-            // 【Realtime 统一模型】初始化时只加载一次完整数据，之后全部由 Realtime 驱动
-            await loadData(true, 'app-init-background');
-            console.log('✅ 完整数据加载完成');
+            // 【修复B】单步全量加载：只调用一次 loadData，全量拉取并替换
+            console.log('📥 [初始化] 开始全量加载数据（单步，禁止分阶段）');
+            await loadData(true, 'app-init');
+            console.log('✅ [初始化] 全量数据加载完成，数量一次性稳定');
             
             // 标记应用已初始化（Realtime 现在可以处理所有事件）
             isInitializingRef.current = false;
             setAppInitialized(true);
             console.log('✅ 应用已初始化，Realtime 现在可以处理所有事件');
           } catch (error) {
-            console.error('❌ 后台初始化失败:', error);
+            console.error('❌ 初始化失败:', error);
             isInitializingRef.current = false;
             setAppInitialized(true);
           }
@@ -870,70 +873,70 @@ export default function App() {
     // 【Realtime 统一模型】立即启动 Realtime，确保数据实时同步
     let cloudRealtimeCleanup: (() => void) | null = null;
     initCloudOnlyRealtime({
-      onMedicationChange: (payload) => {
-        // 【Realtime 统一模型】Realtime 是唯一数据源，立即处理所有事件
-        // 不再忽略初始化阶段的事件，确保数据一致性
-        
-        // 【局部更新】根据 payload 直接更新 state，不触发全量拉取
+      onMedicationChange: async (payload) => {
+        // 【修复A】禁止 payload patch，必须调用 reloadMedicationsFromCloud 全量替换
         const { eventType, new: newData, old: oldData } = payload;
+        const medId = newData?.id || oldData?.id;
+        const commitTimestamp = newData?.updated_at || oldData?.updated_at;
         
-        if (eventType === 'DELETE') {
-          // 删除：从 state 中移除
-          const deletedId = oldData?.id;
-          if (deletedId) {
-            safeSetMedications(prev => prev.filter(m => m.id !== deletedId), 'realtime-med-delete');
-            // 【强制性能修复】从 Map 中删除，不触发 logs 重算
-            lastLogByMedicationIdRef.current.delete(deletedId);
-            console.log('✅ [Realtime] 已从 state 移除药品:', deletedId);
-          }
-        } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
-          // 插入/更新：更新或添加药品
-          const medData = newData;
-          if (medData) {
-            safeSetMedications(prev => {
-              const existingIndex = prev.findIndex(m => m.id === medData.id);
-              if (existingIndex >= 0) {
-                // 更新现有药品
-                const updated = [...prev];
-                const existingMed = updated[existingIndex];
-                // 【修复 A】确保所有字段（包括 accent/color）都被更新，但保留本地计算的 status 和 lastLog
-                updated[existingIndex] = {
-                  ...existingMed,
-                  ...medData, // 包含 accent、name、dosage、scheduled_time 等所有字段
-                  status: existingMed.status || 'pending', // 保留本地计算的 status
-                  lastTakenAt: existingMed.lastTakenAt,
-                  uploadedAt: existingMed.uploadedAt,
-                  lastLog: existingMed.lastLog
-                };
-                console.log('✅ [Realtime] 已更新药品（包括颜色）:', medData.id, { accent: medData.accent });
-                return updated;
-              } else {
-                // 添加新药品
-                return [...prev, {
-                  ...medData,
-                  status: 'pending',
-                  lastTakenAt: undefined,
-                  uploadedAt: undefined,
-                  lastLog: undefined
-                }];
-              }
-            }, 'realtime-med-insert-update');
-            console.log('✅ [Realtime] 已更新 state 中的药品:', medData.id);
-          }
+        console.log(`🔔 [Realtime] 药品变更: eventType=${eventType}, id=${medId}, commit_timestamp=${commitTimestamp}`);
+        
+        // 【修复A】禁止局部更新，必须全量替换
+        try {
+          const allMeds = await getMedicationsFromCloud();
+          console.log(`📥 [Realtime] 全量拉取 medications: ${allMeds.length} 条`);
+          
+          // 转换为 MedicationUI（计算 status）
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          const medsUI: MedicationUI[] = allMeds.map(med => {
+            const lastLog = lastLogByMedicationIdRef.current.get(med.id);
+            const taken = lastLog && new Date(lastLog.taken_at) >= today;
+            return {
+              ...med,
+              status: taken ? 'completed' : 'pending',
+              lastTakenAt: lastLog?.taken_at,
+              uploadedAt: lastLog?.created_at,
+              lastLog
+            };
+          });
+          
+          // 全量替换
+          safeSetMedications(medsUI, `realtime-med-${eventType.toLowerCase()}-reload`);
+          
+          // 计算并打印统计信息
+          const maxUpdatedAt = allMeds.length > 0 
+            ? Math.max(...allMeds.map(m => new Date(m.updated_at || m.created_at || 0).getTime()))
+            : 0;
+          console.log(`✅ [Realtime] medications 全量替换完成: count=${allMeds.length}, max(updated_at)=${maxUpdatedAt ? new Date(maxUpdatedAt).toISOString() : 'N/A'}`);
+        } catch (error) {
+          console.error('❌ [Realtime] 全量拉取 medications 失败:', error);
         }
       },
       onLogChange: async (payload) => {
-        // 【一致性修复】与 medications 完全一致：统一重新拉取 logs（带 order），不局部 patch state
-        console.log('[Realtime] 服药记录变更，统一重新拉取 logs');
-        try {
-          const allLogs = await getLogsFromCloud(undefined, 300, 60);
-          const sortedLogs = [...allLogs].sort((a, b) => 
-            new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
-          );
-          
-          // 【一致性修复】更新状态时保留旧 state，防止变成 0
-          if (sortedLogs.length > 0 || logsLoaded) {
-            safeSetTimelineLogs(sortedLogs, 'realtime-reload-logs');
+        // 【修复B】禁止 payload patch，必须调用 reloadLogsFromCloud 全量替换，加去抖
+        const { eventType, new: newData, old: oldData } = payload;
+        const logId = newData?.id || oldData?.id;
+        const commitTimestamp = newData?.updated_at || newData?.created_at || oldData?.updated_at || oldData?.created_at;
+        
+        console.log(`🔔 [Realtime] 服药记录变更: eventType=${eventType}, id=${logId}, commit_timestamp=${commitTimestamp}`);
+        
+        // 【修复B】去抖：300-800ms 内多事件只 reload 一次
+        if (logDebounceTimerRef.current) {
+          clearTimeout(logDebounceTimerRef.current);
+        }
+        
+        logDebounceTimerRef.current = window.setTimeout(async () => {
+          try {
+            console.log(`📥 [Realtime] 开始全量拉取 logs（去抖后）`);
+            const allLogs = await getLogsFromCloud(undefined, 300, 60);
+            const sortedLogs = [...allLogs].sort((a, b) => 
+              new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+            );
+            
+            // 【修复B】全量替换，禁止 merge/append
+            safeSetTimelineLogs(sortedLogs, `realtime-log-${eventType.toLowerCase()}-reload`);
             setLogsLoaded(true);
             setLogsLastUpdatedAt(new Date());
             
@@ -964,11 +967,22 @@ export default function App() {
               }
               return m;
             }), 'realtime-reload-logs-update-meds');
+            
+            // 计算并打印统计信息
+            const minTakenAt = sortedLogs.length > 0 
+              ? Math.min(...sortedLogs.map(l => new Date(l.taken_at).getTime()))
+              : 0;
+            const maxTakenAt = sortedLogs.length > 0 
+              ? Math.max(...sortedLogs.map(l => new Date(l.taken_at).getTime()))
+              : 0;
+            const maxUploadedAt = sortedLogs.length > 0 
+              ? Math.max(...sortedLogs.map(l => new Date(l.uploaded_at || l.created_at || 0).getTime()))
+              : 0;
+            console.log(`✅ [Realtime] logs 全量替换完成: count=${sortedLogs.length}, min(taken_at)=${minTakenAt ? new Date(minTakenAt).toISOString() : 'N/A'}, max(taken_at)=${maxTakenAt ? new Date(maxTakenAt).toISOString() : 'N/A'}, max(uploaded_at)=${maxUploadedAt ? new Date(maxUploadedAt).toISOString() : 'N/A'}`);
+          } catch (error) {
+            console.error('❌ [Realtime] 全量拉取 logs 失败:', error);
           }
-        } catch (error) {
-          console.error('❌ [Realtime] 重新拉取 logs 失败:', error);
-          // 【一致性修复】失败时保留旧 state，不清空
-        }
+        }, 500); // 500ms 去抖
       }
     }).then(cleanup => {
       cloudRealtimeCleanup = cleanup;
@@ -2706,13 +2720,15 @@ export default function App() {
                           alert('更新药品失败，请重试');
                           return;
                         }
-                        console.log('✅ 药品已直接更新到云端:', savedMed.name);
+                        console.log('✅ 药品已直接更新到云端:', savedMed.name, { accent: savedMed.accent });
                         
-                        // 成功：用云端返回的数据更新本地 state（确保字段一致）
+                        // 【修复A】立即用云端返回的数据更新本地 state（包括 accent 颜色）
+                        // 这确保本机立即生效，不等待 Realtime
                         safeSetMedications(prev => prev.map(m => m.id === editingMed.id ? {
                           ...m,
                           ...savedMed
                         } : m), 'edit-medication-confirmed');
+                        console.log('✅ [修复A] 本机 state 已立即更新（包括颜色）:', savedMed.accent);
                       } catch (error: any) {
                         // 失败时回滚
                         safeSetMedications(prev => prev.map(m => m.id === editingMed.id ? {

@@ -315,7 +315,7 @@ export async function getLogsFromCloud(
  * @export 导出供其他模块使用（如 sync.ts）
  */
 export function sanitizeMedicationForDb(medication: Medication): any {
-  // 数据库列白名单（根据 supabase schema）
+  // 数据库列白名单（根据 supabase schema + accent 字段）
   const dbFields = [
     'id',
     'user_id',
@@ -323,6 +323,7 @@ export function sanitizeMedicationForDb(medication: Medication): any {
     'dosage',
     'scheduled_time',
     'device_id',
+    'accent', // 【修复A】保留 accent 字段用于颜色主题同步
     'updated_at'
   ];
   
@@ -341,7 +342,7 @@ export function sanitizeMedicationForDb(medication: Medication): any {
   }
   
   // 显式删除 UI-only 字段（防御性编程）
-  delete sanitized.accent;
+  // 【修复A】不再删除 accent，因为需要同步颜色主题
   delete sanitized.status;
   delete sanitized.lastTakenAt;
   delete sanitized.lastLog;

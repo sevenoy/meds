@@ -142,7 +142,7 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
         onMedicationUpdated(updatedMed);
       }
       
-      // 【云端化】后台异步更新云端，不阻塞 UI
+      // 【修复A】云端写入成功后立即用返回数据更新本地 state（确保颜色立即生效）
       try {
         const savedMed = await upsertMedicationToCloud(updatedMed);
         if (!savedMed) {
@@ -153,11 +153,13 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
           alert('更新药品失败，请重试');
           return;
         }
-        console.log('✅ 药品已直接更新到云端:', savedMed.name);
+        console.log('✅ 药品已直接更新到云端:', savedMed.name, { accent: savedMed.accent });
         
-        // 成功：用云端返回的数据更新本地 state（确保字段一致）
+        // 【修复A】立即用云端返回的数据更新本地 state（包括 accent 颜色）
+        // 这确保本机立即生效，不等待 Realtime
         if (onMedicationUpdated) {
           onMedicationUpdated(savedMed);
+          console.log('✅ [修复A] 本机 state 已立即更新（包括颜色）:', savedMed.accent);
         }
       } catch (error: any) {
         // 失败时回滚
