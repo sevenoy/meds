@@ -374,18 +374,27 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
 
     // 如果有 id，使用 upsert；否则 insert
     if (medication.id) {
+      // 【修复A】强制更新 updated_at，确保即使颜色值相同也触发 Realtime
+      const now = new Date().toISOString();
+      medicationData.updated_at = now;
+      
+      console.log(`📝 [修复A] 更新药品: id=${medication.id}, accent=${medicationData.accent}, updated_at=${now}`);
+      
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:beforeUpsert',message:'Before upsert',data:{medicationId:medication.id,name:medication.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:beforeUpsert',message:'Before upsert',data:{medicationId:medication.id,name:medication.name,accent:medicationData.accent},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
       // #endregion
       
-      const { data, error } = await supabase
+      // 【修复A】使用 update 而不是 upsert，确保能验证命中行数
+      const { data, error, count } = await supabase
         .from('medications')
-        .upsert(medicationData, { onConflict: 'id' })
+        .update(medicationData)
+        .eq('id', medication.id)
+        .eq('user_id', userId)
         .select()
         .single();
 
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:afterUpsert',message:'After upsert',data:{hasData:!!data,hasError:!!error,errorMsg:error?.message||'none',errorCode:error?.code||'none',dataLength:Array.isArray(data)?data.length:(data?1:0)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:afterUpsert',message:'After upsert',data:{hasData:!!data,hasError:!!error,errorMsg:error?.message||'none',errorCode:error?.code||'none',dataLength:Array.isArray(data)?data.length:(data?1:0),count:count},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
       // #endregion
 
       if (error) {
@@ -394,7 +403,13 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
         throw new Error(`更新药品失败: ${errorMsg}`);
       }
 
-      console.log('✅ 药品已更新到云端:', data.name);
+      // 【修复A】验证是否真实写入：必须有返回数据
+      if (!data) {
+        console.error('❌ 更新药品失败：返回数据为空，可能未命中任何行');
+        throw new Error('更新药品失败：未命中任何行');
+      }
+
+      console.log(`✅ [修复A] 药品已更新到云端: id=${data.id}, name=${data.name}, accent=${data.accent}, updated_at=${data.updated_at}`);
       return data;
     } else {
       // 新增药品，让数据库自动生成 UUID
@@ -569,6 +584,78 @@ export async function addLogToCloud(log: Omit<MedicationLog, 'id'> | MedicationL
   } catch (error: any) {
     // 【强制修复】输出完整的异常信息
     console.error('❌ 添加服药记录异常 - 完整错误信息:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      error: error
+    });
+    return null;
+  }
+}
+
+/**
+ * 更新服药记录（直接写入云端）
+ * 【新增功能C】支持编辑服药记录：修改 taken_at、medication_id、image_path
+ */
+export async function updateLogToCloud(
+  logId: string,
+  updates: {
+    taken_at?: string;
+    medication_id?: string;
+    image_path?: string;
+  }
+): Promise<MedicationLog | null> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) {
+    console.error('❌ 用户未登录或 Supabase 未配置');
+    return null;
+  }
+
+  try {
+    // 【修复C】强制更新 updated_at，确保触发 Realtime
+    const now = new Date().toISOString();
+    const updateData: any = {
+      ...updates,
+      updated_at: now
+    };
+
+    // 清理 undefined 字段
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
+    console.log(`📝 [修复C] 更新服药记录: id=${logId}, updates=`, updateData);
+
+    const { data, error } = await supabase
+      .from('medication_logs')
+      .update(updateData)
+      .eq('id', logId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ 更新服药记录失败:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      return null;
+    }
+
+    // 【修复C】验证是否真实写入
+    if (!data) {
+      console.error('❌ 更新服药记录失败：返回数据为空，可能未命中任何行');
+      return null;
+    }
+
+    console.log(`✅ [修复C] 服药记录已更新到云端: id=${data.id}, taken_at=${data.taken_at}, medication_id=${data.medication_id}`);
+    return data;
+  } catch (error: any) {
+    console.error('❌ 更新服药记录异常:', {
       message: error?.message,
       stack: error?.stack,
       name: error?.name,

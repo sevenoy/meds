@@ -16,8 +16,9 @@ import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime
 import { forcePwaUpdateOncePerVersion } from './src/sw-register';
 import { APP_VERSION } from './src/config/version';
 // 【新增】纯云端服务
-import { enforceVersionSync, getMedicationsFromCloud, getLogsFromCloud, getTodayLogsFromCloud, upsertMedicationToCloud, deleteMedicationFromCloud, addLogToCloud, initCloudOnlyRealtime } from './src/services/cloudOnly';
+import { enforceVersionSync, getMedicationsFromCloud, getLogsFromCloud, getTodayLogsFromCloud, upsertMedicationToCloud, deleteMedicationFromCloud, addLogToCloud, updateLogToCloud, initCloudOnlyRealtime } from './src/services/cloudOnly';
 import { getExtendedColorWheel, hslToHex, hexToHsl } from './src/utils/colorPicker';
+import { supabase } from './src/lib/supabase';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Helper Functions ---
@@ -148,8 +149,9 @@ const TimelineItem: React.FC<{
   log: MedicationLog; 
   medication: Medication;
   onMedicationClick?: (medicationId: string) => void;
+  onEdit?: (log: MedicationLog) => void;
   isLast?: boolean;
-}> = ({ log, medication, onMedicationClick, isLast }) => {
+}> = ({ log, medication, onMedicationClick, onEdit, isLast }) => {
   // 【修复 D】懒加载图片：点击时间才显示
   const [showImage, setShowImage] = React.useState(false);
   const [imageUrl, setImageUrl] = React.useState<string | null>(null);
@@ -232,16 +234,28 @@ const TimelineItem: React.FC<{
       
       <div className="flex flex-col" style={{ gap: '6px' }}>
         {/* 药品名称和状态标签 */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onMedicationClick?.(medication.id)}
-            className="text-lg font-black italic uppercase hover:text-blue-600 transition-colors cursor-pointer"
-          >
-            {medication.name}
-          </button>
-          <span className={`text-[10px] font-bold px-2 py-1 rounded-md tracking-widest ${getStatusColor()}`}>
-            {getStatusText()}
-          </span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onMedicationClick?.(medication.id)}
+              className="text-lg font-black italic uppercase hover:text-blue-600 transition-colors cursor-pointer"
+            >
+              {medication.name}
+            </button>
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-md tracking-widest ${getStatusColor()}`}>
+              {getStatusText()}
+            </span>
+          </div>
+          {/* 【新增功能C】编辑按钮 */}
+          {onEdit && (
+            <button
+              onClick={() => onEdit(log)}
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+              title="编辑记录"
+            >
+              <Edit2 className="w-4 h-4 text-gray-600" />
+            </button>
+          )}
         </div>
         
         {/* 时间和图片信息 */}
@@ -412,6 +426,12 @@ export default function App() {
   const [editMedDosage, setEditMedDosage] = useState('');
   const [editMedTime, setEditMedTime] = useState('');
   const [editMedAccent, setEditMedAccent] = useState<string>('#E0F3A2');
+  
+  // 【新增功能C】编辑服药记录状态
+  const [editingLog, setEditingLog] = useState<MedicationLog | null>(null);
+  const [editLogTakenAt, setEditLogTakenAt] = useState('');
+  const [editLogMedicationId, setEditLogMedicationId] = useState<string>('');
+  const [editLogImagePath, setEditLogImagePath] = useState<string>('');
 
   // 【防重入锁】防止 loadData 并发执行
   const syncInProgressRef = React.useRef(false);
@@ -1605,6 +1625,16 @@ export default function App() {
                                   onMedicationClick={(medId) => {
                                     setSelectedMedicationId(medId);
                                   }}
+                                  onEdit={(log) => {
+                                    setEditingLog(log);
+                                    // 设置编辑表单初始值
+                                    const logDate = new Date(log.taken_at);
+                                    const dateStr = logDate.toISOString().split('T')[0];
+                                    const timeStr = logDate.toTimeString().slice(0, 5);
+                                    setEditLogTakenAt(`${dateStr}T${timeStr}`);
+                                    setEditLogMedicationId(log.medication_id);
+                                    setEditLogImagePath(log.image_path || '');
+                                  }}
                                   isLast={index === logsOnDate.length - 1}
                                 />
                               );
@@ -2593,6 +2623,145 @@ export default function App() {
       {/* 版本更新提示 */}
       <UpdateNotification />
       
+      {/* 【新增功能C】编辑服药记录模态框 */}
+      {editingLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(243, 232, 255, 0.95) 0%, rgba(232, 225, 255, 0.95) 100%)', backdropFilter: 'blur(8px)' }}>
+          <div className="bg-white rounded-[40px] p-8 max-w-md w-full shadow-2xl" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black italic tracking-tighter">编辑服药记录</h3>
+              <button
+                onClick={() => setEditingLog(null)}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">吃药时间</label>
+                <input
+                  type="datetime-local"
+                  value={editLogTakenAt}
+                  onChange={(e) => setEditLogTakenAt(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">药品</label>
+                <select
+                  value={editLogMedicationId}
+                  onChange={(e) => setEditLogMedicationId(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                >
+                  {medications.map(med => (
+                    <option key={med.id} value={med.id}>{med.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-600 mb-2">药品照片（图片路径）</label>
+                <input
+                  type="text"
+                  value={editLogImagePath}
+                  onChange={(e) => setEditLogImagePath(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
+                  placeholder="图片路径或 URL"
+                />
+                {editLogImagePath && (
+                  <div className="mt-2">
+                    {(() => {
+                      let imageSrc = editLogImagePath;
+                      if (!editLogImagePath.startsWith('http') && !editLogImagePath.startsWith('data:') && supabase) {
+                        try {
+                          const { data: { publicUrl } } = supabase.storage
+                            .from('medication-images')
+                            .getPublicUrl(editLogImagePath);
+                          imageSrc = publicUrl;
+                        } catch (e) {
+                          console.warn('⚠️ 生成图片预览 URL 失败:', e);
+                        }
+                      }
+                      return (
+                        <img 
+                          src={imageSrc}
+                          alt="预览" 
+                          className="max-w-full h-auto rounded-xl"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setEditingLog(null)}
+                  className="flex-1 px-6 py-4 bg-gray-100 text-gray-700 font-black italic rounded-full tracking-tighter hover:bg-gray-200 transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!editingLog) return;
+                    
+                    if (!editLogTakenAt || !editLogMedicationId) {
+                      alert('请填写完整信息');
+                      return;
+                    }
+
+                    // 【修复C】禁止本地假更新，必须等待云端确认
+                    try {
+                      console.log(`📝 [修复C] 开始更新服药记录: id=${editingLog.id}`);
+                      
+                      const updatedLog = await updateLogToCloud(editingLog.id, {
+                        taken_at: new Date(editLogTakenAt).toISOString(),
+                        medication_id: editLogMedicationId,
+                        image_path: editLogImagePath || undefined
+                      });
+
+                      if (!updatedLog) {
+                        alert('更新记录失败，请重试');
+                        return;
+                      }
+
+                      console.log(`✅ [修复C] 服药记录已更新到云端: id=${updatedLog.id}`);
+                      
+                      // 【修复C】等待 Realtime 回调全量替换，不直接 patch state
+                      // 关闭编辑模态框
+                      setEditingLog(null);
+                      
+                      // 显示成功提示
+                      const notification = document.createElement('div');
+                      notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
+                      notification.textContent = '✅ 记录已更新，等待同步...';
+                      document.body.appendChild(notification);
+                      
+                      setTimeout(() => {
+                        notification.classList.add('animate-fade-out');
+                        setTimeout(() => notification.remove(), 300);
+                      }, 2000);
+                    } catch (error: any) {
+                      const errorMsg = error?.message || '更新记录失败，请重试';
+                      console.error('❌ 更新记录失败:', errorMsg, error);
+                      alert(`更新记录失败: ${errorMsg}`);
+                    }
+                  }}
+                  className="flex-1 px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 编辑药品模态框 */}
       {editingMed && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(243, 232, 255, 0.95) 0%, rgba(232, 225, 255, 0.95) 100%)', backdropFilter: 'blur(8px)' }}>
