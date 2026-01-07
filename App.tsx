@@ -18,7 +18,7 @@ import { APP_VERSION } from './src/config/version';
 // 【新增】纯云端服务
 import { enforceVersionSync, getMedicationsFromCloud, getLogsFromCloud, getTodayLogsFromCloud, upsertMedicationToCloud, deleteMedicationFromCloud, addLogToCloud, updateLogToCloud, initCloudOnlyRealtime } from './src/services/cloudOnly';
 import { getExtendedColorWheel, hslToHex, hexToHsl } from './src/utils/colorPicker';
-import { supabase } from './src/lib/supabase';
+import { supabase, getCurrentUserId } from './src/lib/supabase';
 import type { Medication, MedicationLog } from './src/types';
 
 // --- Helper Functions ---
@@ -432,6 +432,7 @@ export default function App() {
   const [editLogTakenAt, setEditLogTakenAt] = useState('');
   const [editLogMedicationId, setEditLogMedicationId] = useState<string>('');
   const [editLogImagePath, setEditLogImagePath] = useState<string>('');
+  const [editLogImageFile, setEditLogImageFile] = useState<File | null>(null); // 【修复4】用于重新上传的照片文件
 
   // 【防重入锁】防止 loadData 并发执行
   const syncInProgressRef = React.useRef(false);
@@ -802,60 +803,65 @@ export default function App() {
     //   console.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
     // }); // ❌ 已移除：禁止在启动流程自动清缓存
     
-    // 【首屏优化】立即进入主页，延迟加载非关键数据
+    // 【修复1】App初始化时必须立刻执行getMedicationsFromCloud()和getLogsFromCloud()
+    // 禁止任何"先set空数组再等Realtime"的逻辑
     const initializeApp = async () => {
       try {
-        console.log('🚀 开始初始化应用（首屏优化模式）...');
+        console.log('🚀 开始初始化应用（立即加载数据模式）...');
         
-        // 【修复B】初始化流程必须变成单步：只允许调用一次 reloadLogsFromCloud（全量拉取并替换）
-        // 禁止先塞 1 条"今日"再后台补历史，改为直接全量加载
-        setInitialLoading(false); // 立即取消 loading，允许进入主页（显示 skeleton）
+        // 【修复1】禁止先set空数组，在数据返回前显示loading
+        // 保持initialLoading=true，直到数据加载完成
         
-        // 【修复B】单步全量加载：直接加载完整数据，不先加载今日
-        (async () => {
+        try {
+          // 版本检查
           try {
-            // 版本检查（后台执行）
-            try {
-              await enforceVersionSync();
-              console.log('✅ 版本检查通过');
-            } catch (error: any) {
-              if (error.message === 'VERSION_MISMATCH') {
-                return;
-              }
-              console.warn('⚠️ 版本检查失败，继续初始化:', error);
+            await enforceVersionSync();
+            console.log('✅ 版本检查通过');
+          } catch (error: any) {
+            if (error.message === 'VERSION_MISMATCH') {
+              setInitialLoading(false);
+              setAppInitialized(true);
+              return;
             }
-            
-            // 加载云端快照（后台执行）
-            const loadResult = await cloudLoadV2();
-            if (loadResult.success && loadResult.payload) {
-              console.log('✅ 云端数据已加载并初始化 payload');
-            } else {
-              console.log('📝 首次使用，创建初始 payload');
-              const payload = getCurrentSnapshotPayload();
-              if (!payload) {
-                console.warn('⚠️ payload 仍为 null，手动初始化...');
-              }
-            }
-            
-            // 修复旧药品的 device_id（后台执行）
-            await fixLegacyDeviceIds();
-            console.log('🔧 device_id 修复完成');
-            
-            // 【修复B】单步全量加载：只调用一次 loadData，全量拉取并替换
-            console.log('📥 [初始化] 开始全量加载数据（单步，禁止分阶段）');
-            await loadData(true, 'app-init');
-            console.log('✅ [初始化] 全量数据加载完成，数量一次性稳定');
-            
-            // 标记应用已初始化（Realtime 现在可以处理所有事件）
-            isInitializingRef.current = false;
-            setAppInitialized(true);
-            console.log('✅ 应用已初始化，Realtime 现在可以处理所有事件');
-          } catch (error) {
-            console.error('❌ 初始化失败:', error);
-            isInitializingRef.current = false;
-            setAppInitialized(true);
+            console.warn('⚠️ 版本检查失败，继续初始化:', error);
           }
-        })();
+          
+          // 加载云端快照
+          const loadResult = await cloudLoadV2();
+          if (loadResult.success && loadResult.payload) {
+            console.log('✅ 云端数据已加载并初始化 payload');
+          } else {
+            console.log('📝 首次使用，创建初始 payload');
+            const payload = getCurrentSnapshotPayload();
+            if (!payload) {
+              console.warn('⚠️ payload 仍为 null，手动初始化...');
+            }
+          }
+          
+          // 修复旧药品的 device_id
+          await fixLegacyDeviceIds();
+          console.log('🔧 device_id 修复完成');
+          
+          // 【修复1】立即执行getMedicationsFromCloud()和getLogsFromCloud()
+          // 在数据返回前保持loading状态，禁止显示0
+          console.log('📥 [初始化] 立即开始加载数据（禁止先set空数组）');
+          await loadData(true, 'app-init');
+          console.log('✅ [初始化] 数据加载完成，数量一次性稳定');
+          
+          // 数据加载完成后才取消loading
+          setInitialLoading(false);
+          
+          // 标记应用已初始化（Realtime 现在可以处理所有事件）
+          isInitializingRef.current = false;
+          setAppInitialized(true);
+          console.log('✅ 应用已初始化，Realtime 现在可以处理所有事件');
+        } catch (error) {
+          console.error('❌ 初始化失败:', error);
+          // 即使失败也要取消loading，避免卡在loading界面
+          setInitialLoading(false);
+          isInitializingRef.current = false;
+          setAppInitialized(true);
+        }
       } catch (error) {
         console.error('❌ 应用初始化失败:', error);
         setInitialLoading(false);
@@ -1634,6 +1640,7 @@ export default function App() {
                                     setEditLogTakenAt(`${dateStr}T${timeStr}`);
                                     setEditLogMedicationId(log.medication_id);
                                     setEditLogImagePath(log.image_path || '');
+                                    setEditLogImageFile(null); // 【修复4】重置新照片文件
                                   }}
                                   isLast={index === logsOnDate.length - 1}
                                 />
@@ -2662,16 +2669,10 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-600 mb-2">药品照片（图片路径）</label>
-                <input
-                  type="text"
-                  value={editLogImagePath}
-                  onChange={(e) => setEditLogImagePath(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
-                  placeholder="图片路径或 URL"
-                />
+                <label className="block text-sm font-bold text-gray-600 mb-2">药品照片</label>
+                {/* 【修复4】显示当前照片 */}
                 {editLogImagePath && (
-                  <div className="mt-2">
+                  <div className="mb-3">
                     {(() => {
                       let imageSrc = editLogImagePath;
                       if (!editLogImagePath.startsWith('http') && !editLogImagePath.startsWith('data:') && supabase) {
@@ -2685,16 +2686,54 @@ export default function App() {
                         }
                       }
                       return (
-                        <img 
-                          src={imageSrc}
-                          alt="预览" 
-                          className="max-w-full h-auto rounded-xl"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
+                        <div className="relative">
+                          <img 
+                            src={imageSrc}
+                            alt="当前照片" 
+                            className="max-w-full h-auto rounded-xl border border-gray-200"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
                       );
                     })()}
+                  </div>
+                )}
+                {/* 【修复4】重新上传照片按钮，禁止手动输入URL */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setEditLogImageFile(file);
+                      // 生成预览URL
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const dataUrl = event.target?.result as string;
+                        setEditLogImagePath(dataUrl); // 临时使用dataUrl作为预览
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                  id="edit-log-image-upload"
+                />
+                <label
+                  htmlFor="edit-log-image-upload"
+                  className="block w-full px-4 py-3 rounded-2xl border-2 border-dashed border-gray-300 hover:border-pink-500 focus:border-pink-500 cursor-pointer text-center font-medium text-gray-600 hover:text-pink-600 transition-all"
+                >
+                  {editLogImageFile ? '✅ 已选择新照片，点击重新选择' : editLogImagePath ? '🔄 重新上传照片' : '📷 上传照片'}
+                </label>
+                {editLogImageFile && (
+                  <div className="mt-2">
+                    <img 
+                      src={URL.createObjectURL(editLogImageFile)}
+                      alt="新照片预览" 
+                      className="max-w-full h-auto rounded-xl border border-gray-200"
+                    />
                   </div>
                 )}
               </div>
@@ -2715,6 +2754,27 @@ export default function App() {
                       return;
                     }
 
+                    // 【修复4】如果选择了新照片，先上传照片
+                    let finalImagePath = editLogImagePath;
+                    if (editLogImageFile && editingLog) {
+                      try {
+                        console.log('📸 [修复4] 开始上传新照片...');
+                        const { uploadImage } = await import('./src/services/storage');
+                        const userId = await getCurrentUserId();
+                        if (!userId) {
+                          alert('用户未登录，无法上传照片');
+                          return;
+                        }
+                        // 上传新照片（使用medication_id作为路径的一部分）
+                        finalImagePath = await uploadImage(editLogImageFile, userId, editLogMedicationId);
+                        console.log('✅ [修复4] 照片上传成功:', finalImagePath);
+                      } catch (error: any) {
+                        console.error('❌ [修复4] 照片上传失败:', error);
+                        alert(`照片上传失败: ${error.message || '未知错误'}`);
+                        return;
+                      }
+                    }
+                    
                     // 【修复C】禁止本地假更新，必须等待云端确认
                     try {
                       console.log(`📝 [修复C] 开始更新服药记录: id=${editingLog.id}`);
@@ -2722,7 +2782,7 @@ export default function App() {
                       const updatedLog = await updateLogToCloud(editingLog.id, {
                         taken_at: new Date(editLogTakenAt).toISOString(),
                         medication_id: editLogMedicationId,
-                        image_path: editLogImagePath || undefined
+                        image_path: finalImagePath || undefined
                       });
 
                       if (!updatedLog) {

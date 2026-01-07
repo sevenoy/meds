@@ -384,8 +384,9 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
       fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:beforeUpsert',message:'Before upsert',data:{medicationId:medication.id,name:medication.name,accent:medicationData.accent},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
       // #endregion
       
-      // 【修复A】使用 update 而不是 upsert，确保能验证命中行数
-      const { data, error, count } = await supabase
+      // 【修复2】强制使用update().eq().select().single()，禁止upsert
+      // 【修复3】验证命中行数，如果update命中0行，直接报错
+      const { data, error } = await supabase
         .from('medications')
         .update(medicationData)
         .eq('id', medication.id)
@@ -394,7 +395,7 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
         .single();
 
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:afterUpsert',message:'After upsert',data:{hasData:!!data,hasError:!!error,errorMsg:error?.message||'none',errorCode:error?.code||'none',dataLength:Array.isArray(data)?data.length:(data?1:0),count:count},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:afterUpdate',message:'After update',data:{hasData:!!data,hasError:!!error,errorMsg:error?.message||'none',errorCode:error?.code||'none',accent:medicationData.accent},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
       // #endregion
 
       if (error) {
@@ -403,10 +404,20 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
         throw new Error(`更新药品失败: ${errorMsg}`);
       }
 
-      // 【修复A】验证是否真实写入：必须有返回数据
+      // 【修复3】验证是否真实写入：必须有返回数据，如果update命中0行，直接报错
       if (!data) {
-        console.error('❌ 更新药品失败：返回数据为空，可能未命中任何行');
-        throw new Error('更新药品失败：未命中任何行');
+        console.error('❌ 更新药品失败：返回数据为空，update命中0行，可能id不存在或user_id不匹配');
+        throw new Error('更新药品失败：未命中任何行，请检查药品ID和用户权限');
+      }
+      
+      // 【修复3】验证accent字段是否正确写入
+      if (medicationData.accent !== undefined && data.accent !== medicationData.accent) {
+        console.error('❌ accent字段写入不一致:', { 
+          expected: medicationData.accent, 
+          actual: data.accent,
+          medicationId: medication.id 
+        });
+        throw new Error(`accent字段写入不一致: 期望${medicationData.accent}，实际${data.accent}`);
       }
 
       console.log(`✅ [修复A] 药品已更新到云端: id=${data.id}, name=${data.name}, accent=${data.accent}, updated_at=${data.updated_at}`);
