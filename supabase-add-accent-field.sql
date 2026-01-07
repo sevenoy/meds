@@ -35,3 +35,36 @@ UPDATE medications
 SET accent = '#E0F3A2' 
 WHERE accent IS NULL;
 
+-- ============================================
+-- 验证脚本执行结果
+-- ============================================
+
+-- 验证 accent 字段是否已添加
+SELECT 
+  column_name, 
+  data_type,
+  is_nullable
+FROM information_schema.columns 
+WHERE table_name = 'medications' AND column_name = 'accent';
+
+-- 验证 updated_at 字段是否存在
+SELECT 
+  column_name, 
+  data_type
+FROM information_schema.columns 
+WHERE table_name = 'medications' AND column_name = 'updated_at';
+
+-- 验证 medication_logs.updated_at 字段是否存在
+SELECT 
+  column_name, 
+  data_type
+FROM information_schema.columns 
+WHERE table_name = 'medication_logs' AND column_name = 'updated_at';
+
+-- 查看现有药品的 accent 值统计
+SELECT 
+  COUNT(*) as total_medications,
+  COUNT(accent) as medications_with_accent,
+  COUNT(*) - COUNT(accent) as medications_without_accent
+FROM medications;
+
