@@ -453,9 +453,9 @@ export async function deleteMedicationFromCloud(medicationId: string): Promise<b
 
 /**
  * 添加服药记录（直接写入云端）
- * 【修复 C】使用 upsert 处理 unique_hash 冲突
+ * 【强制修复】确保所有必需字段正确传递，清理 undefined，输出详细错误
  */
-export async function addLogToCloud(log: Omit<MedicationLog, 'id'>): Promise<MedicationLog | null> {
+export async function addLogToCloud(log: Omit<MedicationLog, 'id'> | MedicationLog): Promise<MedicationLog | null> {
   const userId = await getCurrentUserId();
   if (!userId || !supabase) {
     console.error('❌ 用户未登录或 Supabase 未配置');
@@ -464,52 +464,115 @@ export async function addLogToCloud(log: Omit<MedicationLog, 'id'>): Promise<Med
 
   try {
     const deviceId = getDeviceId();
-    const logData = {
-      ...log,
+    
+    // 【强制修复】构建符合数据库 schema 的数据对象，清理所有 undefined 字段
+    const logData: any = {
+      // 必需字段（根据 supabase-schema.sql）
       user_id: userId,
-      device_id: deviceId,
-      created_at: new Date().toISOString()
+      medication_id: log.medication_id,
+      taken_at: log.taken_at,
+      uploaded_at: log.uploaded_at,
+      time_source: log.time_source,
+      status: log.status,
+      source_device: deviceId, // 【修复】字段名改为 source_device（匹配数据库 schema）
     };
-
-    // 【修复 C】使用 upsert 处理 unique_hash 冲突
-    const { data, error } = await supabase
+    
+    // 可选字段（只添加非 undefined 的值）
+    if (log.image_path !== undefined && log.image_path !== null) {
+      logData.image_path = log.image_path;
+    }
+    if (log.image_hash !== undefined && log.image_hash !== null) {
+      logData.image_hash = log.image_hash;
+    }
+    if (log.created_at !== undefined && log.created_at !== null) {
+      logData.created_at = log.created_at;
+    } else {
+      logData.created_at = new Date().toISOString();
+    }
+    if (log.updated_at !== undefined && log.updated_at !== null) {
+      logData.updated_at = log.updated_at;
+    }
+    if (log.updated_by !== undefined && log.updated_by !== null) {
+      logData.updated_by = log.updated_by;
+    }
+    
+    // 【强制修复】使用 insert（让数据库生成 UUID），通过错误处理来处理冲突
+    // 注意：不使用 upsert，因为 unique_hash 约束是复合索引 (user_id, image_hash)
+    const { id, ...insertData } = logData;
+    const result = await supabase
       .from('medication_logs')
-      .upsert(logData, { 
-        onConflict: 'unique_hash',
-        ignoreDuplicates: true 
-      })
+      .insert(insertData)
       .select()
       .single();
 
+    const { data, error } = result;
+
     if (error) {
-      // 【修复 C】如果 ignoreDuplicates 仍无法返回记录（23505 冲突），查询已存在的记录
+      // 【强制修复】输出完整的 Supabase 错误信息
+      console.error('❌ 添加服药记录失败 - 完整错误信息:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        logData: {
+          medication_id: logData.medication_id,
+          taken_at: logData.taken_at,
+          has_image_path: !!logData.image_path,
+          has_image_hash: !!logData.image_hash,
+          user_id: logData.user_id,
+          source_device: logData.source_device
+        }
+      });
+      
+      // 【修复】处理 unique_hash 冲突（23505）- 复合唯一约束 (user_id, image_hash)
       if (error.code === '23505' && logData.image_hash) {
-        console.log('⚠️ 检测到 unique_hash 冲突，查询已存在的记录:', logData.image_hash);
+        console.log('⚠️ 检测到 unique_hash 冲突（重复提交），查询已存在的记录:', {
+          user_id: userId,
+          image_hash: logData.image_hash?.substring(0, 20) + '...'
+        });
         const { data: existingLog, error: queryError } = await supabase
           .from('medication_logs')
           .select()
           .eq('image_hash', logData.image_hash)
+          .eq('user_id', userId)
           .maybeSingle();
         
         if (queryError) {
-          console.error('❌ 查询已存在记录失败:', queryError);
+          console.error('❌ 查询已存在记录失败:', {
+            code: queryError.code,
+            message: queryError.message,
+            details: queryError.details,
+            hint: queryError.hint
+          });
           return null;
         }
         
         if (existingLog) {
-          console.log('✅ 记录已存在（重复提交），返回已存在的记录');
+          console.log('✅ 记录已存在（重复提交），返回已存在的记录:', existingLog.id);
           return existingLog;
+        } else {
+          console.warn('⚠️ unique_hash 冲突但查询不到已存在记录，可能是数据库状态不一致');
         }
       }
       
-      console.error('❌ 添加服药记录失败:', error);
       return null;
     }
 
-    console.log('✅ 服药记录已添加到云端');
+    if (!data) {
+      console.error('❌ 添加服药记录失败：返回数据为空');
+      return null;
+    }
+
+    console.log('✅ 服药记录已添加到云端:', data.id);
     return data;
-  } catch (error) {
-    console.error('❌ 添加服药记录异常:', error);
+  } catch (error: any) {
+    // 【强制修复】输出完整的异常信息
+    console.error('❌ 添加服药记录异常 - 完整错误信息:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      error: error
+    });
     return null;
   }
 }
@@ -711,4 +774,5 @@ export async function initCloudOnlyRealtime(callbacks: {
 
   return await startupPromise;
 }
+
 

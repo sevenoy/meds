@@ -81,16 +81,31 @@ export async function recordMedicationIntake(
     image_hash: log.image_hash?.substring(0, 20) + '...'
   });
   
-  // 7. 【一致性修复】先写入云端，成功后由 Realtime 广播，不直接更新本地 state
+  // 7. 【强制修复】先写入云端，成功后由 Realtime 广播，不直接更新本地 state
   const { addLogToCloud } = await import('./cloudOnly');
+  
+  // 【强制修复】构建符合数据库 schema 的 log 对象，确保所有必需字段存在
+  const cloudLogInput: Omit<MedicationLog, 'id'> = {
+    medication_id: log.medication_id,
+    user_id: log.user_id,
+    taken_at: log.taken_at,
+    uploaded_at: log.uploaded_at,
+    time_source: log.time_source,
+    status: log.status,
+    image_path: log.image_path,
+    image_hash: log.image_hash,
+    source_device: log.source_device,
+    created_at: log.created_at || new Date().toISOString()
+  };
+  
   const cloudLog = await addLogToCloud({
-    ...log,
+    ...cloudLogInput,
     id: logId // 使用生成的 ID
   });
   
   if (!cloudLog) {
-    console.error('❌ 云端写入失败，抛出错误');
-    throw new Error('云端写入失败，请重试');
+    // 【强制修复】错误信息已在 addLogToCloud 中输出，这里只抛出用户友好的错误
+    throw new Error('云端写入失败，请查看控制台获取详细错误信息');
   }
   
   console.log('✅ [新增记录] 云端写入成功，等待 Realtime 广播:', cloudLog.id);

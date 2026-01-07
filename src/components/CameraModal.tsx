@@ -115,24 +115,42 @@ export const CameraModal: React.FC<CameraModalProps> = ({ medications, onClose, 
         }
       }
       
-      // 【修复 B】云端 upsert 成功后，立即返回结果并更新 UI
+      // 【强制修复】云端写入成功后，才关闭弹窗和更新 UI
       const savedLog = await recordMedicationIntake(selectedMedicationId, selectedFile, confirmedDateTime);
       
+      // 【强制修复】写入成功后才执行以下操作
       // 显示成功提示
       alert('✅ 服药记录已成功添加！');
       
-      // 【修复 B】传递 savedLog 给 onSuccess，让 App 立即更新 state
+      // 传递 savedLog 给 onSuccess，让 App 立即更新 state
       onSuccess(savedLog);
+      // 只有在成功后才关闭弹窗
       onClose();
     } catch (err) {
-      // 【修复 B】捕获 bucket 不存在的错误并明确提示
+      // 【强制修复】输出完整的错误信息到控制台
+      console.error('❌ 添加服药记录失败 - 完整错误信息:', {
+        error: err,
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        name: err instanceof Error ? err.name : undefined
+      });
+      
+      // 【强制修复】捕获各种错误并明确提示，保持弹窗打开
       const errorMessage = err instanceof Error ? err.message : '上传失败，请重试';
+      
       if (errorMessage.includes('Storage bucket medication-images 不存在')) {
-        setError('Storage bucket medication-images 不存在，请先创建 bucket。请在 Supabase Dashboard 中创建该 bucket。');
-        alert('❌ Storage bucket medication-images 不存在，请先创建 bucket\n\n请在 Supabase Dashboard 中创建该 bucket 后再试。');
+        const bucketError = 'Storage bucket medication-images 不存在，请先创建 bucket。请在 Supabase Dashboard 中创建该 bucket。';
+        setError(bucketError);
+        alert(`❌ ${bucketError}\n\n请在 Supabase Dashboard 中创建该 bucket 后再试。`);
+      } else if (errorMessage.includes('云端写入失败')) {
+        const cloudError = '云端写入失败，请查看浏览器控制台获取详细错误信息。';
+        setError(cloudError);
+        alert(`❌ ${cloudError}\n\n请检查网络连接和数据库配置。`);
       } else {
         setError(errorMessage);
+        alert(`❌ 添加服药记录失败：${errorMessage}\n\n请查看浏览器控制台获取详细错误信息。`);
       }
+      // 【强制修复】失败时不关闭弹窗，让用户可以重试
     } finally {
       setUploading(false);
     }
