@@ -198,6 +198,8 @@ const TimelineItem: React.FC<{
   // 【修复 D】处理图片 URL：支持 storage 路径和 DataURL
   React.useEffect(() => {
     if (showImage && log.image_path && !imageUrl) {
+      console.log('[RENDER_IMAGE] path:', log.image_path);
+
       // 如果是 storage 路径（不包含 data:），生成 publicUrl
       if (!log.image_path.startsWith('data:')) {
         // 检查是否是完整的 URL
@@ -212,8 +214,10 @@ const TimelineItem: React.FC<{
               const { data: { publicUrl } } = supabase.storage
                 .from('medication-images')
                 .getPublicUrl(log.image_path);
+              console.log('[RENDER_IMAGE] publicUrl:', publicUrl);
               setImageUrl(publicUrl);
             } catch (e) {
+              console.error('[RENDER_IMAGE] getPublicUrl failed:', e);
               logger.warn('⚠️ 生成 publicUrl 失败，使用原始路径:', e);
               setImageUrl(log.image_path);
             }

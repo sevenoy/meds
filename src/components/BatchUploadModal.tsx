@@ -3,6 +3,7 @@ import { Camera, X, Upload, Calendar, Clock, Check, Loader2, AlertCircle } from 
 import { Medication, MedicationLog } from '../types';
 import { logger } from '../utils/logger';
 import exifr from 'exifr';
+import heic2any from 'heic2any';
 import { addLogToCloud } from '../services/cloudOnly';
 import { supabase, getCurrentUserId } from '../lib/supabase';
 
@@ -47,6 +48,46 @@ function extractTimeFromFilename(filename: string): Date | null {
     return null;
 }
 
+/**
+ * 统一处理图片格式，将 HEIC 转换为 JPEG
+ * @param file 原始文件
+ * @returns 转换后的文件（JPEG）或原文件
+ */
+async function normalizeImageFile(file: File): Promise<File> {
+    // 检测 HEIC 格式
+    const isHEIC =
+        file.type === 'image/heic' ||
+        file.type === 'image/heif' ||
+        (file.type === '' && /\.heic$/i.test(file.name));
+
+    if (isHEIC) {
+        console.log('[HEIC_CONVERT] start:', file.name, 'type:', file.type, 'size:', file.size);
+
+        try {
+            const convertedBlob = await heic2any({
+                blob: file,
+                toType: 'image/jpeg',
+                quality: 0.9
+            });
+
+            const newFile = new File(
+                [convertedBlob as Blob],
+                file.name.replace(/\.heic$/i, '.jpg'),
+                { type: 'image/jpeg' }
+            );
+
+            console.log('[HEIC_CONVERT] success:', newFile.name, 'type:', newFile.type, 'size:', newFile.size);
+            return newFile;
+        } catch (error) {
+            console.error('[HEIC_CONVERT] failed:', error);
+            // 转换失败，返回原文件（可能导致无法显示，但至少不会中断流程）
+            return file;
+        }
+    }
+
+    return file;
+}
+
 export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     isOpen,
     onClose,
@@ -68,8 +109,16 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
         const files = Array.from(e.target.files);
         const newItems: UploadItem[] = [];
 
-        for (const file of files) {
+        for (let file of files) {
             try {
+                // ✅ 修复1：转换 HEIC 为 JPEG
+                file = await normalizeImageFile(file);
+                console.log('[UPLOAD_FILE]', {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size
+                });
+
                 let takenAt = new Date();
 
                 // 1. 优先尝试 EXIF
@@ -190,12 +239,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     .from('medication-images')
                     .upload(filePath, item.file, {
                         cacheControl: '3600',
-                        upsert: false
+                        upsert: false,
+                        contentType: item.file.type || 'image/jpeg'  // ✅ 修复2：显式指定 MIME
                     });
 
                 if (uploadError) {
                     throw new Error(`图片上传失败: ${uploadError.message}`);
                 }
+
+                console.log('[UPLOAD_SUCCESS]', {
+                    path: filePath,
+                    type: item.file.type,
+                    size: item.file.size
+                });
 
                 // 更新进度
                 setUploadItems(prev => prev.map((p, idx) =>
