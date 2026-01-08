@@ -773,8 +773,10 @@ export default function App() {
       // ============================================
       // A. 版本指纹 + Watchdog Timer
       // ============================================
-      const BUILD_FINGERPRINT = 'V260109.01_diagnostic_watchdog';
+      const BUILD_FINGERPRINT = 'V260109.02_mobile_logs_fix';
       console.log('[BOOT] version=', APP_VERSION, 'fingerprint=', BUILD_FINGERPRINT, 'timestamp=', new Date().toISOString());
+      console.log('[BOOT] platform=', navigator.userAgent);
+      console.log('[BOOT] isMobile=', /Mobile|Android|iPhone/i.test(navigator.userAgent));
 
       // ✅ Watchdog: 10 秒必结束 loading（即使 Supabase 卡死）
       const watchdog = setTimeout(() => {
@@ -808,12 +810,21 @@ export default function App() {
         mark(`fetch medications - done: ${rawMeds?.length ?? 'null'} items`);
 
         mark('fetch logs - start');
-        const initialLogs = await withTimeout(
-          getRecentLogsFromCloud(100),
-          8000,
-          'getRecentLogsFromCloud'
-        );
-        mark(`fetch logs - done: ${initialLogs?.length ?? 'null'} items`);
+        let initialLogs: MedicationLog[] = [];
+        try {
+          initialLogs = await withTimeout(
+            getRecentLogsFromCloud(100),
+            8000,
+            'getRecentLogsFromCloud'
+          );
+          mark(`fetch logs - done: ${initialLogs?.length ?? 'null'} items`);
+        } catch (logError) {
+          console.error('[INIT] fetch logs failed, using empty array:', logError);
+          mark('fetch logs - failed (using empty array)');
+        }
+
+        console.log('[INIT] platform=', navigator.userAgent.substring(0, 50));
+        console.log('[INIT] meds=', rawMeds.length, 'logs=', initialLogs.length);
 
         // ============================================
         // D. 无条件构建 UI State
@@ -836,6 +847,7 @@ export default function App() {
 
         safeSetMedications(medsUI, 'app-init-first-screen');
         safeSetTimelineLogs(initialLogs, 'app-init-first-screen');
+        console.log('[SET_LOGS] app-init-first-screen, count=', initialLogs.length);
         setLogsLoaded(true);
         setLogsLastUpdatedAt(new Date());
         mark('build UI state - done');
@@ -865,6 +877,7 @@ export default function App() {
             lastLogByMedicationIdRef.current = lastLogMap;
 
             safeSetTimelineLogs(sortedLogs, 'background-load-history');
+            console.log('[SET_LOGS] background-load-history, count=', sortedLogs.length);
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
