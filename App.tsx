@@ -1,12 +1,13 @@
 import { logger } from './src/utils/logger';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight, ChevronDown, Database } from 'lucide-react';
+import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight, ChevronDown, Database, Upload } from 'lucide-react';
 import { CameraModal } from './src/components/CameraModal';
 import { SyncPrompt } from './src/components/SyncPrompt';
 import { LoginPage } from './src/components/LoginPage';
 import { UpdateNotification } from './src/components/UpdateNotification';
 import { AvatarUpload } from './src/components/AvatarUpload';
 import { SyncStatusIndicator } from './src/components/SyncStatusIndicator';
+import { BatchUploadModal } from './src/components/BatchUploadModal';
 import { DebugPanel } from './src/components/DebugPanel';
 import { getTodayMedications, isMedicationTakenToday } from './src/services/medication';
 import { getMedicationLogs, upsertMedication, deleteMedication, getMedications, getDeviceId, db } from './src/db/localDB';
@@ -17,7 +18,7 @@ import { initRealtimeSync as initNewRealtimeSync, reconnect as reconnectRealtime
 import { forcePwaUpdateOncePerVersion } from './src/sw-register';
 import { APP_VERSION } from './src/config/version';
 // 【新增】纯云端服务
-import { enforceVersionSync, getMedicationsFromCloud, getLogsFromCloud, getTodayLogsFromCloud, upsertMedicationToCloud, deleteMedicationFromCloud, addLogToCloud, updateLogToCloud, initCloudOnlyRealtime } from './src/services/cloudOnly';
+import { enforceVersionSync, getMedicationsFromCloud, getLogsFromCloud, getTodayLogsFromCloud, getRecentLogsFromCloud, upsertMedicationToCloud, deleteMedicationFromCloud, addLogToCloud, updateLogToCloud, initCloudOnlyRealtime } from './src/services/cloudOnly';
 import { getExtendedColorWheel, hslToHex, hexToHsl } from './src/utils/colorPicker';
 import { supabase, getCurrentUserId } from './src/lib/supabase';
 import type { Medication, MedicationLog } from './src/types';
@@ -361,6 +362,7 @@ export default function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [showMedicationManage, setShowMedicationManage] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [showBatchUpload, setShowBatchUpload] = useState(false);
 
   // 用户信息
   const [userName, setUserName] = useState('');
@@ -754,21 +756,23 @@ export default function App() {
         // ============================================
         // 【首屏阶段】只加载今日数据（并行，预计 < 800ms）
         // ============================================
-        const [rawMeds, todayLogs] = await Promise.all([
+        const [rawMeds, initialLogs] = await Promise.all([
           getMedicationsFromCloud(),
-          getTodayLogsFromCloud()
+          getRecentLogsFromCloud(20)
         ]);
 
         // 保护：如果没有任何数据且处于 loading，不更新 state 为空
-        if (rawMeds.length > 0 || todayLogs.length > 0) {
+        if (rawMeds.length > 0 || initialLogs.length > 0) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
           const medsUI: MedicationUI[] = rawMeds.map(med => {
-            const lastLog = todayLogs.find(log => log.medication_id === med.id);
+            const lastLog = initialLogs.find(log => log.medication_id === med.id);
+            // 注意：如果 limit=20 导致今天的记录未被加载（极罕见），状态会短暂显示 pending，直到 3s 后全量加载修正
+            const taken = lastLog && new Date(lastLog.taken_at) >= today;
             return {
               ...med,
-              status: lastLog ? 'completed' : 'pending',
+              status: taken ? 'completed' : 'pending',
               lastTakenAt: lastLog?.taken_at,
               uploadedAt: lastLog?.created_at,
               lastLog
@@ -776,7 +780,7 @@ export default function App() {
           });
 
           safeSetMedications(medsUI, 'app-init-first-screen');
-          safeSetTimelineLogs(todayLogs, 'app-init-first-screen');
+          safeSetTimelineLogs(initialLogs, 'app-init-first-screen');
           setLogsLoaded(true);
           setLogsLastUpdatedAt(new Date());
         }
@@ -841,8 +845,10 @@ export default function App() {
             if (settings.avatar_url) setAvatarUrl(settings.avatar_url);
           }).catch(() => { });
 
-          cloudLoadV2().catch(() => { });
-          fixLegacyDeviceIds().catch(() => { });
+          // ❌ 已删除阻塞调用:
+          // cloudLoadV2().catch(() => { });
+          // fixLegacyDeviceIds().catch(() => { });
+          // enforceVersionSync() 已在 line 837 调用
         }, 3000);
 
       } catch (error) {
@@ -863,6 +869,7 @@ export default function App() {
 
     // 后台启动 Realtime（不阻塞首屏）
     initCloudOnlyRealtime({
+      onStatusChange: (status) => setRealtimeStatus(status),
       onMedicationChange: async (payload) => {
         // 【修复A】禁止 payload patch，必须调用 reloadMedicationsFromCloud 全量替换
         const { eventType, new: newData, old: oldData } = payload;
@@ -905,74 +912,181 @@ export default function App() {
         }
       },
       onLogChange: async (payload) => {
-        // 【修复B】禁止 payload patch，必须调用 reloadLogsFromCloud 全量替换，加去抖
         const { eventType, new: newData, old: oldData } = payload;
         const logId = newData?.id || oldData?.id;
-        const commitTimestamp = newData?.updated_at || newData?.created_at || oldData?.updated_at || oldData?.created_at;
 
-        logger.log(`🔔 [Realtime] 服药记录变更: eventType=${eventType}, id=${logId}, commit_timestamp=${commitTimestamp}`);
+        logger.log(`🔔 [Realtime] ${eventType}: id=${logId}`);
 
-        // 【修复B】去抖：300-800ms 内多事件只 reload 一次
-        if (logDebounceTimerRef.current) {
-          clearTimeout(logDebounceTimerRef.current);
+        // 增量更新逻辑
+        if (eventType === 'INSERT' && newData) {
+          const newLog = newData as MedicationLog;
+
+          // 验证必要字段
+          if (!newLog.id || !newLog.medication_id || !newLog.taken_at) {
+            logger.warn('⚠️ INSERT payload 缺字段,触发兜底');
+            triggerFallbackRefresh();
+            return;
+          }
+
+          // 增量添加
+          safeSetTimelineLogs(prev => {
+            if (prev.some(log => log.id === newLog.id)) return prev;
+            const updated = [newLog, ...prev]
+              .sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime())
+              .slice(0, 200);
+            return updated;
+          }, 'realtime-insert');
+
+          // 更新 Map
+          const medId = newLog.medication_id;
+          const current = lastLogByMedicationIdRef.current.get(medId);
+          if (!current || new Date(newLog.taken_at) > new Date(current.taken_at)) {
+            lastLogByMedicationIdRef.current.set(medId, newLog);
+          }
+
+          // 更新药品状态
+          updateMedicationStatus(medId, newLog);
+          logger.log(`✅ INSERT 增量添加`);
+
+        } else if (eventType === 'UPDATE' && newData) {
+          const updatedLog = newData as MedicationLog;
+
+          if (!updatedLog.id) {
+            logger.warn('⚠️ UPDATE payload 缺 id,触发兜底');
+            triggerFallbackRefresh();
+            return;
+          }
+
+          // 精确替换
+          safeSetTimelineLogs(prev => {
+            const index = prev.findIndex(log => log.id === updatedLog.id);
+            if (index === -1) {
+              logger.warn('⚠️ UPDATE 找不到本地记录,触发兜底');
+              triggerFallbackRefresh();
+              return prev;
+            }
+            const updated = [...prev];
+            updated[index] = updatedLog;
+            return updated.sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime());
+          }, 'realtime-update');
+
+          // 更新 Map
+          const medId = updatedLog.medication_id;
+          lastLogByMedicationIdRef.current.set(medId, updatedLog);
+          updateMedicationStatus(medId, updatedLog);
+          logger.log(`✅ UPDATE 精确替换`);
+
+        } else if (eventType === 'DELETE' && oldData) {
+          const deletedId = oldData.id;
+
+          if (!deletedId) {
+            logger.warn('⚠️ DELETE payload 缺 id,触发兜底');
+            triggerFallbackRefresh();
+            return;
+          }
+
+          // 精确删除
+          safeSetTimelineLogs(prev => {
+            const filtered = prev.filter(log => log.id !== deletedId);
+            if (filtered.length === prev.length) {
+              logger.warn('⚠️ DELETE 找不到本地记录,触发兜底');
+              triggerFallbackRefresh();
+            }
+            return filtered;
+          }, 'realtime-delete');
+
+          // 更新 Map（重新计算该药品的最新记录）
+          const medId = oldData.medication_id;
+          if (medId) {
+            recalculateLastLogForMed(medId);
+          }
+          logger.log(`✅ DELETE 精确删除`);
+
+        } else {
+          logger.warn('⚠️ 未知事件类型或数据缺失,触发兜底');
+          triggerFallbackRefresh();
         }
 
-        logDebounceTimerRef.current = window.setTimeout(async () => {
-          try {
-            logger.log(`📥 [Realtime] 开始全量拉取 logs（去抖后）`);
-            const allLogs = await getLogsFromCloud(undefined, 300, 60);
-            const sortedLogs = [...allLogs].sort((a, b) =>
-              new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
-            );
-
-            // 【修复B】全量替换，禁止 merge/append
-            safeSetTimelineLogs(sortedLogs, `realtime-log-${eventType.toLowerCase()}-reload`);
-            setLogsLoaded(true);
-            setLogsLastUpdatedAt(new Date());
-
-            // 更新 lastLogByMedicationIdRef Map
-            lastLogByMedicationIdRef.current.clear();
-            for (const log of sortedLogs) {
-              const medId = log.medication_id;
-              const current = lastLogByMedicationIdRef.current.get(medId);
-              if (!current || new Date(log.taken_at) > new Date(current.taken_at)) {
-                lastLogByMedicationIdRef.current.set(medId, log);
-              }
-            }
-
-            // 更新药品状态
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            safeSetMedications(prev => prev.map(m => {
-              const lastLog = lastLogByMedicationIdRef.current.get(m.id);
-              if (lastLog) {
-                const taken = new Date(lastLog.taken_at) >= today;
-                return {
-                  ...m,
-                  status: taken ? 'completed' : 'pending',
-                  lastTakenAt: lastLog.taken_at,
-                  uploadedAt: lastLog.created_at,
-                  lastLog
-                };
-              }
-              return m;
-            }), 'realtime-reload-logs-update-meds');
-
-            // 计算并打印统计信息
-            const minTakenAt = sortedLogs.length > 0
-              ? Math.min(...sortedLogs.map(l => new Date(l.taken_at).getTime()))
-              : 0;
-            const maxTakenAt = sortedLogs.length > 0
-              ? Math.max(...sortedLogs.map(l => new Date(l.taken_at).getTime()))
-              : 0;
-            const maxUploadedAt = sortedLogs.length > 0
-              ? Math.max(...sortedLogs.map(l => new Date(l.uploaded_at || l.created_at || 0).getTime()))
-              : 0;
-            logger.log(`✅ [Realtime] logs 全量替换完成: count=${sortedLogs.length}, min(taken_at)=${minTakenAt ? new Date(minTakenAt).toISOString() : 'N/A'}, max(taken_at)=${maxTakenAt ? new Date(maxTakenAt).toISOString() : 'N/A'}, max(uploaded_at)=${maxUploadedAt ? new Date(maxUploadedAt).toISOString() : 'N/A'}`);
-          } catch (error) {
-            console.error('❌ [Realtime] 全量拉取 logs 失败:', error);
+        // 兜底刷新函数（防抖）
+        function triggerFallbackRefresh() {
+          if (logDebounceTimerRef.current) {
+            clearTimeout(logDebounceTimerRef.current);
           }
-        }, 500); // 500ms 去抖
+
+          logDebounceTimerRef.current = window.setTimeout(async () => {
+            try {
+              logger.log(`📥 [兜底] 拉取最新 50 条`);
+              const recentLogs = await getRecentLogsFromCloud(50);
+              const sortedLogs = [...recentLogs].sort((a, b) =>
+                new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+              );
+
+              safeSetTimelineLogs(sortedLogs, 'realtime-fallback');
+              setLogsLoaded(true);
+              setLogsLastUpdatedAt(new Date());
+
+              // 重建 Map
+              lastLogByMedicationIdRef.current.clear();
+              for (const log of sortedLogs) {
+                const medId = log.medication_id;
+                const current = lastLogByMedicationIdRef.current.get(medId);
+                if (!current || new Date(log.taken_at) > new Date(current.taken_at)) {
+                  lastLogByMedicationIdRef.current.set(medId, log);
+                }
+              }
+
+              // 更新所有药品状态
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              safeSetMedications(prev => prev.map(m => {
+                const lastLog = lastLogByMedicationIdRef.current.get(m.id);
+                if (lastLog) {
+                  const taken = new Date(lastLog.taken_at) >= today;
+                  return { ...m, status: taken ? 'completed' : 'pending', lastTakenAt: lastLog.taken_at, uploadedAt: lastLog.created_at, lastLog };
+                }
+                return m;
+              }), 'realtime-fallback-med');
+
+              logger.log(`✅ [兜底] 刷新 50 条完成`);
+            } catch (error) {
+              console.error(`❌ [兜底] 刷新失败:`, error);
+            }
+          }, 1000);
+        }
+
+        // 更新单个药品状态
+        function updateMedicationStatus(medId: string, log: MedicationLog) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const taken = new Date(log.taken_at) >= today;
+
+          safeSetMedications(prev => prev.map(m => {
+            if (m.id === medId) {
+              return { ...m, status: taken ? 'completed' : 'pending', lastTakenAt: log.taken_at, uploadedAt: log.created_at, lastLog: log };
+            }
+            return m;
+          }), 'realtime-update-med');
+        }
+
+        // 重新计算某药品的最新记录
+        function recalculateLastLogForMed(medId: string) {
+          safeSetTimelineLogs(prev => {
+            const medLogs = prev.filter(log => log.medication_id === medId);
+            if (medLogs.length === 0) {
+              lastLogByMedicationIdRef.current.delete(medId);
+              safeSetMedications(prevMeds => prevMeds.map(m =>
+                m.id === medId ? { ...m, status: 'pending', lastTakenAt: undefined, lastLog: undefined } : m
+              ), 'realtime-delete-med');
+            } else {
+              const latest = medLogs.reduce((a, b) =>
+                new Date(a.taken_at) > new Date(b.taken_at) ? a : b
+              );
+              lastLogByMedicationIdRef.current.set(medId, latest);
+              updateMedicationStatus(medId, latest);
+            }
+            return prev;
+          }, 'realtime-delete-recalc');
+        }
       }
     }).then(cleanup => {
       cloudRealtimeCleanup = cleanup;
@@ -1341,6 +1455,18 @@ export default function App() {
 
         {activeTab === 'timeline' && (
           <div className="max-w-4xl">
+            {/* 顶部操作栏 */}
+            <div className="flex items-center justify-between mb-4 px-2">
+              <h3 className="text-xl font-black italic">服药记录</h3>
+              <button
+                onClick={() => setShowBatchUpload(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all"
+              >
+                <Upload className="w-3 h-3" />
+                批量补录
+              </button>
+            </div>
+
             {/* 月历选择器 */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
               {/* 日历标题栏 - 可点击展开/收起 */}
@@ -2964,6 +3090,16 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* 批量上传弹窗 */}
+      <BatchUploadModal
+        isOpen={showBatchUpload}
+        onClose={() => setShowBatchUpload(false)}
+        medications={medications}
+        onSuccess={() => {
+          logger.log('✅ 批量补录完成');
+        }}
+      />
     </div>
   );
 }

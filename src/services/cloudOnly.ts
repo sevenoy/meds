@@ -180,6 +180,32 @@ export async function getLogsFromCloud(medicationId?: string, limit: number = 30
 }
 
 /**
+ * 获取最近的 N 条服药记录（无视日期，用于首屏快速加载）
+ */
+export async function getRecentLogsFromCloud(limit: number = 20): Promise<MedicationLog[]> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('medication_logs')
+      .select('id,medication_id,taken_at,created_at,uploaded_at:created_at,device_id,status,time_source,image_path')
+      .eq('user_id', userId)
+      .order('taken_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('❌ 读取最近记录失败:', error);
+      return [];
+    }
+    return (data as any) || [];
+  } catch (error) {
+    console.error('❌ 读取最近记录异常:', error);
+    return [];
+  }
+}
+
+/**
  * 清理药品数据（白名单）
  */
 export function sanitizeMedicationForDb(med: any): Partial<Medication> {
@@ -204,10 +230,14 @@ export async function upsertMedicationToCloud(med: Medication): Promise<Medicati
       .from('medications')
       .upsert({ ...sanitized, user_id: userId })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('❌ 同步药品到云端失败:', error);
+      return null;
+    }
+    if (!data) {
+      console.error('❌ upsert 返回空数据,可能是 RLS 权限问题');
       return null;
     }
     return data;
@@ -229,10 +259,14 @@ export async function addLogToCloud(log: Partial<MedicationLog>): Promise<Medica
       .from('medication_logs')
       .insert({ ...log, user_id: userId })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('❌ 添加服药记录失败:', error);
+      return null;
+    }
+    if (!data) {
+      console.error('❌ insert 返回空数据');
       return null;
     }
     return data;
@@ -256,10 +290,14 @@ export async function updateLogToCloud(id: string, updates: Partial<MedicationLo
       .eq('id', id)
       .eq('user_id', userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('❌ 更新服药记录失败:', error);
+      return null;
+    }
+    if (!data) {
+      console.error('❌ update 返回空数据');
       return null;
     }
     return data;
@@ -301,16 +339,25 @@ let realtimeStartupLatch = false;
 export async function initCloudOnlyRealtime(callbacks: {
   onMedicationChange: (payload: { eventType: string; new?: any; old?: any }) => void;
   onLogChange: (payload: { eventType: string; new?: any; old?: any }) => void;
+  onStatusChange?: (status: 'connected' | 'disconnected' | 'connecting') => void;
 }): Promise<() => void> {
   if (realtimeStartupLatch) return () => { };
   realtimeStartupLatch = true;
+
+  callbacks.onStatusChange?.('connecting');
 
   const medicationsChannel = supabase
     .channel('medications-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'medications' }, (payload) => {
       callbacks.onMedicationChange(payload);
     })
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        callbacks.onStatusChange?.('connected');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        callbacks.onStatusChange?.('disconnected');
+      }
+    });
 
   const logsChannel = supabase
     .channel('medication-logs-realtime')
@@ -323,5 +370,6 @@ export async function initCloudOnlyRealtime(callbacks: {
     supabase.removeChannel(medicationsChannel);
     supabase.removeChannel(logsChannel);
     realtimeStartupLatch = false;
+    callbacks.onStatusChange?.('disconnected');
   };
 }
