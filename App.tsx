@@ -84,8 +84,8 @@ const ProgressRing: React.FC<{ percentage: number }> = ({ percentage }) => {
   );
 };
 
-const MedCard: React.FC<{ 
-  med: MedicationUI; 
+const MedCard: React.FC<{
+  med: MedicationUI;
   onCameraClick: () => void;
 }> = ({ med, onCameraClick }) => {
   const getAccentColor = () => {
@@ -93,7 +93,7 @@ const MedCard: React.FC<{
     if (med.accent?.startsWith('#')) {
       return med.accent;
     }
-    switch(med.accent) {
+    switch (med.accent) {
       case 'berry': return '#FFD1DC';
       case 'lime': return '#E0F3A2';
       case 'mint': return '#BFEFFF';
@@ -110,7 +110,7 @@ const MedCard: React.FC<{
   };
 
   return (
-    <div 
+    <div
       className={`group relative p-4 rounded-[40px] flex items-center justify-between transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${med.status === 'completed' ? 'bg-white' : ''}`}
       style={{ backgroundColor: med.status !== 'completed' ? accentColor : undefined }}
     >
@@ -126,7 +126,7 @@ const MedCard: React.FC<{
 
       <div className="flex items-center">
         {med.status === 'pending' ? (
-          <button 
+          <button
             onClick={onCameraClick}
             className="w-16 h-16 rounded-full bg-black text-white flex items-center justify-center hover:scale-110 transition-transform active:scale-95 shadow-xl"
           >
@@ -146,8 +146,8 @@ const MedCard: React.FC<{
   );
 };
 
-const TimelineItem: React.FC<{ 
-  log: MedicationLog; 
+const TimelineItem: React.FC<{
+  log: MedicationLog;
   medication: Medication;
   onMedicationClick?: (medicationId: string) => void;
   onEdit?: (log: MedicationLog) => void;
@@ -156,7 +156,7 @@ const TimelineItem: React.FC<{
   // 【修复 D】懒加载图片：点击时间才显示
   const [showImage, setShowImage] = React.useState(false);
   const [imageUrl, setImageUrl] = React.useState<string | null>(null);
-  
+
   const formatTime = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -169,7 +169,7 @@ const TimelineItem: React.FC<{
 
   const isDelayed = log.status === 'late' || log.status === 'suspect';
   const getStatusColor = () => {
-    switch(log.status) {
+    switch (log.status) {
       case 'ontime': return 'bg-green-100 text-green-600';
       case 'late': return 'bg-yellow-100 text-yellow-600';
       case 'suspect': return 'bg-red-100 text-red-600';
@@ -187,7 +187,7 @@ const TimelineItem: React.FC<{
   };
 
   const getTimeSourceText = () => {
-    switch(log.time_source) {
+    switch (log.time_source) {
       case 'exif': return '相机时间';
       case 'system': return '系统时间';
       default: return '手动';
@@ -232,7 +232,7 @@ const TimelineItem: React.FC<{
   return (
     <div className={`relative pl-12 border-l-2 border-black/10 ${isLast ? 'border-l-transparent' : ''}`} style={{ marginBottom: '6px', paddingBottom: isLast ? '0' : '6px' }}>
       <div className="absolute left-[-11px] top-0 w-5 h-5 rounded-full bg-black border-4 border-white" />
-      
+
       <div className="flex flex-col" style={{ gap: '6px' }}>
         {/* 药品名称和状态标签 */}
         <div className="flex items-center justify-between gap-3">
@@ -258,7 +258,7 @@ const TimelineItem: React.FC<{
             </button>
           )}
         </div>
-        
+
         {/* 时间和图片信息 */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-4 flex items-center justify-between gap-4">
@@ -283,28 +283,28 @@ const TimelineItem: React.FC<{
                   </span>
                 )}
               </button>
-              </div>
-            
+            </div>
+
             {/* 【修复 D】默认不加载图片，仅显示小图标/标记 */}
             {hasImage && !showImage && (
               <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
                 <Camera className="w-6 h-6 text-gray-400" />
               </div>
             )}
-            </div>
-            
+          </div>
+
           {/* 【修复 D】点击时间后才渲染图片，修复图片渲染问题 */}
           {showImage && (
             <div className="px-4 pb-4">
               {imageUrl ? (
-                <img 
-                  src={imageUrl} 
-                  alt="验证凭证" 
+                <img
+                  src={imageUrl}
+                  alt="验证凭证"
                   className="max-w-[120px] rounded-xl object-cover"
-                  style={{ 
-                    width: '100%', 
-                    maxWidth: '120px', 
-                    height: 'auto', 
+                  style={{
+                    width: '100%',
+                    maxWidth: '120px',
+                    height: 'auto',
                     aspectRatio: '1 / 1',
                     objectFit: 'cover'
                   }}
@@ -344,16 +344,16 @@ export default function App() {
   const [syncPrompt, setSyncPrompt] = useState<MedicationLog | null>(null);
   const [initialLoading, setInitialLoading] = useState(true); // 只在应用初始化时使用
   const [appInitialized, setAppInitialized] = useState(false); // 新增：应用是否已初始化
-  
+
   // Realtime 同步状态
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
-  
+
   // 日期筛选
   const [selectedDate, setSelectedDate] = useState<string | null>(null); // YYYY-MM-DD
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
-  
+
   // 个人中心状态
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [showReminderSettings, setShowReminderSettings] = useState(false);
@@ -361,10 +361,10 @@ export default function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [showMedicationManage, setShowMedicationManage] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
-  
+
   // 用户信息
   const [userName, setUserName] = useState('');
-  
+
   // 【时间戳权威模型】从user_settings加载用户名
   React.useEffect(() => {
     (async () => {
@@ -391,13 +391,13 @@ export default function App() {
       }
     })();
   }, []);
-  
+
   // 旧的初始化逻辑（已废弃，保留兼容）
   const _oldUserNameInit = () => {
     // 优先从 localStorage 获取
     const savedName = localStorage.getItem('userName');
     if (savedName) return savedName;
-    
+
     // 尝试从登录信息获取
     const currentUser = localStorage.getItem('current_user_v1');
     if (currentUser) {
@@ -408,26 +408,26 @@ export default function App() {
         return '用户';
       }
     }
-    
+
     return '用户';
   };
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(localStorage.getItem('reminderEnabled') === 'true');
   const [syncEnabled, setSyncEnabled] = useState(localStorage.getItem('syncEnabled') === 'true');
-  
+
   // 药品管理
   const [newMedName, setNewMedName] = useState('');
   const [newMedDosage, setNewMedDosage] = useState('');
   const [newMedTime, setNewMedTime] = useState('');
   const [newMedAccent, setNewMedAccent] = useState<string>('#E0F3A2'); // 默认颜色
-  
+
   // 编辑药品状态
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [editMedName, setEditMedName] = useState('');
   const [editMedDosage, setEditMedDosage] = useState('');
   const [editMedTime, setEditMedTime] = useState('');
   const [editMedAccent, setEditMedAccent] = useState<string>('#E0F3A2');
-  
+
   // 【新增功能C】编辑服药记录状态
   const [editingLog, setEditingLog] = useState<MedicationLog | null>(null);
   const [editLogTakenAt, setEditLogTakenAt] = useState('');
@@ -438,60 +438,66 @@ export default function App() {
   // 【防重入锁】防止 loadData 并发执行
   const syncInProgressRef = React.useRef(false);
   const loadDataTriggerSourceRef = React.useRef<string>('');
-  
+
   // 【初始化阶段标记】防止 Realtime 在初始化阶段误触发
   const isInitializingRef = React.useRef(true);
-  
+
   // 【性能优化】lastLogByMedicationId Map：一次建索引，避免每次扫描全量 logs
   const lastLogByMedicationIdRef = React.useRef<Map<string, MedicationLog>>(new Map());
-  
+
   // 【修复 C】useRef 作为单一真相缓存：永远跟随 state
   const medicationsRef = React.useRef<MedicationUI[]>([]);
   const logsRef = React.useRef<MedicationLog[]>([]);
-  
+
   // 【修复B】logs Realtime 去抖定时器
   const logDebounceTimerRef = React.useRef<number | null>(null);
-  
+
   // 【修复 C】同步 ref 和 state
   React.useEffect(() => {
     medicationsRef.current = medications;
   }, [medications]);
-  
+
   React.useEffect(() => {
     logsRef.current = timelineLogs;
   }, [timelineLogs]);
 
   // 【修复 D】安全的 setMedications：带硬核日志和防护
-  const safeSetMedications = useCallback((newMeds: MedicationUI[], source: string) => {
-    const prevCount = medicationsRef.current.length;
+  // 【修复 D】安全的 setMedications：支持函数式更新，且带日志防护
+  const safeSetMedications = useCallback((update: MedicationUI[] | ((prev: MedicationUI[]) => MedicationUI[]), source: string) => {
+    const prevMeds = medicationsRef.current;
+    const newMeds = typeof update === 'function' ? update(prevMeds) : update;
+
+    const prevCount = prevMeds.length;
     const newCount = newMeds.length;
     const startTime = performance.now();
-    
-    // 【修复 D】硬核日志：如果从 >0 变成 0，打印警告和调用栈
+
     if (prevCount > 0 && newCount === 0 && source !== 'logout' && source !== 'clear-data') {
       const stack = new Error().stack;
       logger.warn('⚠️ [状态丢失警告] medications 从', prevCount, '变成 0，来源:', source);
       logger.warn('调用栈:', stack);
     }
-    
+
     setMedications(newMeds);
     const duration = performance.now() - startTime;
     logger.log(`📊 [setMedications] 来源: ${source}, 数量: ${prevCount} → ${newCount}, 耗时: ${duration.toFixed(2)}ms`);
   }, []);
-  
+
   // 【修复 D】安全的 setTimelineLogs：带硬核日志和防护
-  const safeSetTimelineLogs = useCallback((newLogs: MedicationLog[], source: string) => {
-    const prevCount = logsRef.current.length;
+  // 【修复 D】安全的 setTimelineLogs：支持函数式更新
+  const safeSetTimelineLogs = useCallback((update: MedicationLog[] | ((prev: MedicationLog[]) => MedicationLog[]), source: string) => {
+    const prevLogs = logsRef.current;
+    const newLogs = typeof update === 'function' ? update(prevLogs) : update;
+
+    const prevCount = prevLogs.length;
     const newCount = newLogs.length;
     const startTime = performance.now();
-    
-    // 【修复 D】硬核日志：如果从 >0 变成 0，打印警告和调用栈
+
     if (prevCount > 0 && newCount === 0 && source !== 'logout' && source !== 'clear-data') {
       const stack = new Error().stack;
       logger.warn('⚠️ [状态丢失警告] timelineLogs 从', prevCount, '变成 0，来源:', source);
       logger.warn('调用栈:', stack);
     }
-    
+
     setTimelineLogs(newLogs);
     const duration = performance.now() - startTime;
     logger.log(`📊 [setTimelineLogs] 来源: ${source}, 数量: ${prevCount} → ${newCount}, 耗时: ${duration.toFixed(2)}ms`);
@@ -519,7 +525,7 @@ export default function App() {
     // 【修复 A】在 loadData 开头复制当前 state（安全模式）
     const prevMeds = medicationsRef.current;
     const prevLogs = logsRef.current;
-    
+
     // 【修复 A】临时变量：最后一次性 setState
     let newMeds: MedicationUI[] = prevMeds;
     let newLogs: MedicationLog[] = prevLogs;
@@ -529,11 +535,11 @@ export default function App() {
       // #region agent log
       // debug-fetch-removed
       // #endregion
-      
+
       // 【Realtime 统一模型】不再设置 loading，数据由 Realtime 驱动
-      
+
       logger.log('🔄 开始加载数据...', { triggerSource, syncFromCloud, prevMedCount: prevMeds.length, prevLogCount: prevLogs.length });
-      
+
       // 【修复 A】如果 triggerSource 不是 app-init/app-init-background 或 syncFromCloud=false，必须直接使用 prevMeds/prevLogs
       if ((triggerSource !== 'app-init' && triggerSource !== 'app-init-background') || !syncFromCloud) {
         logger.log('⏭️ [非初始化/跳过云端] 使用 prevMeds/prevLogs，仅更新 derived 结果', { triggerSource, syncFromCloud });
@@ -548,10 +554,10 @@ export default function App() {
         const medsDuration = performance.now() - medsStartTime;
         logger.log(`⏱️ medications 请求耗时: ${medsDuration.toFixed(2)}ms`);
         logger.log(`📋 [初始化] 从云端加载 ${rawMeds.length} 个药物:`, rawMeds.map(m => m.name));
-        
+
         // 转换为 MedicationUI（稍后添加 status）
         const meds: Medication[] = rawMeds;
-        
+
         // 【唯一拉取点】只在应用初始化时拉取 logs（瘦身版本）
         logger.log('☁️ [初始化] 从云端拉取 logs（唯一拉取点，瘦身版本）');
         const logsStartTime = performance.now();
@@ -559,7 +565,7 @@ export default function App() {
         const logsDuration = performance.now() - logsStartTime;
         logger.log(`⏱️ logs 请求耗时: ${logsDuration.toFixed(2)}ms`);
         logger.log(`📝 [初始化] 从云端加载 ${allLogs.length} 条服药记录（渲染前 logs 条数: ${allLogs.length}）`);
-        
+
         // 【性能优化】一次建索引：构建 lastLogByMedicationId Map
         const lastLogMap = new Map<string, MedicationLog>();
         for (const log of allLogs) {
@@ -572,18 +578,18 @@ export default function App() {
         newLastLogMap = lastLogMap;
         lastLogByMedicationIdRef.current = lastLogMap;
         logger.log(`✅ [性能优化] 已构建 lastLogByMedicationId Map，共 ${lastLogMap.size} 个药品的最新记录`);
-        
+
         // 按日期降序排序
-        const sortedLogs = [...allLogs].sort((a, b) => 
+        const sortedLogs = [...allLogs].sort((a, b) =>
           new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
         );
         logger.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
         newLogs = sortedLogs;
-        
+
         // 【修复 B】Merge 策略：合并现有 state 和云端数据
         // 1. 以现有 state 为主（可能包含 Realtime 更新的数据）
         const existingMedMap = new Map(prevMeds.map(m => [m.id, m]));
-        
+
         // 2. 合并云端数据：只添加缺失的，更新已存在的（但保留本地计算的 status/lastLog）
         const mergedMeds: MedicationUI[] = meds.map((med) => {
           const existing = existingMedMap.get(med.id);
@@ -593,14 +599,14 @@ export default function App() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const taken = lastLog && new Date(lastLog.taken_at) >= today;
-            
+
             return {
-              ...existing,
+              ...(existing as MedicationUI),
               ...med, // 更新云端字段（包括 accent）
-              status: existing.status || (taken ? 'completed' : 'pending'), // 保留现有 status
-              lastTakenAt: existing.lastTakenAt || lastLog?.taken_at,
-              uploadedAt: existing.uploadedAt || lastLog?.created_at,
-              lastLog: existing.lastLog || lastLog
+              status: (existing as MedicationUI).status || (taken ? 'completed' : 'pending'), // 保留现有 status
+              lastTakenAt: (existing as MedicationUI).lastTakenAt || lastLog?.taken_at,
+              uploadedAt: (existing as MedicationUI).uploadedAt || lastLog?.created_at,
+              lastLog: (existing as MedicationUI).lastLog || lastLog
             };
           } else {
             // 新药品：计算 status
@@ -608,7 +614,7 @@ export default function App() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const taken = lastLog && new Date(lastLog.taken_at) >= today;
-            
+
             return {
               ...med,
               status: taken ? 'completed' : 'pending',
@@ -618,26 +624,26 @@ export default function App() {
             };
           }
         });
-        
+
         // 3. 添加云端没有但本地有的药品（可能是 Realtime 新增的）
         prevMeds.forEach(med => {
           if (!meds.find(m => m.id === med.id)) {
             mergedMeds.push(med);
           }
         });
-        
+
         newMeds = mergedMeds;
-        
+
         // 【时间戳权威模型】Merge logs：基于时间戳合并，新数据覆盖旧数据
         const existingLogMap = new Map<string, MedicationLog>();
         prevLogs.forEach(log => {
           existingLogMap.set(log.id, log);
         });
-        
+
         // 合并云端数据：基于时间戳决定是否更新
         const mergedLogs: MedicationLog[] = [];
         const processedIds = new Set<string>();
-        
+
         // 1. 先处理云端数据
         sortedLogs.forEach(cloudLog => {
           const existing = existingLogMap.get(cloudLog.id);
@@ -658,27 +664,27 @@ export default function App() {
           }
           processedIds.add(cloudLog.id);
         });
-        
+
         // 2. 添加本地有但云端没有的 logs（可能是 Realtime 新增的）
         prevLogs.forEach(log => {
           if (!processedIds.has(log.id)) {
             mergedLogs.push(log);
           }
         });
-        
+
         // 重新排序
-        newLogs = mergedLogs.sort((a, b) => 
+        newLogs = mergedLogs.sort((a, b) =>
           new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
         );
-        
-        logger.log('✅ [Merge] 数据合并完成', { 
-          medCount: newMeds.length, 
+
+        logger.log('✅ [Merge] 数据合并完成', {
+          medCount: newMeds.length,
           logCount: newLogs.length,
           addedMeds: newMeds.length - meds.length,
           addedLogs: newLogs.length - sortedLogs.length
         });
       }
-      
+
       // 【修复 A】最后一次性 setState（安全模式）
       // 仅当成功拿到 newMeds/newLogs 时才 setState
       safeSetMedications(newMeds, triggerSource);
@@ -688,10 +694,10 @@ export default function App() {
         setLogsLoaded(true);
         setLogsLastUpdatedAt(new Date());
       }
-      
+
       const medCount = newMeds.length;
       const logCount = newLogs.length;
-      
+
       // 【性能监控 E】打印耗时和统计
       if (triggerSource === 'app-init') {
         console.timeEnd('loadData_app_init');
@@ -699,7 +705,7 @@ export default function App() {
       } else {
         logger.log('✅ 数据加载完成', { triggerSource, medCount, logCount });
       }
-      
+
       // #region agent log
       // debug-fetch-removed
       // #endregion
@@ -708,9 +714,9 @@ export default function App() {
       // 【修复 A】loadData 失败时必须保持原 state 不被清空
       // 不调用 setMedications([]) 或 setTimelineLogs([])，保持现有数据
       // newMeds 和 newLogs 仍然是 prevMeds 和 prevLogs，不会清空
-      logger.log('🛡️ [状态保护] loadData 失败，保持原 state 不变', { 
-        prevMedCount: prevMeds.length, 
-        prevLogCount: prevLogs.length 
+      logger.log('🛡️ [状态保护] loadData 失败，保持原 state 不变', {
+        prevMedCount: prevMeds.length,
+        prevLogCount: prevLogs.length
       });
       // #region agent log
       // debug-fetch-removed
@@ -736,135 +742,125 @@ export default function App() {
   // 初始化同步监听
   useEffect(() => {
     if (!isLoggedIn) return;
-    
+
     // 【修复清缓存策略】禁止在启动流程自动触发清缓存，只在用户主动操作时触发
     // 移除自动调用 forcePwaUpdateOncePerVersion，避免每次启动都清缓存导致启动慢
     // forcePwaUpdateOncePerVersion('login').catch((e) => {
     //   logger.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
     // }); // ❌ 已移除：禁止在启动流程自动清缓存
-    
-    // 【强制修复】三段式初始化流程
+    // 【生产环境优化】首屏只加载今日数据，后台延迟加载历史
     const initializeApp = async () => {
       try {
-        logger.log('🚀 [三段式初始化] 开始首屏阶段...');
-        
         // ============================================
-        // 【首屏阶段】只做这两件事，并行执行
+        // 【首屏阶段】只加载今日数据（并行，预计 < 800ms）
         // ============================================
-        try {
-          const [rawMeds, allLogs] = await Promise.all([
-            getMedicationsFromCloud(),
-            getLogsFromCloud(undefined, 300, 60)
-          ]);
-          
-          logger.log(`📥 [首屏] 并行加载完成: ${rawMeds.length} 个药品, ${allLogs.length} 条记录`);
-          
-          // 转换为 MedicationUI
+        const [rawMeds, todayLogs] = await Promise.all([
+          getMedicationsFromCloud(),
+          getTodayLogsFromCloud()
+        ]);
+
+        // 保护：如果没有任何数据且处于 loading，不更新 state 为空
+        if (rawMeds.length > 0 || todayLogs.length > 0) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          
-          // 构建 lastLogByMedicationId Map
-          const lastLogMap = new Map<string, MedicationLog>();
-          for (const log of allLogs) {
-            const medId = log.medication_id;
-            const existing = lastLogMap.get(medId);
-            if (!existing || new Date(log.taken_at) > new Date(existing.taken_at)) {
-              lastLogMap.set(medId, log);
-            }
-          }
-          lastLogByMedicationIdRef.current = lastLogMap;
-          
-          // 转换为 MedicationUI
+
           const medsUI: MedicationUI[] = rawMeds.map(med => {
-            const lastLog = lastLogMap.get(med.id);
-            const taken = lastLog && new Date(lastLog.taken_at) >= today;
+            const lastLog = todayLogs.find(log => log.medication_id === med.id);
             return {
               ...med,
-              status: taken ? 'completed' : 'pending',
+              status: lastLog ? 'completed' : 'pending',
               lastTakenAt: lastLog?.taken_at,
               uploadedAt: lastLog?.created_at,
               lastLog
             };
           });
-          
-          // 排序 logs
-          const sortedLogs = [...allLogs].sort((a, b) => 
-            new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
-          );
-          
-          // 立即设置 state（首屏数据就绪）
+
           safeSetMedications(medsUI, 'app-init-first-screen');
-          safeSetTimelineLogs(sortedLogs, 'app-init-first-screen');
+          safeSetTimelineLogs(todayLogs, 'app-init-first-screen');
           setLogsLoaded(true);
           setLogsLastUpdatedAt(new Date());
-          
-          // 取消 loading，显示真实数据
-          setInitialLoading(false);
-          setAppInitialized(true);
-          isInitializingRef.current = false;
-          
-          logger.log(`✅ [首屏] 数据已显示: ${medsUI.length} 个药品, ${sortedLogs.length} 条记录`);
-        } catch (error) {
-          console.error('❌ [首屏] 加载失败:', error);
-          // 即使失败也要取消loading，避免卡在loading界面
-          setInitialLoading(false);
-          setAppInitialized(true);
-          isInitializingRef.current = false;
         }
-        
+
+        // 立即关闭 Loading，进入交互状态
+        setInitialLoading(false);
+        setAppInitialized(true);
+        isInitializingRef.current = false;
+
         // ============================================
-        // 【后台阶段】不 await，不阻塞 UI
+        // 【延迟阶段】3s 以后执行非关键任务（不阻塞 UI）
         // ============================================
-        // 版本检查（后台执行）
-        enforceVersionSync().catch((error: any) => {
-          if (error.message === 'VERSION_MISMATCH') {
-            return; // 版本不匹配会触发刷新，不需要处理
-          }
-          logger.warn('⚠️ [后台] 版本检查失败（非阻塞）:', error);
-        });
-        
-        // 加载云端快照（后台执行）
-        cloudLoadV2().then(loadResult => {
-          if (loadResult.success && loadResult.payload) {
-            logger.log('✅ [后台] 云端快照已加载');
-          } else {
-            logger.log('📝 [后台] 首次使用，创建初始 payload');
-            const payload = getCurrentSnapshotPayload();
-            if (!payload) {
-              logger.warn('⚠️ [后台] payload 仍为 null');
+
+        setTimeout(() => {
+          // 1. 加载完整历史记录
+          getLogsFromCloud(undefined, 300, 60).then(allLogs => {
+            if (allLogs.length === 0) return;
+
+            const sortedLogs = [...allLogs].sort((a, b) =>
+              new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+            );
+
+            const lastLogMap = new Map<string, MedicationLog>();
+            for (const log of sortedLogs) {
+              const medId = log.medication_id;
+              const existing = lastLogMap.get(medId);
+              if (!existing || new Date(log.taken_at) > new Date(existing.taken_at)) {
+                lastLogMap.set(medId, log);
+              }
             }
-          }
-        }).catch(console.error);
-        
-        // 修复旧药品的 device_id（后台执行）
-        fixLegacyDeviceIds().then(() => {
-          logger.log('🔧 [后台] device_id 修复完成');
-        }).catch(console.error);
-        
-        // 加载用户设置（后台执行）
-        getUserSettings().then(settings => {
-          logger.log('📋 [后台] 用户设置已加载:', settings);
-          if (settings.avatar_url) {
-            setAvatarUrl(settings.avatar_url);
-            logger.log('👤 [后台] 用户头像已加载');
-          }
-        }).catch(console.error);
-        
+            lastLogByMedicationIdRef.current = lastLogMap;
+
+            safeSetTimelineLogs(sortedLogs, 'background-load-history');
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            safeSetMedications(prev => prev.map(m => {
+              const lastLog = lastLogMap.get(m.id);
+              if (lastLog) {
+                const taken = new Date(lastLog.taken_at) >= today;
+                return {
+                  ...m,
+                  status: taken ? 'completed' : 'pending',
+                  lastTakenAt: lastLog.taken_at,
+                  uploadedAt: lastLog.created_at,
+                  lastLog
+                };
+              }
+              return m;
+            }), 'background-update-history-status');
+          }).catch(err => console.error('❌ [后台] 历史记录加载失败:', err));
+
+          // 2. 版本检查
+          enforceVersionSync().catch(err => {
+            if (err.message !== 'VERSION_MISMATCH') {
+              logger.warn('⚠️ [后台] 版本检查失败:', err);
+            }
+          });
+
+          // 3. 用户设置和其他次要初始化
+          getUserSettings().then(settings => {
+            if (settings.avatar_url) setAvatarUrl(settings.avatar_url);
+          }).catch(() => { });
+
+          cloudLoadV2().catch(() => { });
+          fixLegacyDeviceIds().catch(() => { });
+        }, 3000);
+
       } catch (error) {
-        console.error('❌ [初始化] 应用初始化失败:', error);
+        console.error('❌ [初始化] 应用启动失败:', error);
         setInitialLoading(false);
         setAppInitialized(true);
         isInitializingRef.current = false;
       }
     };
-    
+
+
     initializeApp();
-    
+
     // ============================================
     // 【后台阶段】Realtime 初始化（不 await，不阻塞）
     // ============================================
     let cloudRealtimeCleanup: (() => void) | null = null;
-    
+
     // 后台启动 Realtime（不阻塞首屏）
     initCloudOnlyRealtime({
       onMedicationChange: async (payload) => {
@@ -872,18 +868,18 @@ export default function App() {
         const { eventType, new: newData, old: oldData } = payload;
         const medId = newData?.id || oldData?.id;
         const commitTimestamp = newData?.updated_at || oldData?.updated_at;
-        
+
         logger.log(`🔔 [Realtime] 药品变更: eventType=${eventType}, id=${medId}, commit_timestamp=${commitTimestamp}`);
-        
+
         // 【修复A】禁止局部更新，必须全量替换
         try {
           const allMeds = await getMedicationsFromCloud();
           logger.log(`📥 [Realtime] 全量拉取 medications: ${allMeds.length} 条`);
-          
+
           // 转换为 MedicationUI（计算 status）
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          
+
           const medsUI: MedicationUI[] = allMeds.map(med => {
             const lastLog = lastLogByMedicationIdRef.current.get(med.id);
             const taken = lastLog && new Date(lastLog.taken_at) >= today;
@@ -895,15 +891,15 @@ export default function App() {
               lastLog
             };
           });
-          
+
           // 全量替换
           safeSetMedications(medsUI, `realtime-med-${eventType.toLowerCase()}-reload`);
-          
+
           // 计算并打印统计信息
-          const maxUpdatedAt = allMeds.length > 0 
-            ? Math.max(...allMeds.map(m => new Date(m.updated_at || m.created_at || 0).getTime()))
+          const maxUpdatedAt = allMeds.length > 0
+            ? Math.max(...allMeds.map(m => new Date(m.created_at || 0).getTime()))
             : 0;
-          logger.log(`✅ [Realtime] medications 全量替换完成: count=${allMeds.length}, max(updated_at)=${maxUpdatedAt ? new Date(maxUpdatedAt).toISOString() : 'N/A'}`);
+          logger.log(`✅ [Realtime] medications 全量替换完成: count=${allMeds.length}, max(created_at)=${maxUpdatedAt ? new Date(maxUpdatedAt).toISOString() : 'N/A'}`);
         } catch (error) {
           console.error('❌ [Realtime] 全量拉取 medications 失败:', error);
         }
@@ -913,27 +909,27 @@ export default function App() {
         const { eventType, new: newData, old: oldData } = payload;
         const logId = newData?.id || oldData?.id;
         const commitTimestamp = newData?.updated_at || newData?.created_at || oldData?.updated_at || oldData?.created_at;
-        
+
         logger.log(`🔔 [Realtime] 服药记录变更: eventType=${eventType}, id=${logId}, commit_timestamp=${commitTimestamp}`);
-        
+
         // 【修复B】去抖：300-800ms 内多事件只 reload 一次
         if (logDebounceTimerRef.current) {
           clearTimeout(logDebounceTimerRef.current);
         }
-        
+
         logDebounceTimerRef.current = window.setTimeout(async () => {
           try {
             logger.log(`📥 [Realtime] 开始全量拉取 logs（去抖后）`);
             const allLogs = await getLogsFromCloud(undefined, 300, 60);
-            const sortedLogs = [...allLogs].sort((a, b) => 
+            const sortedLogs = [...allLogs].sort((a, b) =>
               new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
             );
-            
+
             // 【修复B】全量替换，禁止 merge/append
             safeSetTimelineLogs(sortedLogs, `realtime-log-${eventType.toLowerCase()}-reload`);
             setLogsLoaded(true);
             setLogsLastUpdatedAt(new Date());
-            
+
             // 更新 lastLogByMedicationIdRef Map
             lastLogByMedicationIdRef.current.clear();
             for (const log of sortedLogs) {
@@ -943,7 +939,7 @@ export default function App() {
                 lastLogByMedicationIdRef.current.set(medId, log);
               }
             }
-            
+
             // 更新药品状态
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -961,15 +957,15 @@ export default function App() {
               }
               return m;
             }), 'realtime-reload-logs-update-meds');
-            
+
             // 计算并打印统计信息
-            const minTakenAt = sortedLogs.length > 0 
+            const minTakenAt = sortedLogs.length > 0
               ? Math.min(...sortedLogs.map(l => new Date(l.taken_at).getTime()))
               : 0;
-            const maxTakenAt = sortedLogs.length > 0 
+            const maxTakenAt = sortedLogs.length > 0
               ? Math.max(...sortedLogs.map(l => new Date(l.taken_at).getTime()))
               : 0;
-            const maxUploadedAt = sortedLogs.length > 0 
+            const maxUploadedAt = sortedLogs.length > 0
               ? Math.max(...sortedLogs.map(l => new Date(l.uploaded_at || l.created_at || 0).getTime()))
               : 0;
             logger.log(`✅ [Realtime] logs 全量替换完成: count=${sortedLogs.length}, min(taken_at)=${minTakenAt ? new Date(minTakenAt).toISOString() : 'N/A'}, max(taken_at)=${maxTakenAt ? new Date(maxTakenAt).toISOString() : 'N/A'}, max(uploaded_at)=${maxUploadedAt ? new Date(maxUploadedAt).toISOString() : 'N/A'}`);
@@ -984,7 +980,7 @@ export default function App() {
     }).catch(error => {
       console.error('❌ Realtime 初始化失败:', error);
     });
-    
+
     // 【本地认证模式】禁用旧的 Realtime 同步
     /*
     // 初始化旧的 Realtime 同步（保留兼容性）
@@ -1036,7 +1032,7 @@ export default function App() {
       }
     );
     */
-    
+
     // 【本地认证模式】禁用快照自动同步
     /*
     // 初始化快照自动同步
@@ -1053,39 +1049,39 @@ export default function App() {
       cleanupSnapshot = cleanup;
     }).catch(console.error);
     */
-    
+
     // 【时间戳权威模型】启用用户设置实时同步
     const cleanupSettings = initSettingsRealtimeSync((settings) => {
       logger.log('⚙️ 用户设置已更新:', settings);
-      
+
       // 【时间戳权威模型】自动应用用户名更新（无需用户确认）
       if (settings.userName && settings.userName !== userName) {
         logger.log('👤 检测到用户名更新，自动同步...');
         setUserName(settings.userName);
       }
-      
+
       // 自动应用头像更新（无需用户确认）
       if (settings.avatar_url !== avatarUrl) {
         logger.log('👤 检测到头像更新，自动同步...');
         setAvatarUrl(settings.avatar_url || null);
-        
+
         // 显示友好提示
         const notification = document.createElement('div');
         notification.className = 'fixed top-4 right-4 z-50 bg-black text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
         notification.textContent = '✅ 头像已从其他设备同步';
         document.body.appendChild(notification);
-        
+
         setTimeout(() => {
           notification.classList.add('animate-fade-out');
           setTimeout(() => notification.remove(), 300);
         }, 3000);
       }
-      
+
       // 对于其他设置变更，自动应用（时间戳新的覆盖旧的）
       // 不再询问用户，直接应用（基于时间戳权威模型）
       logger.log('✅ 用户设置已自动同步');
     });
-    
+
     // 【本地认证模式】定时同步已禁用（见上方注释）
     // 定期同步（缩短到3秒，更快速的多设备同步）
     // 【本地认证模式】禁用定时同步，避免无效的 Supabase 调用
@@ -1126,13 +1122,9 @@ export default function App() {
     //   // 【B】禁止定时同步触发刷新/保存
     //   // 删除所有 loadData() / cloudSaveV2() 调用
     // }, 3000); // 每3秒同步一次
-    
+
     // 【云端化】返回清理函数
     return () => {
-      if (realtimeCleanup) {
-        realtimeCleanup();
-        logger.log('🔌 Realtime V2 已断开');
-      }
       if (cloudRealtimeCleanup) {
         cloudRealtimeCleanup();
         logger.log('🔌 纯云端 Realtime 已断开');
@@ -1147,17 +1139,17 @@ export default function App() {
   // 【强制修复】处理拍照成功：等待 Realtime 全量拉取，禁止 append
   const handleRecordSuccess = async (newLog: MedicationLog) => {
     logger.log('✅ [新增记录] 云端写入成功，等待 Realtime 全量拉取:', newLog.id);
-    
+
     // 【强制修复】禁止 append，等待 Realtime 回调全量拉取
     // Realtime 回调会调用 getLogsFromCloud() 并全量替换 state
     // 这样确保数据一致性，避免 1 → 4 的跳变
-    
+
     // 临时更新药品状态（Optimistic UI）
     const medId = newLog.medication_id;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const taken = new Date(newLog.taken_at) >= today;
-    
+
     safeSetMedications(prev => prev.map(m => {
       if (m.id === medId) {
         return {
@@ -1170,7 +1162,7 @@ export default function App() {
       }
       return m;
     }), 'add-log-optimistic-med-status');
-    
+
     logger.log('✅ [新增记录] 已触发 Realtime，等待全量拉取更新');
   };
 
@@ -1181,13 +1173,13 @@ export default function App() {
       // 【强制修复】全量拉取 logs，禁止 merge
       try {
         const allLogs = await getLogsFromCloud(undefined, 300, 60);
-        const sortedLogs = [...allLogs].sort((a, b) => 
+        const sortedLogs = [...allLogs].sort((a, b) =>
           new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
         );
         safeSetTimelineLogs(sortedLogs, 'sync-accept-reload');
         setLogsLoaded(true);
         setLogsLastUpdatedAt(new Date());
-        
+
         // 更新 lastLogByMedicationIdRef Map
         lastLogByMedicationIdRef.current.clear();
         for (const log of sortedLogs) {
@@ -1197,7 +1189,7 @@ export default function App() {
             lastLogByMedicationIdRef.current.set(medId, log);
           }
         }
-        
+
         // 更新药品状态
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -1223,8 +1215,8 @@ export default function App() {
 
   // 计算进度
   const completedCount = medications.filter(m => m.status === 'completed').length;
-  const progress = medications.length > 0 
-    ? Math.round((completedCount / medications.length) * 100) 
+  const progress = medications.length > 0
+    ? Math.round((completedCount / medications.length) * 100)
     : 0;
 
   // 检查认证状态
@@ -1260,28 +1252,28 @@ export default function App() {
 
       {/* Nav */}
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-[rgba(52,130,213,1)] text-white px-8 py-4 rounded-full flex items-center gap-8 shadow-2xl backdrop-blur-lg bg-opacity-90">
-        <button 
+        <button
           onClick={() => setActiveTab('dashboard')}
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'dashboard' ? 'scale-110' : ''}`}
         >
           <Camera className="w-6 h-6 text-white" />
           <span className="text-[8px] font-black text-white">首页</span>
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('timeline')}
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'timeline' ? 'scale-110' : ''}`}
         >
           <Clock className="w-6 h-6 text-white" />
           <span className="text-[8px] font-black text-white">记录</span>
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('medications')}
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'medications' ? 'scale-110' : ''}`}
         >
           <Pill className="w-6 h-6 text-white" />
           <span className="text-[8px] font-black text-white">药品</span>
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('profile')}
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'profile' ? 'scale-110' : ''}`}
         >
@@ -1333,8 +1325,8 @@ export default function App() {
               </h4>
               <div className="space-y-3">
                 {medications.map(med => (
-                  <MedCard 
-                    key={med.id} 
+                  <MedCard
+                    key={med.id}
                     med={med}
                     onCameraClick={() => {
                       setSelectedMedicationId(med.id);
@@ -1357,7 +1349,7 @@ export default function App() {
                 className="w-full flex items-center justify-between mb-3 hover:bg-gray-50 -mx-4 px-4 py-2 rounded-xl transition-all"
               >
                 <div className="flex items-center gap-2">
-                  <ChevronDown 
+                  <ChevronDown
                     className={`w-5 h-5 transition-transform ${showCalendar ? 'rotate-180' : ''}`}
                   />
                   <span className="text-base font-black italic tracking-tighter">
@@ -1402,247 +1394,243 @@ export default function App() {
                     </button>
                   </div>
 
-              {/* 月份选择器 */}
-              {showMonthPicker && (
-                <div className="mb-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="grid grid-cols-4 gap-2">
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => {
-                          const newMonth = new Date(selectedMonth);
-                          newMonth.setMonth(i);
-                          setSelectedMonth(newMonth);
-                          setShowMonthPicker(false);
-                        }}
-                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                          selectedMonth.getMonth() === i
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white hover:bg-gray-100'
-                        }`}
-                      >
-                        {i + 1}月
-                      </button>
+                  {/* 月份选择器 */}
+                  {showMonthPicker && (
+                    <div className="mb-3 p-3 bg-gray-50 rounded-xl">
+                      <div className="grid grid-cols-4 gap-2">
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              const newMonth = new Date(selectedMonth);
+                              newMonth.setMonth(i);
+                              setSelectedMonth(newMonth);
+                              setShowMonthPicker(false);
+                            }}
+                            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${selectedMonth.getMonth() === i
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white hover:bg-gray-100'
+                              }`}
+                          >
+                            {i + 1}月
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 星期标题 */}
+                  <div className="grid grid-cols-7 gap-1 mb-1">
+                    {['日', '一', '二', '三', '四', '五', '六'].map(day => (
+                      <div key={day} className="text-center text-[10px] font-bold text-gray-400 py-1">
+                        {day}
+                      </div>
                     ))}
                   </div>
-                </div>
-              )}
 
-              {/* 星期标题 */}
-              <div className="grid grid-cols-7 gap-1 mb-1">
-                {['日', '一', '二', '三', '四', '五', '六'].map(day => (
-                  <div key={day} className="text-center text-[10px] font-bold text-gray-400 py-1">
-                    {day}
+                  {/* 日期网格 */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {(() => {
+                      const year = selectedMonth.getFullYear();
+                      const month = selectedMonth.getMonth();
+                      const firstDay = new Date(year, month, 1).getDay();
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+                      const days = [];
+
+                      // 填充空白
+                      for (let i = 0; i < firstDay; i++) {
+                        days.push(<div key={`empty-${i}`} className="aspect-square" />);
+                      }
+
+                      // 填充日期
+                      for (let day = 1; day <= daysInMonth; day++) {
+                        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const logsOnDate = timelineLogs.filter(log => {
+                          const logDate = new Date(log.taken_at).toISOString().split('T')[0];
+                          return logDate === dateStr;
+                        });
+                        const isSelected = selectedDate === dateStr;
+                        const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                        days.push(
+                          <button
+                            key={day}
+                            onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                            className={`aspect-square rounded-lg flex flex-col items-center justify-center transition-all text-xs ${isSelected
+                              ? 'bg-blue-600 text-white scale-105 shadow-md'
+                              : isToday
+                                ? 'bg-blue-50 text-blue-600 font-bold'
+                                : 'hover:bg-gray-100'
+                              }`}
+                          >
+                            <span className="font-bold">{day}</span>
+                            {logsOnDate.length > 0 && (
+                              <div className="flex gap-1 mt-1 flex-wrap justify-center">
+                                {Array.from(new Set(logsOnDate.map(log => {
+                                  const med = medications.find(m => m.id === log.medication_id);
+                                  if (!med) return null;
+                                  // 获取实际颜色值
+                                  const color = med.accent?.startsWith('#') ? med.accent :
+                                    med.accent === 'lime' ? '#E0F3A2' :
+                                      med.accent === 'mint' ? '#BFEFFF' :
+                                        med.accent === 'berry' ? '#FFD1DC' : '#999999';
+                                  return JSON.stringify({ color, name: med.name });
+                                }).filter(Boolean))).map((item, idx) => {
+                                  const { color, name } = JSON.parse(item as string);
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="w-2 h-2 rounded-full shadow-md ring-1 ring-white"
+                                      style={{ backgroundColor: color }}
+                                      title={name}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      }
+
+                      return days;
+                    })()}
                   </div>
-                ))}
-              </div>
 
-              {/* 日期网格 */}
-              <div className="grid grid-cols-7 gap-1">
-                {(() => {
-                  const year = selectedMonth.getFullYear();
-                  const month = selectedMonth.getMonth();
-                  const firstDay = new Date(year, month, 1).getDay();
-                  const daysInMonth = new Date(year, month + 1, 0).getDate();
-                  const days = [];
-
-                  // 填充空白
-                  for (let i = 0; i < firstDay; i++) {
-                    days.push(<div key={`empty-${i}`} className="aspect-square" />);
-                  }
-
-                  // 填充日期
-                  for (let day = 1; day <= daysInMonth; day++) {
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const logsOnDate = timelineLogs.filter(log => {
-                      const logDate = new Date(log.taken_at).toISOString().split('T')[0];
-                      return logDate === dateStr;
-                    });
-                    const isSelected = selectedDate === dateStr;
-                    const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-                    days.push(
-                      <button
-                        key={day}
-                        onClick={() => setSelectedDate(isSelected ? null : dateStr)}
-                        className={`aspect-square rounded-lg flex flex-col items-center justify-center transition-all text-xs ${
-                          isSelected 
-                            ? 'bg-blue-600 text-white scale-105 shadow-md' 
-                            : isToday
-                            ? 'bg-blue-50 text-blue-600 font-bold'
-                            : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <span className="font-bold">{day}</span>
-                        {logsOnDate.length > 0 && (
-                          <div className="flex gap-1 mt-1 flex-wrap justify-center">
-                            {Array.from(new Set(logsOnDate.map(log => {
-                              const med = medications.find(m => m.id === log.medication_id);
-                              if (!med) return null;
-                              // 获取实际颜色值
-                              const color = med.accent?.startsWith('#') ? med.accent :
-                                med.accent === 'lime' ? '#E0F3A2' :
-                                med.accent === 'mint' ? '#BFEFFF' :
-                                med.accent === 'berry' ? '#FFD1DC' : '#999999';
-                              return JSON.stringify({ color, name: med.name });
-                            }).filter(Boolean))).map((item, idx) => {
-                              const { color, name } = JSON.parse(item as string);
-                              return (
-                                <div
-                                  key={idx}
-                                  className="w-2 h-2 rounded-full shadow-md ring-1 ring-white"
-                                  style={{ backgroundColor: color }}
-                                  title={name}
-                                />
-                              );
-                            })}
-                          </div>
-                        )}
-                      </button>
-                    );
-                  }
-
-                  return days;
-                })()}
-              </div>
-
-              {/* 药品筛选 */}
-              {selectedDate && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <p className="text-[10px] font-bold text-gray-500 mb-2">筛选药品</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      onClick={() => setSelectedMedicationId(null)}
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
-                        !selectedMedicationId
-                          ? 'bg-black text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      全部
-                    </button>
-                    {medications.map(med => (
-                      <button
-                        key={med.id}
-                        onClick={() => setSelectedMedicationId(
-                          selectedMedicationId === med.id ? null : med.id
-                        )}
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
-                          selectedMedicationId === med.id
+                  {/* 药品筛选 */}
+                  {selectedDate && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-[10px] font-bold text-gray-500 mb-2">筛选药品</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          onClick={() => setSelectedMedicationId(null)}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${!selectedMedicationId
                             ? 'bg-black text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {med.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+                            }`}
+                        >
+                          全部
+                        </button>
+                        {medications.map(med => (
+                          <button
+                            key={med.id}
+                            onClick={() => setSelectedMedicationId(
+                              selectedMedicationId === med.id ? null : med.id
+                            )}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${selectedMedicationId === med.id
+                              ? 'bg-black text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                          >
+                            {med.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
 
-             <div className="space-y-6">
-                {(() => {
-                  let filteredLogs = timelineLogs;
+            <div className="space-y-6">
+              {(() => {
+                let filteredLogs = timelineLogs;
 
-                  // 按日期筛选
-                  if (selectedDate) {
-                    filteredLogs = filteredLogs.filter(log => {
-                      const logDate = new Date(log.taken_at).toISOString().split('T')[0];
-                      return logDate === selectedDate;
-                    });
-                  } else {
-                    // 默认显示当月记录
-                    filteredLogs = filteredLogs.filter(log => {
-                      const logDate = new Date(log.taken_at);
-                      return logDate.getMonth() === selectedMonth.getMonth() &&
-                             logDate.getFullYear() === selectedMonth.getFullYear();
-                    });
+                // 按日期筛选
+                if (selectedDate) {
+                  filteredLogs = filteredLogs.filter(log => {
+                    const logDate = new Date(log.taken_at).toISOString().split('T')[0];
+                    return logDate === selectedDate;
+                  });
+                } else {
+                  // 默认显示当月记录
+                  filteredLogs = filteredLogs.filter(log => {
+                    const logDate = new Date(log.taken_at);
+                    return logDate.getMonth() === selectedMonth.getMonth() &&
+                      logDate.getFullYear() === selectedMonth.getFullYear();
+                  });
+                }
+
+                // 按药品筛选
+                if (selectedMedicationId) {
+                  filteredLogs = filteredLogs.filter(log => log.medication_id === selectedMedicationId);
+                }
+
+                // 按天分组
+                const groupedByDate = filteredLogs.reduce((groups, log) => {
+                  const dateKey = new Date(log.taken_at).toISOString().split('T')[0];
+                  if (!groups[dateKey]) {
+                    groups[dateKey] = [];
                   }
+                  groups[dateKey].push(log);
+                  return groups;
+                }, {} as Record<string, typeof filteredLogs>);
 
-                  // 按药品筛选
-                  if (selectedMedicationId) {
-                    filteredLogs = filteredLogs.filter(log => log.medication_id === selectedMedicationId);
-                  }
+                // 按日期降序排序
+                const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
 
-                  // 按天分组
-                  const groupedByDate = filteredLogs.reduce((groups, log) => {
-                    const dateKey = new Date(log.taken_at).toISOString().split('T')[0];
-                    if (!groups[dateKey]) {
-                      groups[dateKey] = [];
-                    }
-                    groups[dateKey].push(log);
-                    return groups;
-                  }, {} as Record<string, typeof filteredLogs>);
+                return sortedDates.length > 0 ? (
+                  sortedDates.map(dateKey => {
+                    const logsOnDate = groupedByDate[dateKey];
+                    const date = new Date(dateKey);
+                    const isToday = dateKey === new Date().toISOString().split('T')[0];
+                    const dateDisplay = isToday ? '今天' : date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
 
-                  // 按日期降序排序
-                  const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
-
-                  return sortedDates.length > 0 ? (
-                    sortedDates.map(dateKey => {
-                      const logsOnDate = groupedByDate[dateKey];
-                      const date = new Date(dateKey);
-                      const isToday = dateKey === new Date().toISOString().split('T')[0];
-                      const dateDisplay = isToday ? '今天' : date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' });
-
-                      return (
-                        <div key={dateKey} className="mb-2">
-                          {/* 日期标题 - 更醒目的设计 */}
-                          <div className="flex items-center gap-4 mb-2" style={{ marginBottom: '8px' }}>
-                            <div className={`px-6 py-3 rounded-full ${isToday ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' : 'bg-gray-100 text-gray-700'} font-black italic text-base`}>
-                              {dateDisplay}
-                            </div>
-                            <div className="flex-1 h-0.5 bg-gradient-to-r from-gray-200 to-transparent" />
-                            <span className="text-sm font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full">
-                              {logsOnDate.length} 条
-                            </span>
+                    return (
+                      <div key={dateKey} className="mb-2">
+                        {/* 日期标题 - 更醒目的设计 */}
+                        <div className="flex items-center gap-4 mb-2" style={{ marginBottom: '8px' }}>
+                          <div className={`px-6 py-3 rounded-full ${isToday ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' : 'bg-gray-100 text-gray-700'} font-black italic text-base`}>
+                            {dateDisplay}
                           </div>
-
-                          {/* 当天的记录列表 - 使用时间线样式，间距修复 */}
-                          <div className="relative" style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            {logsOnDate.map((log, index) => {
-                              const medication = medications.find(m => m.id === log.medication_id);
-                              if (!medication) return null;
-                              
-                              return (
-                                <TimelineItem 
-                                  key={log.id} 
-                                  log={log} 
-                                  medication={medication}
-                                  onMedicationClick={(medId) => {
-                                    setSelectedMedicationId(medId);
-                                  }}
-                                  onEdit={(log) => {
-                                    setEditingLog(log);
-                                    // 设置编辑表单初始值
-                                    const logDate = new Date(log.taken_at);
-                                    const dateStr = logDate.toISOString().split('T')[0];
-                                    const timeStr = logDate.toTimeString().slice(0, 5);
-                                    setEditLogTakenAt(`${dateStr}T${timeStr}`);
-                                    setEditLogMedicationId(log.medication_id);
-                                    setEditLogImagePath(log.image_path || '');
-                                    setEditLogImageFile(null); // 【修复4】重置新照片文件
-                                  }}
-                                  isLast={index === logsOnDate.length - 1}
-                                />
-                              );
-                            })}
-                          </div>
+                          <div className="flex-1 h-0.5 bg-gradient-to-r from-gray-200 to-transparent" />
+                          <span className="text-sm font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full">
+                            {logsOnDate.length} 条
+                          </span>
                         </div>
-                      );
-                    })
-                  ) : (
-                    <div className="py-24 text-center">
-                      <p className="text-6xl font-black italic text-gray-200 tracking-tighter">暂无记录</p>
-                      <p className="text-gray-400 font-bold tracking-widest mt-4">
-                        {selectedDate ? '当天' : '本月'}暂无服药记录
-                      </p>
-                    </div>
-                  );
-                })()}
-             </div>
+
+                        {/* 当天的记录列表 - 使用时间线样式，间距修复 */}
+                        <div className="relative" style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {logsOnDate.map((log, index) => {
+                            const medication = medications.find(m => m.id === log.medication_id);
+                            if (!medication) return null;
+
+                            return (
+                              <TimelineItem
+                                key={log.id}
+                                log={log}
+                                medication={medication}
+                                onMedicationClick={(medId) => {
+                                  setSelectedMedicationId(medId);
+                                }}
+                                onEdit={(log) => {
+                                  setEditingLog(log);
+                                  // 设置编辑表单初始值
+                                  const logDate = new Date(log.taken_at);
+                                  const dateStr = logDate.toISOString().split('T')[0];
+                                  const timeStr = logDate.toTimeString().slice(0, 5);
+                                  setEditLogTakenAt(`${dateStr}T${timeStr}`);
+                                  setEditLogMedicationId(log.medication_id);
+                                  setEditLogImagePath(log.image_path || '');
+                                  setEditLogImageFile(null); // 【修复4】重置新照片文件
+                                }}
+                                isLast={index === logsOnDate.length - 1}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-24 text-center">
+                    <p className="text-6xl font-black italic text-gray-200 tracking-tighter">暂无记录</p>
+                    <p className="text-gray-400 font-bold tracking-widest mt-4">
+                      {selectedDate ? '当天' : '本月'}暂无服药记录
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         )}
 
@@ -1653,9 +1641,9 @@ export default function App() {
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden">
                   {avatarUrl ? (
-                    <img 
-                      src={avatarUrl} 
-                      alt="用户头像" 
+                    <img
+                      src={avatarUrl}
+                      alt="用户头像"
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -1666,7 +1654,7 @@ export default function App() {
                   <h2 className="text-lg font-black italic tracking-tighter mb-0.5">{userName || localStorage.getItem('userName') || '用户'}</h2>
                   <p className="text-xs text-gray-500 font-bold tracking-widest">药盒助手用户</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowProfileEdit(true)}
                   className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-all"
                 >
@@ -1693,7 +1681,7 @@ export default function App() {
 
             {/* 功能列表 */}
             <div className="space-y-3">
-              <div 
+              <div
                 onClick={() => setShowProfileEdit(true)}
                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
               >
@@ -1709,7 +1697,7 @@ export default function App() {
                 <span className="text-gray-400">›</span>
               </div>
 
-              <div 
+              <div
                 onClick={() => setActiveTab('medications')}
                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
               >
@@ -1725,7 +1713,7 @@ export default function App() {
                 <span className="text-gray-400">›</span>
               </div>
 
-              <div 
+              <div
                 onClick={() => setShowReminderSettings(true)}
                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
               >
@@ -1743,7 +1731,7 @@ export default function App() {
                 <span className="text-gray-400">›</span>
               </div>
 
-              <div 
+              <div
                 onClick={async () => {
                   if (confirm('⚠️ 警告：确定要清除所有药品数据吗？\n\n这将删除：\n- 所有药品记录\n- 所有服药记录\n- 本地数据库数据\n- 云端数据\n\n此操作不可恢复！')) {
                     if (confirm('⚠️ 最后确认：真的要删除所有数据吗？')) {
@@ -1752,7 +1740,7 @@ export default function App() {
                         // #region agent log
                         // debug-fetch-removed
                         // #endregion
-                        
+
                         // 方法1: 清除本地 IndexedDB
                         logger.log('📦 清除本地 IndexedDB...');
                         // #region agent log
@@ -1764,14 +1752,14 @@ export default function App() {
                         // #region agent log
                         // debug-fetch-removed
                         // #endregion
-                        
+
                         // 方法2: 清除 payload
                         const payload = getCurrentSnapshotPayload();
                         if (payload) {
                           logger.log('📦 清除 payload...');
                           payload.medications = [];
                           payload.medication_logs = [];
-                          
+
                           // 保存到云端
                           const result = await cloudSaveV2(payload);
                           if (result.success) {
@@ -1780,7 +1768,7 @@ export default function App() {
                             logger.warn('⚠️ 云端清空失败:', result.message);
                           }
                         }
-                        
+
                         // 方法3: 直接清除 Supabase 数据库
                         try {
                           // #region agent log
@@ -1789,14 +1777,14 @@ export default function App() {
                           const { getCurrentUserId } = await import('./src/lib/supabase');
                           const { supabase } = await import('./src/lib/supabase');
                           const userId = await getCurrentUserId();
-                          
+
                           // #region agent log
                           // debug-fetch-removed
                           // #endregion
-                          
+
                           if (userId && supabase) {
                             logger.log('📦 清除 Supabase 数据...', { userId });
-                            
+
                             // 删除所有药品
                             // #region agent log
                             // debug-fetch-removed
@@ -1806,17 +1794,17 @@ export default function App() {
                               .delete()
                               .eq('user_id', userId)
                               .select('*', { count: 'exact', head: false });
-                            
+
                             // #region agent log
                             // debug-fetch-removed
                             // #endregion
-                            
+
                             if (medError) {
                               console.error('❌ 清除 Supabase 药品失败:', medError);
                             } else {
                               logger.log(`✅ Supabase 药品数据已清空 (${medCount || 0} 条)`);
                             }
-                            
+
                             // 删除所有记录
                             // #region agent log
                             // debug-fetch-removed
@@ -1826,11 +1814,11 @@ export default function App() {
                               .delete()
                               .eq('user_id', userId)
                               .select('*', { count: 'exact', head: false });
-                            
+
                             // #region agent log
                             // debug-fetch-removed
                             // #endregion
-                            
+
                             if (logError) {
                               console.error('❌ 清除 Supabase 记录失败:', logError);
                             } else {
@@ -1848,7 +1836,7 @@ export default function App() {
                           // debug-fetch-removed
                           // #endregion
                         }
-                        
+
                         // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
                         logger.log('🔄 数据已清除，等待 Realtime 同步...');
                         alert('✅ 所有药品数据已清除！\n\n已清除:\n- 本地数据库\n- 云端快照\n- Supabase数据库');
@@ -1874,20 +1862,20 @@ export default function App() {
                 <span className="text-red-400">›</span>
               </div>
 
-              <div 
+              <div
                 onClick={async () => {
                   if (confirm('⚠️ 确定要清除 PWA 缓存吗？\n\n这将清除所有缓存的资源，应用将重新加载。\n你的数据不会丢失。')) {
                     try {
                       // 清除所有缓存
                       const cacheNames = await caches.keys();
                       await Promise.all(cacheNames.map(name => caches.delete(name)));
-                      
+
                       // 注销 Service Worker
                       const registrations = await navigator.serviceWorker.getRegistrations();
                       await Promise.all(registrations.map(reg => reg.unregister()));
-                      
+
                       alert('✅ PWA 缓存已清除！\n\n应用将在 2 秒后重新加载...');
-                      
+
                       // 延迟重新加载
                       setTimeout(() => {
                         window.location.reload();
@@ -1913,7 +1901,7 @@ export default function App() {
               </div>
 
               {/* 诊断面板按钮 */}
-              <div 
+              <div
                 onClick={() => setShowDebugPanel(true)}
                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-all cursor-pointer active:scale-98"
               >
@@ -1947,11 +1935,11 @@ export default function App() {
               </div>
               */}
 
-              <div 
+              <div
                 onClick={async () => {
                   try {
                     logger.log('🔍 开始诊断数据来源...');
-                    
+
                     // 1. 检查本地 IndexedDB
                     const localMeds = await db.medications.toArray();
                     const localLogs = await db.medicationLogs.toArray();
@@ -1959,41 +1947,41 @@ export default function App() {
                       medications: localMeds.length,
                       logs: localLogs.length
                     });
-                    
+
                     // 2. 检查 payload
                     const payload = getCurrentSnapshotPayload();
                     logger.log('📦 Payload:', {
                       medications: payload?.medications?.length || 0,
                       logs: payload?.medication_logs?.length || 0
                     });
-                    
+
                     // 3. 检查 Supabase
                     const user = getCurrentUser();
-                    if (user && window.supabaseClient) {
+                    if (user && supabase) {
                       const userTag = `user:${user.username}`;
-                      
-                      const { data: supaMeds } = await window.supabaseClient
+
+                      const { data: supaMeds } = await supabase
                         .from('medications')
                         .select('*')
                         .contains('scene_tags', [userTag]);
-                      
-                      const { data: supaLogs } = await window.supabaseClient
+
+                      const { data: supaLogs } = await supabase
                         .from('medication_logs')
                         .select('*')
                         .contains('scene_tags', [userTag]);
-                      
+
                       logger.log('📦 Supabase:', {
                         medications: supaMeds?.length || 0,
                         logs: supaLogs?.length || 0
                       });
                     }
-                    
+
                     // 4. 检查当前显示的数据
                     logger.log('📦 当前显示:', {
                       medications: medications.length,
                       logs: timelineLogs.length
                     });
-                    
+
                     alert(`📊 数据诊断报告:\n\n` +
                       `本地数据库: ${localMeds.length} 个药品, ${localLogs.length} 条记录\n` +
                       `Payload: ${payload?.medications?.length || 0} 个药品, ${payload?.medication_logs?.length || 0} 条记录\n` +
@@ -2018,7 +2006,7 @@ export default function App() {
                 <span className="text-blue-400">›</span>
               </div>
 
-              <div 
+              <div
                 onClick={() => {
                   if (confirm('确定要退出登录吗？')) {
                     localStorage.removeItem('isLoggedIn');
@@ -2046,14 +2034,14 @@ export default function App() {
         {activeTab === 'medications' && (
           <div className="max-w-4xl">
             <h2 className="text-3xl font-black italic tracking-tighter mb-6">药品管理</h2>
-            
+
             {/* 添加新药品 */}
             <div className="mb-6 p-6 bg-gradient-to-br from-pink-50 to-purple-50 rounded-3xl border-2 border-pink-100">
               <h4 className="text-lg font-black italic tracking-tighter mb-4 flex items-center gap-2">
                 <Plus className="w-5 h-5" />
                 添加新药品
               </h4>
-              
+
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-bold text-gray-600 mb-2">药品名称</label>
@@ -2084,8 +2072,8 @@ export default function App() {
                     value={newMedTime}
                     onChange={(e) => setNewMedTime(e.target.value)}
                     className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
-                    style={{ 
-                      maxWidth: '100%', 
+                    style={{
+                      maxWidth: '100%',
                       boxSizing: 'border-box',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
@@ -2101,11 +2089,10 @@ export default function App() {
                         key={color.value}
                         type="button"
                         onClick={() => setNewMedAccent(color.value)}
-                        className={`h-12 rounded-xl border-2 transition-all ${
-                          newMedAccent === color.value
-                            ? 'border-black scale-110 shadow-lg'
-                            : 'border-gray-300 hover:border-gray-400'
-                        }`}
+                        className={`h-12 rounded-xl border-2 transition-all ${newMedAccent === color.value
+                          ? 'border-black scale-110 shadow-lg'
+                          : 'border-gray-300 hover:border-gray-400'
+                          }`}
                         style={{ backgroundColor: color.value }}
                         title={color.label}
                       />
@@ -2119,20 +2106,20 @@ export default function App() {
                 <button
                   onClick={async () => {
                     // 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
-                      if (!newMedName || !newMedDosage || !newMedTime) {
-                        alert('请填写完整信息');
-                        return;
-                      }
+                    if (!newMedName || !newMedDosage || !newMedTime) {
+                      alert('请填写完整信息');
+                      return;
+                    }
 
                     // 生成 UUID
-                    const newMedication: Medication = {
-                        id: (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-                        name: newMedName,
-                        dosage: newMedDosage,
-                        scheduled_time: newMedTime,
-                        accent: newMedAccent,
-                        device_id: getDeviceId()
-                      };
+                    const newMedication: any = {
+                      id: (crypto as any)?.randomUUID ? (crypto as any).randomUUID() : `local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                      name: newMedName,
+                      dosage: newMedDosage,
+                      scheduled_time: newMedTime,
+                      accent: newMedAccent,
+                      device_id: getDeviceId()
+                    };
 
                     // 【强制性能修复】Optimistic UI：立即更新本地 state（UI 立即生效，<300ms）
                     safeSetMedications(prev => [...prev, {
@@ -2142,7 +2129,7 @@ export default function App() {
                       uploadedAt: undefined,
                       lastLog: undefined
                     }], 'add-medication-optimistic');
-                    
+
                     // 【强制性能修复】立即关闭 loading，不阻塞 UI
                     // 不等待任何异步操作
 
@@ -2157,7 +2144,7 @@ export default function App() {
                           return;
                         }
                         logger.log('✅ 新药品已直接写入云端:', savedMed.name);
-                        
+
                         // 成功：用云端返回的数据更新本地 state（确保 ID 等字段一致）
                         if (savedMed.id !== newMedication.id) {
                           safeSetMedications(prev => {
@@ -2179,13 +2166,13 @@ export default function App() {
                         alert(`添加药品失败: ${errorMsg}`);
                       }
                     })();
-                    
+
                     // 【禁止全量 reload】不再调用 loadData()，只做局部更新
                     // 【强制性能修复】不触发 logs 重算，不更新 Map
-                      setNewMedName('');
-                      setNewMedDosage('');
-                      setNewMedTime('');
-                      setNewMedAccent('#E0F3A2');
+                    setNewMedName('');
+                    setNewMedDosage('');
+                    setNewMedTime('');
+                    setNewMedAccent('#E0F3A2');
                   }}
                   className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black italic rounded-full tracking-tighter hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
@@ -2198,7 +2185,7 @@ export default function App() {
             {/* 现有药品列表 */}
             <div>
               <h4 className="text-lg font-black italic tracking-tighter mb-4">当前药品列表</h4>
-              
+
               {medications.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   <Pill className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -2207,11 +2194,11 @@ export default function App() {
               ) : (
                 <div className="space-y-3">
                   {medications.map((med) => {
-                    const medColor = (med.accent?.startsWith('#') ? med.accent : 
-                      med.accent === 'lime' ? '#E0F3A2' : 
-                      med.accent === 'mint' ? '#BFEFFF' :
-                      med.accent === 'berry' ? '#FFD1DC' : '#FFFFFF');
-                    
+                    const medColor = (med.accent?.startsWith('#') ? med.accent :
+                      med.accent === 'lime' ? '#E0F3A2' :
+                        med.accent === 'mint' ? '#BFEFFF' :
+                          med.accent === 'berry' ? '#FFD1DC' : '#FFFFFF');
+
                     return (
                       <div
                         key={med.id}
@@ -2227,7 +2214,7 @@ export default function App() {
                             </span>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-2 ml-4">
                           <button
                             onClick={() => {
@@ -2241,17 +2228,17 @@ export default function App() {
                           >
                             <Edit2 className="w-5 h-5 text-blue-600" />
                           </button>
-                          
+
                           <button
                             onClick={async () => {
                               // 【强制性能修复】彻底移除 app_state 依赖，直接删除
-                                if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
+                              if (confirm(`确定要删除"${med.name}"吗？\n相关的服药记录也会被删除。`)) {
                                 // 【强制性能修复】Optimistic UI：立即从本地 state 移除（UI 立即生效，<300ms）
                                 safeSetMedications(prev => prev.filter(m => m.id !== med.id), 'delete-medication-optimistic');
-                                
+
                                 // 【强制性能修复】从 Map 中删除，不触发 logs 重算
                                 lastLogByMedicationIdRef.current.delete(med.id);
-                                
+
                                 // 【强制性能修复】立即关闭 loading，不阻塞 UI
                                 // 不等待任何异步操作
 
@@ -2274,7 +2261,7 @@ export default function App() {
                                     alert(`删除药品失败: ${errorMsg}`);
                                   }
                                 })();
-                                
+
                                 // 【禁止全量 reload】不再调用 loadData()，只做局部更新
                                 // 【强制性能修复】不触发 logs 重算，不更新 Map（已删除）
                               }
@@ -2339,13 +2326,13 @@ export default function App() {
             <div className="space-y-6">
               {/* 头像上传 */}
               <div className="py-4">
-                <AvatarUpload 
+                <AvatarUpload
                   currentAvatarUrl={avatarUrl || undefined}
                   onAvatarUpdated={(url) => {
                     logger.log('📸 App: 收到头像更新回调', url);
                     setAvatarUrl(url);
                     logger.log('✅ App: 头像状态已更新');
-                    
+
                     // 强制重新渲染（通过更新一个临时状态）
                     // React会自动优化，这只是确保状态传播
                   }}
@@ -2476,7 +2463,7 @@ export default function App() {
                 <p className="text-xs text-gray-500 font-bold mb-4">
                   手动保存和读取云端备份数据
                 </p>
-                
+
                 <div className="flex gap-3">
                   <button
                     onClick={async () => {
@@ -2489,7 +2476,7 @@ export default function App() {
                     <Save className="w-4 h-4" />
                     云端保存
                   </button>
-                  
+
                   <button
                     onClick={async () => {
                       const result = await loadSnapshotLegacy(false);
@@ -2521,13 +2508,13 @@ export default function App() {
                       try {
                         // 【强制修复】全量拉取 logs，禁止 merge
                         const allLogs = await getLogsFromCloud(undefined, 300, 60);
-                        const sortedLogs = [...allLogs].sort((a, b) => 
+                        const sortedLogs = [...allLogs].sort((a, b) =>
                           new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
                         );
                         safeSetTimelineLogs(sortedLogs, 'debug-sync-reload');
                         setLogsLoaded(true);
                         setLogsLastUpdatedAt(new Date());
-                        
+
                         // 更新 lastLogByMedicationIdRef Map
                         lastLogByMedicationIdRef.current.clear();
                         for (const log of sortedLogs) {
@@ -2537,7 +2524,7 @@ export default function App() {
                             lastLogByMedicationIdRef.current.set(medId, log);
                           }
                         }
-                        
+
                         alert('同步成功！');
                       } catch (error) {
                         console.error('同步失败:', error);
@@ -2625,7 +2612,7 @@ export default function App() {
 
       {/* 版本更新提示 */}
       <UpdateNotification />
-      
+
       {/* 【新增功能C】编辑服药记录模态框 */}
       {editingLog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, rgba(243, 232, 255, 0.95) 0%, rgba(232, 225, 255, 0.95) 100%)', backdropFilter: 'blur(8px)' }}>
@@ -2683,9 +2670,9 @@ export default function App() {
                       }
                       return (
                         <div className="relative">
-                          <img 
+                          <img
                             src={imageSrc}
-                            alt="当前照片" 
+                            alt="当前照片"
                             className="max-w-full h-auto rounded-xl border border-gray-200"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = 'none';
@@ -2725,9 +2712,9 @@ export default function App() {
                 </label>
                 {editLogImageFile && (
                   <div className="mt-2">
-                    <img 
+                    <img
                       src={URL.createObjectURL(editLogImageFile)}
-                      alt="新照片预览" 
+                      alt="新照片预览"
                       className="max-w-full h-auto rounded-xl border border-gray-200"
                     />
                   </div>
@@ -2744,7 +2731,7 @@ export default function App() {
                 <button
                   onClick={async () => {
                     if (!editingLog) return;
-                    
+
                     if (!editLogTakenAt || !editLogMedicationId) {
                       alert('请填写完整信息');
                       return;
@@ -2770,11 +2757,11 @@ export default function App() {
                         return;
                       }
                     }
-                    
+
                     // 【修复C】禁止本地假更新，必须等待云端确认
                     try {
                       logger.log(`📝 [修复C] 开始更新服药记录: id=${editingLog.id}`);
-                      
+
                       const updatedLog = await updateLogToCloud(editingLog.id, {
                         taken_at: new Date(editLogTakenAt).toISOString(),
                         medication_id: editLogMedicationId,
@@ -2787,17 +2774,17 @@ export default function App() {
                       }
 
                       logger.log(`✅ [修复C] 服药记录已更新到云端: id=${updatedLog.id}`);
-                      
+
                       // 【修复C】等待 Realtime 回调全量替换，不直接 patch state
                       // 关闭编辑模态框
                       setEditingLog(null);
-                      
+
                       // 显示成功提示
                       const notification = document.createElement('div');
                       notification.className = 'fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-sm shadow-lg animate-fade-in';
                       notification.textContent = '✅ 记录已更新，等待同步...';
                       document.body.appendChild(notification);
-                      
+
                       setTimeout(() => {
                         notification.classList.add('animate-fade-out');
                         setTimeout(() => notification.remove(), 300);
@@ -2862,8 +2849,8 @@ export default function App() {
                   value={editMedTime}
                   onChange={(e) => setEditMedTime(e.target.value)}
                   className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-pink-500 focus:outline-none font-medium"
-                  style={{ 
-                    maxWidth: '100%', 
+                  style={{
+                    maxWidth: '100%',
                     boxSizing: 'border-box',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis'
@@ -2879,11 +2866,10 @@ export default function App() {
                       key={color.value}
                       type="button"
                       onClick={() => setEditMedAccent(color.value)}
-                      className={`h-12 rounded-xl border-2 transition-all ${
-                        editMedAccent === color.value
-                          ? 'border-black scale-110 shadow-lg'
-                          : 'border-gray-300 hover:border-gray-400'
-                      }`}
+                      className={`h-12 rounded-xl border-2 transition-all ${editMedAccent === color.value
+                        ? 'border-black scale-110 shadow-lg'
+                        : 'border-gray-300 hover:border-gray-400'
+                        }`}
                       style={{ backgroundColor: color.value }}
                       title={color.label}
                     />
@@ -2904,31 +2890,31 @@ export default function App() {
                 <button
                   onClick={async () => {
                     // 【彻底移除 app_state 依赖】不再使用 payload/app_state，只操作 medications 表
-                      if (!editMedName || !editMedDosage || !editMedTime) {
-                        alert('请填写完整信息');
-                        return;
-                      }
+                    if (!editMedName || !editMedDosage || !editMedTime) {
+                      alert('请填写完整信息');
+                      return;
+                    }
 
                     if (!editingMed) return;
 
                     // 【强制性能修复】Optimistic UI：立即更新本地 state（UI 立即生效，<300ms）
                     const updatedMed: Medication = {
                       ...editingMed,
-                          name: editMedName,
-                          dosage: editMedDosage,
-                          scheduled_time: editMedTime,
-                          accent: editMedAccent
-                        };
-                    
+                      name: editMedName,
+                      dosage: editMedDosage,
+                      scheduled_time: editMedTime,
+                      accent: editMedAccent
+                    };
+
                     // 保存原始值用于回滚
                     const originalMed = { ...editingMed };
-                    
+
                     // 【强制性能修复】立即更新 UI，不等待任何异步操作
                     safeSetMedications(prev => prev.map(m => m.id === editingMed.id ? {
                       ...m,
                       ...updatedMed
                     } : m), 'edit-medication-optimistic');
-                    
+
                     // 【强制性能修复】立即关闭弹窗，不阻塞 UI
                     setEditingMed(null);
 
@@ -2946,7 +2932,7 @@ export default function App() {
                           return;
                         }
                         logger.log('✅ 药品已直接更新到云端:', savedMed.name, { accent: savedMed.accent });
-                        
+
                         // 【修复A】立即用云端返回的数据更新本地 state（包括 accent 颜色）
                         // 这确保本机立即生效，不等待 Realtime
                         safeSetMedications(prev => prev.map(m => m.id === editingMed.id ? {
@@ -2965,7 +2951,7 @@ export default function App() {
                         alert(`更新药品失败: ${errorMsg}`);
                       }
                     })();
-                    
+
                     // 【禁止全量 reload】不再调用 loadData()，只做局部更新
                     // 【强制性能修复】不触发 logs 重算，不更新 Map
                   }}

@@ -1,15 +1,7 @@
-import { logger } from '../utils/logger';
-import { logger } from '../utils/logger';
-import { logger } from '../utils/logger';
-import { logger } from '../utils/logger';
-/**
- * 纯云端服务 - 完全移除 IndexedDB，所有数据从 Supabase 读取
- * 架构：所有设备必须版本一致，所有数据实时从云端读取
- */
-
 import { supabase, getCurrentUserId } from '../lib/supabase';
 import { APP_VERSION } from '../config/version';
 import type { Medication, MedicationLog } from '../types';
+import { logger } from '../utils/logger';
 
 /**
  * 获取设备ID（用于 Realtime 过滤自身更新）
@@ -25,26 +17,21 @@ export function getDeviceId(): string {
 
 /**
  * 检查并强制版本同步
- * 如果云端 required_version 与当前版本不一致，强制清除缓存并刷新
  */
-export async function enforceVersionSync(): Promise<void> {  
-  const userId = await getCurrentUserId();  
+export async function enforceVersionSync(): Promise<void> {
+  const userId = await getCurrentUserId();
+
   if (!userId || !supabase) {
     logger.warn('⚠️ 用户未登录或 Supabase 未配置，跳过版本检查');
     return;
   }
 
-  // 【减少无意义 400】检查缓存标记，如果列不存在，直接跳过，不发起请求
   const versionCheckDisabledKey = 'version_check_disabled_column_missing';
-  const isVersionCheckDisabled = localStorage.getItem(versionCheckDisabledKey) === 'true';
-  
-  if (isVersionCheckDisabled) {
-    logger.log('ℹ️ 版本检查已禁用（列缺失/功能关闭）');
-    return; // 直接返回，不发起网络请求
+  if (localStorage.getItem(versionCheckDisabledKey) === 'true') {
+    return;
   }
 
   try {
-    // 1. 查询云端 required_version
     const { data, error } = await supabase
       .from('app_state')
       .select('required_version')
@@ -52,106 +39,61 @@ export async function enforceVersionSync(): Promise<void> {
       .maybeSingle();
 
     if (error) {
-      // 【容错处理】如果列不存在（42703），设置缓存标记，后续不再查询
       if (error.code === '42703' || error.message?.includes('does not exist')) {
-        // 设置缓存标记，后续启动时直接跳过
         localStorage.setItem(versionCheckDisabledKey, 'true');
-        logger.log('ℹ️ 版本检查跳过：required_version 列不存在（数据库未迁移），已禁用后续查询');        return; // 静默返回，不报错，不触发刷新
+        return;
       }
-      
-      // 其他错误仍然记录（但不阻塞）
-      logger.warn('⚠️ 版本检查查询失败（非阻塞）:', error.code, error.message);      return; // 静默返回，不阻塞应用启动
-    }
-    
-    // 【成功查询】如果查询成功，清除禁用标记（可能数据库已迁移）
-    if (localStorage.getItem(versionCheckDisabledKey) === 'true') {
-      localStorage.removeItem(versionCheckDisabledKey);
-      logger.log('✅ 版本检查已重新启用（数据库可能已迁移）');
+      logger.warn('⚠️ 版本检查查询失败（非阻塞）:', error.code, error.message);
+      return;
     }
 
     const requiredVersion = data?.required_version;
-    logger.log('🔍 版本检查:', { currentVersion: APP_VERSION, requiredVersion });
-    // 2. 如果云端有 required_version 且与当前版本不一致
     if (requiredVersion && requiredVersion !== APP_VERSION) {
-      logger.warn('🚨 版本不一致，强制更新!', {
-        currentVersion: APP_VERSION,
-        requiredVersion
-      });
-      // 3. 清除所有缓存
+      logger.warn('🚨 版本不一致，强制更新!', { currentVersion: APP_VERSION, requiredVersion });
+
       try {
-        // 清除 Service Worker 缓存
         if ('caches' in window) {
           const cacheNames = await caches.keys();
           await Promise.all(cacheNames.map(name => caches.delete(name)));
-          logger.log('✅ 已清除 Service Worker 缓存');
         }
-
-        // 注销所有 Service Worker
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
           await Promise.all(registrations.map(reg => reg.unregister()));
-          logger.log('✅ 已注销 Service Worker');
         }
-
-        // 清除 localStorage（保留 device_id）
         const deviceId = localStorage.getItem('device_id');
         localStorage.clear();
         if (deviceId) localStorage.setItem('device_id', deviceId);
-        logger.log('✅ 已清除 localStorage');
-
-        // 清除 sessionStorage
         sessionStorage.clear();
-        logger.log('✅ 已清除 sessionStorage');
-
-        // 清除 IndexedDB（如果存在）
         if ('indexedDB' in window) {
           const dbs = await indexedDB.databases();
           for (const db of dbs) {
-            if (db.name) {
-              indexedDB.deleteDatabase(db.name);
-              logger.log(`✅ 已删除 IndexedDB: ${db.name}`);
-            }
+            if (db.name) indexedDB.deleteDatabase(db.name);
           }
         }
-
       } catch (cleanupError) {
         logger.warn('⚠️ 清理缓存时出错:', cleanupError);
       }
 
-      // 4. 显示提示并强制刷新
       alert(`检测到新版本 ${requiredVersion}，即将自动更新...`);
       window.location.reload();
-      
-      // 阻止后续代码执行
       throw new Error('VERSION_MISMATCH');
     }
 
-    // 5. 如果云端没有 required_version，设置为当前版本
     if (!requiredVersion) {
-      logger.log('📝 云端未设置 required_version，设置为当前版本:', APP_VERSION);      
-      await supabase
-        .from('app_state')
-        .update({ required_version: APP_VERSION })
-        .eq('owner_id', userId);
+      await supabase.from('app_state').update({ required_version: APP_VERSION }).eq('owner_id', userId);
     }
-
   } catch (error: any) {
-    if (error.message === 'VERSION_MISMATCH') {
-      throw error; // 重新抛出，阻止应用初始化
-    }
+    if (error.message === 'VERSION_MISMATCH') throw error;
     console.error('❌ 版本检查异常:', error);
   }
 }
 
 /**
- * 从云端读取所有药品（不使用本地缓存）
+ * 从云端读取所有药品
  */
 export async function getMedicationsFromCloud(): Promise<Medication[]> {
-  const userId = await getCurrentUserId();  
-  if (!userId || !supabase) {
-    logger.warn('⚠️ 用户未登录或 Supabase 未配置');
-    return [];
-  }
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) return [];
 
   try {
     const { data, error } = await supabase
@@ -161,13 +103,13 @@ export async function getMedicationsFromCloud(): Promise<Medication[]> {
       .order('scheduled_time', { ascending: true });
 
     if (error) {
-      console.error('❌ 读取药品失败:', error);      return [];
+      console.error('❌ 读取药品失败:', error);
+      return [];
     }
-
-    logger.log(`📥 从云端读取到 ${data?.length || 0} 个药品`);    
     return data || [];
   } catch (error: any) {
-    console.error('❌ 读取药品异常:', error);    return [];
+    console.error('❌ 读取药品异常:', error);
+    return [];
   }
 }
 
@@ -176,20 +118,18 @@ export async function getMedicationsFromCloud(): Promise<Medication[]> {
  */
 export async function getTodayLogsFromCloud(): Promise<MedicationLog[]> {
   const userId = await getCurrentUserId();
-  if (!userId || !supabase) {
-    logger.warn('⚠️ 用户未登录或 Supabase 未配置');
-    return [];
-  }
+  if (!userId || !supabase) return [];
 
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
+    // 我们选择 uploaded_at 为 created_at 的别名，以满足 MedicationLog 类型
     const { data, error } = await supabase
       .from('medication_logs')
-      .select('id,medication_id,taken_at,created_at,device_id,status,time_source,image_path')
+      .select('id,medication_id,taken_at,created_at,uploaded_at:created_at,device_id,status,time_source,image_path')
       .eq('user_id', userId)
       .gte('taken_at', today.toISOString())
       .lt('taken_at', tomorrow.toISOString())
@@ -199,9 +139,7 @@ export async function getTodayLogsFromCloud(): Promise<MedicationLog[]> {
       console.error('❌ 读取今日服药记录失败:', error);
       return [];
     }
-
-    logger.log(`📥 [快速加载] 从云端读取到 ${data?.length || 0} 条今日服药记录`);
-    return data || [];
+    return (data as any) || [];
   } catch (error) {
     console.error('❌ 读取今日服药记录异常:', error);
     return [];
@@ -209,53 +147,32 @@ export async function getTodayLogsFromCloud(): Promise<MedicationLog[]> {
 }
 
 /**
- * 从云端读取服药记录（瘦身版本：只拉取必要字段，限制数量）
- * 
- * @param medicationId 可选：只拉取特定药品的记录
- * @param limit 可选：限制返回数量（默认300条）
- * @param daysLimit 可选：限制天数（默认60天）
+ * 从云端读取服药记录（瘦身版本）
  */
-export async function getLogsFromCloud(
-  medicationId?: string,
-  limit: number = 300,
-  daysLimit: number = 60
-): Promise<MedicationLog[]> {
+export async function getLogsFromCloud(medicationId?: string, limit: number = 300, daysLimit: number = 60): Promise<MedicationLog[]> {
   const userId = await getCurrentUserId();
-  if (!userId || !supabase) {
-    logger.warn('⚠️ 用户未登录或 Supabase 未配置');
-    return [];
-  }
+  if (!userId || !supabase) return [];
 
   try {
-    // 【修复图片多设备一致性】必须拉取 image_path 字段，确保图片在多设备间可见
-    const selectFields = 'id,medication_id,taken_at,created_at,device_id,status,time_source,image_path';
-    
-    // 计算日期限制（最近 N 天）
     const daysAgo = new Date();
     daysAgo.setDate(daysAgo.getDate() - daysLimit);
-    const daysAgoISO = daysAgo.toISOString();
-    
+
     let query = supabase
       .from('medication_logs')
-      .select(selectFields) // 【瘦身】只拉取必要字段
+      .select('id,medication_id,taken_at,created_at,uploaded_at:created_at,device_id,status,time_source,image_path')
       .eq('user_id', userId)
-      .gte('taken_at', daysAgoISO) // 【限制】只拉取最近60天的记录
+      .gte('taken_at', daysAgo.toISOString())
       .order('taken_at', { ascending: false })
-      .limit(limit); // 【限制】最多300条
+      .limit(limit);
 
-    if (medicationId) {
-      query = query.eq('medication_id', medicationId);
-    }
+    if (medicationId) query = query.eq('medication_id', medicationId);
 
     const { data, error } = await query;
-
     if (error) {
       console.error('❌ 读取服药记录失败:', error);
       return [];
     }
-
-    logger.log(`📥 [瘦身] 从云端读取到 ${data?.length || 0} 条服药记录（限制：最近${daysLimit}天，最多${limit}条）`);
-    return data || [];
+    return (data as any) || [];
   } catch (error) {
     console.error('❌ 读取服药记录异常:', error);
     return [];
@@ -263,578 +180,148 @@ export async function getLogsFromCloud(
 }
 
 /**
- * 清理药品数据，只保留数据库列（白名单）
- * 删除所有 UI-only 字段（如 accent, status, lastTakenAt, lastLog 等）
- * 
- * @export 导出供其他模块使用（如 sync.ts）
+ * 清理药品数据（白名单）
  */
-export function sanitizeMedicationForDb(medication: Medication): any {
-  // 数据库列白名单（根据 supabase schema + accent 字段）
-  const dbFields = [
-    'id',
-    'user_id',
-    'name',
-    'dosage',
-    'scheduled_time',
-    'device_id',
-    'accent', // 【修复A】保留 accent 字段用于颜色主题同步
-    'updated_at'
-  ];
-  
+export function sanitizeMedicationForDb(med: any): Partial<Medication> {
+  const allowedKeys = ['id', 'user_id', 'name', 'dosage', 'scheduled_time', 'accent', 'created_at'];
   const sanitized: any = {};
-  
-  // 只保留白名单字段
-  for (const field of dbFields) {
-    if (field in medication || (field === 'updated_at' && !medication.updated_at)) {
-      sanitized[field] = (medication as any)[field];
-    }
-  }
-  
-  // 确保必要字段存在
-  if (!sanitized.updated_at) {
-    sanitized.updated_at = new Date().toISOString();
-  }
-  
-  // 显式删除 UI-only 字段（防御性编程）
-  // 【修复A】不再删除 accent，因为需要同步颜色主题
-  delete sanitized.status;
-  delete sanitized.lastTakenAt;
-  delete sanitized.lastLog;
-  delete sanitized.uploadedAt;
-  
+  allowedKeys.forEach(key => {
+    if (med[key] !== undefined) sanitized[key] = med[key];
+  });
   return sanitized;
 }
 
 /**
- * 添加或更新药品（直接写入云端）
+ * 将药品同步到云端
  */
-export async function upsertMedicationToCloud(medication: Medication): Promise<Medication | null> {
+export async function upsertMedicationToCloud(med: Medication): Promise<Medication | null> {
   const userId = await getCurrentUserId();
-  if (!userId || !supabase) {
-    console.error('❌ 用户未登录或 Supabase 未配置');
-    return null;
-  }
+  if (!userId || !supabase) return null;
 
   try {
-    const deviceId = getDeviceId();
-    
-    // 【修复 PGRST204】写入前 sanitize，删除 UI-only 字段
-    const medicationData = sanitizeMedicationForDb({
-      ...medication,
-      user_id: userId,
-      device_id: deviceId,
-      updated_at: new Date().toISOString()
-    });
-
-    // 如果有 id，使用 upsert；否则 insert
-    if (medication.id) {
-      // 【修复A】强制更新 updated_at，确保即使颜色值相同也触发 Realtime
-      const now = new Date().toISOString();
-      medicationData.updated_at = now;
-      
-      logger.log(`📝 [修复A] 更新药品: id=${medication.id}, accent=${medicationData.accent}, updated_at=${now}`);      
-      // 【强制修复】禁止使用 .single()，必须手动验证行数
-      const { data, error } = await supabase
-        .from('medications')
-        .update(medicationData)
-        .eq('id', medication.id)
-        .eq('user_id', userId)
-        .select();
-      if (error) {
-        const errorMsg = error.message || `错误代码: ${error.code || 'unknown'}`;
-        console.error('❌ 更新药品失败:', errorMsg, error);
-        throw new Error(`更新药品失败: ${errorMsg}`);
-      }
-
-      // 【强制修复】手动验证行数
-      if (!data || data.length === 0) {
-        console.error('❌ 更新药品失败：未命中任何行，可能id不存在或user_id不匹配');
-        throw new Error('更新药品失败：未命中任何行，请检查药品ID和用户权限');
-      }
-      
-      if (data.length > 1) {
-        console.error('❌ 更新药品失败：命中多行，where条件错误', { 
-          medicationId: medication.id,
-          userId,
-          matchedCount: data.length
-        });
-        throw new Error(`更新药品失败：命中多行（${data.length}行），where条件错误`);
-      }
-      
-      const updatedMed = data[0];
-      
-      // 【修复3】验证accent字段是否正确写入
-      if (medicationData.accent !== undefined && updatedMed.accent !== medicationData.accent) {
-        console.error('❌ accent字段写入不一致:', { 
-          expected: medicationData.accent, 
-          actual: updatedMed.accent,
-          medicationId: medication.id 
-        });
-        throw new Error(`accent字段写入不一致: 期望${medicationData.accent}，实际${updatedMed.accent}`);
-      }
-
-      logger.log(`✅ [修复A] 药品已更新到云端: id=${updatedMed.id}, name=${updatedMed.name}, accent=${updatedMed.accent}, updated_at=${updatedMed.updated_at}`);
-      return updatedMed;
-    } else {
-      // 新增药品，让数据库自动生成 UUID
-      const { id, ...insertData } = medicationData;
-      const { data, error } = await supabase
-        .from('medications')
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (error) {
-        const errorMsg = error.message || `错误代码: ${error.code || 'unknown'}`;
-        console.error('❌ 添加药品失败:', errorMsg, error);
-        throw new Error(`添加药品失败: ${errorMsg}`);
-      }
-
-      logger.log('✅ 药品已添加到云端:', data.name);
-      return data;
-    }
-  } catch (error: any) {
-    console.error('❌ 保存药品异常:', error);
-    // 重新抛出错误，让调用者可以显示具体错误消息
-    throw error;
-  }
-}
-
-/**
- * 删除药品（直接从云端删除）
- */
-export async function deleteMedicationFromCloud(medicationId: string): Promise<boolean> {
-  const userId = await getCurrentUserId();
-  if (!userId || !supabase) {
-    console.error('❌ 用户未登录或 Supabase 未配置');
-    return false;
-  }
-
-  try {
-    // 1. 删除药品（级联删除会自动删除相关记录）
-    const { error } = await supabase
+    const sanitized = sanitizeMedicationForDb(med);
+    const { data, error } = await supabase
       .from('medications')
-      .delete()
-      .eq('id', medicationId)
-      .eq('user_id', userId);
-
-    if (error) {
-      console.error('❌ 删除药品失败:', error);
-      return false;
-    }
-
-    logger.log('✅ 药品已从云端删除');
-    return true;
-  } catch (error) {
-    console.error('❌ 删除药品异常:', error);
-    return false;
-  }
-}
-
-/**
- * 添加服药记录（直接写入云端）
- * 【强制修复】确保所有必需字段正确传递，清理 undefined，输出详细错误
- */
-export async function addLogToCloud(log: Omit<MedicationLog, 'id'> | MedicationLog): Promise<MedicationLog | null> {
-  const userId = await getCurrentUserId();
-  if (!userId || !supabase) {
-    console.error('❌ 用户未登录或 Supabase 未配置');
-    return null;
-  }
-
-  try {
-    const deviceId = getDeviceId();
-    
-    // 【强制修复】构建符合数据库 schema 的数据对象，清理所有 undefined 字段
-    const logData: any = {
-      // 必需字段（根据 supabase-schema.sql）
-      user_id: userId,
-      medication_id: log.medication_id,
-      taken_at: log.taken_at,
-      uploaded_at: log.uploaded_at,
-      time_source: log.time_source,
-      status: log.status,
-      source_device: deviceId, // 【修复】字段名改为 source_device（匹配数据库 schema）
-    };
-    
-    // 可选字段（只添加非 undefined 的值）
-    if (log.image_path !== undefined && log.image_path !== null) {
-      logData.image_path = log.image_path;
-    }
-    if (log.image_hash !== undefined && log.image_hash !== null) {
-      logData.image_hash = log.image_hash;
-    }
-    if (log.created_at !== undefined && log.created_at !== null) {
-      logData.created_at = log.created_at;
-    } else {
-      logData.created_at = new Date().toISOString();
-    }
-    if (log.updated_at !== undefined && log.updated_at !== null) {
-      logData.updated_at = log.updated_at;
-    }
-    if (log.updated_by !== undefined && log.updated_by !== null) {
-      logData.updated_by = log.updated_by;
-    }
-    
-    // 【强制修复】使用 insert（让数据库生成 UUID），通过错误处理来处理冲突
-    // 注意：不使用 upsert，因为 unique_hash 约束是复合索引 (user_id, image_hash)
-    const { id, ...insertData } = logData;
-    const result = await supabase
-      .from('medication_logs')
-      .insert(insertData)
+      .upsert({ ...sanitized, user_id: userId })
       .select()
       .single();
 
-    const { data, error } = result;
-
     if (error) {
-      // 【强制修复】输出完整的 Supabase 错误信息
-      console.error('❌ 添加服药记录失败 - 完整错误信息:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        logData: {
-          medication_id: logData.medication_id,
-          taken_at: logData.taken_at,
-          has_image_path: !!logData.image_path,
-          has_image_hash: !!logData.image_hash,
-          user_id: logData.user_id,
-          source_device: logData.source_device
-        }
-      });
-      
-      // 【修复】处理 unique_hash 冲突（23505）- 复合唯一约束 (user_id, image_hash)
-      if (error.code === '23505' && logData.image_hash) {
-        logger.log('⚠️ 检测到 unique_hash 冲突（重复提交），查询已存在的记录:', {
-          user_id: userId,
-          image_hash: logData.image_hash?.substring(0, 20) + '...'
-        });
-        const { data: existingLog, error: queryError } = await supabase
-          .from('medication_logs')
-          .select()
-          .eq('image_hash', logData.image_hash)
-          .eq('user_id', userId)
-          .maybeSingle();
-        
-        if (queryError) {
-          console.error('❌ 查询已存在记录失败:', {
-            code: queryError.code,
-            message: queryError.message,
-            details: queryError.details,
-            hint: queryError.hint
-          });
-          return null;
-        }
-        
-        if (existingLog) {
-          logger.log('✅ 记录已存在（重复提交），返回已存在的记录:', existingLog.id);
-          return existingLog;
-        } else {
-          logger.warn('⚠️ unique_hash 冲突但查询不到已存在记录，可能是数据库状态不一致');
-        }
-      }
-      
+      console.error('❌ 同步药品到云端失败:', error);
       return null;
     }
-
-    if (!data) {
-      console.error('❌ 添加服药记录失败：返回数据为空');
-      return null;
-    }
-
-    logger.log('✅ 服药记录已添加到云端:', data.id);
     return data;
-  } catch (error: any) {
-    // 【强制修复】输出完整的异常信息
-    console.error('❌ 添加服药记录异常 - 完整错误信息:', {
-      message: error?.message,
-      stack: error?.stack,
-      name: error?.name,
-      error: error
-    });
+  } catch (error) {
+    console.error('❌ 同步药品到云端异常:', error);
     return null;
   }
 }
 
 /**
- * 更新服药记录（直接写入云端）
- * 【新增功能C】支持编辑服药记录：修改 taken_at、medication_id、image_path
+ * 添加服药记录到云端
  */
-export async function updateLogToCloud(
-  logId: string,
-  updates: {
-    taken_at?: string;
-    medication_id?: string;
-    image_path?: string;
-  }
-): Promise<MedicationLog | null> {
+export async function addLogToCloud(log: Partial<MedicationLog>): Promise<MedicationLog | null> {
   const userId = await getCurrentUserId();
-  if (!userId || !supabase) {
-    console.error('❌ 用户未登录或 Supabase 未配置');
-    return null;
-  }
+  if (!userId || !supabase) return null;
 
   try {
-    // 【修复C】强制更新 updated_at，确保触发 Realtime
-    const now = new Date().toISOString();
-    const updateData: any = {
-      ...updates,
-      updated_at: now
-    };
-
-    // 清理 undefined 字段
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) {
-        delete updateData[key];
-      }
-    });
-
-    logger.log(`📝 [修复C] 更新服药记录: id=${logId}, updates=`, updateData);
-
-    // 【强制修复】禁止使用 .single()，必须手动验证行数
     const { data, error } = await supabase
       .from('medication_logs')
-      .update(updateData)
-      .eq('id', logId)
-      .eq('user_id', userId)
-      .select();
+      .insert({ ...log, user_id: userId })
+      .select()
+      .single();
 
     if (error) {
-      console.error('❌ 更新服药记录失败:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      });
+      console.error('❌ 添加服药记录失败:', error);
       return null;
     }
-
-    // 【强制修复】手动验证行数
-    if (!data || data.length === 0) {
-      console.error('❌ 更新服药记录失败：未命中任何行，可能id不存在或user_id不匹配');
-      return null;
-    }
-    
-    if (data.length > 1) {
-      console.error('❌ 更新服药记录失败：命中多行，where条件错误', { 
-        logId,
-        userId,
-        matchedCount: data.length
-      });
-      return null;
-    }
-
-    const updatedLog = data[0];
-    logger.log(`✅ [修复C] 服药记录已更新到云端: id=${updatedLog.id}, taken_at=${updatedLog.taken_at}, medication_id=${updatedLog.medication_id}`);
-    return updatedLog;
-  } catch (error: any) {
-    console.error('❌ 更新服药记录异常:', {
-      message: error?.message,
-      stack: error?.stack,
-      name: error?.name,
-      error: error
-    });
+    return data;
+  } catch (error) {
+    console.error('❌ 添加服药记录异常:', error);
     return null;
   }
 }
 
 /**
- * 初始化 Realtime 监听（仅监听其他设备的变更）
+ * 更新云端服药记录
  */
-// 【彻底单例】全局启动门闩，保护整个启动流程
-let realtimeStartupLatch: {
-  isStarting: boolean;
-  userId: string | null;
-  promise: Promise<() => void> | null;
-} = {
-  isStarting: false,
-  userId: null,
-  promise: null
-};
+export async function updateLogToCloud(id: string, updates: Partial<MedicationLog>): Promise<MedicationLog | null> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) return null;
 
-// Realtime 单例管理
-let realtimeInstance: {
-  userId: string;
-  cleanup: () => void;
-} | null = null;
+  try {
+    const { data, error } = await supabase
+      .from('medication_logs')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
 
-// 事件防抖和去重
-let medDebounceTimer: number | null = null;
-let logDebounceTimer: number | null = null;
-const processedMedIds = new Set<string>();
-const processedLogIds = new Set<string>();
-const MED_DEBOUNCE_MS = 400;
-const LOG_DEBOUNCE_MS = 400;
-const MAX_PROCESSED_IDS = 100; // 防止内存泄漏
+    if (error) {
+      console.error('❌ 更新服药记录失败:', error);
+      return null;
+    }
+    return data;
+  } catch (error) {
+    console.error('❌ 更新服药记录异常:', error);
+    return null;
+  }
+}
 
+/**
+ * 删除云端药品
+ */
+export async function deleteMedicationFromCloud(id: string): Promise<boolean> {
+  const userId = await getCurrentUserId();
+  if (!userId || !supabase) return false;
+
+  try {
+    const { error } = await supabase
+      .from('medications')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('❌ 删除云端药品失败:', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('❌ 删除云端药品异常:', error);
+    return false;
+  }
+}
+
+/**
+ * 初始化云端 Realtime（延迟逻辑见 App.tsx）
+ */
+let realtimeStartupLatch = false;
 export async function initCloudOnlyRealtime(callbacks: {
   onMedicationChange: (payload: { eventType: string; new?: any; old?: any }) => void;
   onLogChange: (payload: { eventType: string; new?: any; old?: any }) => void;
 }): Promise<() => void> {
-  // 【彻底单例】同步检查启动门闩，避免异步竞态条件
-  if (realtimeStartupLatch.isStarting) {
-    logger.log('⏭️ Realtime 正在启动中，等待现有启动完成...', { 
-      currentUserId: realtimeStartupLatch.userId 
-    });
-    // 等待现有启动完成
-    if (realtimeStartupLatch.promise) {
-      return await realtimeStartupLatch.promise;
-    }
-    // 如果 promise 不存在，说明启动失败，继续执行
-  }
+  if (realtimeStartupLatch) return () => { };
+  realtimeStartupLatch = true;
 
-  if (!supabase) {
-    logger.warn('⚠️ Supabase 未配置，无法启动 Realtime');
-    return () => {};
-  }
-
-  // 【彻底单例】获取 userId（同步检查）
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    logger.warn('⚠️ 用户未登录，无法启动 Realtime');
-    return () => {};
-  }
-
-  // 【彻底单例】检查已存在的实例（同步检查）
-  if (realtimeInstance && realtimeInstance.userId === userId) {
-    logger.log('⏭️ Realtime 已存在，跳过重复初始化', { userId });
-    return realtimeInstance.cleanup; // 返回现有的清理函数
-  }
-
-  // 【彻底单例】设置启动门闩
-  realtimeStartupLatch.isStarting = true;
-  realtimeStartupLatch.userId = userId;
-  
-  // 创建启动 Promise
-  const startupPromise = (async () => {
-    try {
-      // 清理旧实例（如果存在）
-      if (realtimeInstance) {
-        realtimeInstance.cleanup();
-        realtimeInstance = null;
-      }
-
-      const deviceId = getDeviceId();
-  
-  // 【强制修复】移除防抖包装，直接调用回调传递 payload
-  // 防抖逻辑已移除，因为现在只做局部更新，不需要防抖
-  
-  // 监听 medications 表变更
   const medicationsChannel = supabase
     .channel('medications-realtime')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'medications'
-      },
-      (payload) => {
-        // 【修复 A】不过滤自身更新，因为可能来自其他设备或需要同步确认
-        // 移除 device_id 过滤，让所有变更都触发回调
-        // 回调函数会处理去重和合并逻辑
-        
-        // 【去重】检查是否已处理过此 ID
-        const medId = (payload.new as any)?.id || (payload.old as any)?.id;
-        if (medId && processedMedIds.has(medId)) {
-          logger.log('⏭️ 已处理过此药品变更，跳过', { medId, eventType: payload.eventType });
-          return;
-        }
-        
-        // 记录已处理的 ID
-        if (medId) {
-          processedMedIds.add(medId);
-          // 防止内存泄漏：限制 Set 大小
-          if (processedMedIds.size > MAX_PROCESSED_IDS) {
-            const firstId = Array.from(processedMedIds)[0];
-            processedMedIds.delete(firstId);
-          }
-        }
-        
-        logger.log('🔔 检测到药品变更（Realtime）', { medId, eventType: payload.eventType });
-        // 【强制修复】直接传递 payload 给回调，不触发全量拉取
-        callbacks.onMedicationChange({
-          eventType: payload.eventType,
-          new: payload.new,
-          old: payload.old
-        });
-      }
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'medications' }, (payload) => {
+      callbacks.onMedicationChange(payload);
+    })
     .subscribe();
 
-  // 监听 medication_logs 表变更
   const logsChannel = supabase
     .channel('medication-logs-realtime')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'medication_logs'
-      },
-      (payload) => {
-        // 【修复 B】不过滤自身更新，因为可能来自其他设备或需要同步确认
-        // 移除 device_id 过滤，让所有变更都触发回调
-        // 回调函数会处理去重和合并逻辑
-        
-        // 【去重】检查是否已处理过此 ID
-        const logId = (payload.new as any)?.id || (payload.old as any)?.id;
-        if (logId && processedLogIds.has(logId)) {
-          logger.log('⏭️ 已处理过此记录变更，跳过', { logId, eventType: payload.eventType });
-          return;
-        }
-        
-        // 记录已处理的 ID
-        if (logId) {
-          processedLogIds.add(logId);
-          // 防止内存泄漏
-          if (processedLogIds.size > MAX_PROCESSED_IDS) {
-            const firstId = Array.from(processedLogIds)[0];
-            processedLogIds.delete(firstId);
-          }
-        }
-        
-        logger.log('🔔 检测到服药记录变更（Realtime）', { logId, eventType: payload.eventType });
-        // 【强制修复】直接传递 payload 给回调，不触发全量拉取
-        callbacks.onLogChange({
-          eventType: payload.eventType,
-          new: payload.new,
-          old: payload.old
-        });
-      }
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'medication_logs' }, (payload) => {
+      callbacks.onLogChange(payload);
+    })
     .subscribe();
 
-  logger.log('✅ 纯云端 Realtime 已启动');
-
-  // 清理函数
-  const cleanup = () => {
+  return () => {
     supabase.removeChannel(medicationsChannel);
     supabase.removeChannel(logsChannel);
-    processedMedIds.clear();
-    processedLogIds.clear();
-    logger.log('🔌 纯云端 Realtime 已停止');
+    realtimeStartupLatch = false;
   };
-
-      // 保存单例实例
-      realtimeInstance = { userId, cleanup };
-      logger.log('✅ Realtime 单例已创建', { userId });
-
-      // 返回清理函数
-      return cleanup;
-    } finally {
-      // 【彻底单例】清除启动门闩
-      realtimeStartupLatch.isStarting = false;
-      realtimeStartupLatch.userId = null;
-      realtimeStartupLatch.promise = null;
-    }
-  })();
-
-  // 保存 Promise 供其他调用等待
-  realtimeStartupLatch.promise = startupPromise;
-
-  return await startupPromise;
 }
-
-
