@@ -7,4 +7,4 @@ import { logger } from '../utils/logger';
  * 仅用于 logger.log、页面展示、调试信息
  * 严禁用于 URL
  */
-export const APP_VERSION = 'V260107.03';
+export const APP_VERSION = 'V260109.02';
