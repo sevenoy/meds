@@ -752,38 +752,39 @@ export default function App() {
     // }); // ❌ 已移除：禁止在启动流程自动清缓存
     // 【生产环境优化】首屏只加载今日数据，后台延迟加载历史
     const initializeApp = async () => {
+      logger.log('🚀 [初始化] 开始应用启动流程');
+
       try {
         // ============================================
-        // 【首屏阶段】只加载今日数据（并行，预计 < 800ms）
+        // 【首屏阶段】加载初始数据（并行，预计 < 1s）
         // ============================================
         const [rawMeds, initialLogs] = await Promise.all([
           getMedicationsFromCloud(),
-          getRecentLogsFromCloud(20)
+          getRecentLogsFromCloud(100) // ✅ 修复3：从20增加到100，确保历史记录不丢失
         ]);
 
-        // 保护：如果没有任何数据且处于 loading，不更新 state 为空
-        if (rawMeds.length > 0 || initialLogs.length > 0) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+        // ✅ 修复1：移除致命的条件判断，无条件执行 setState（即使数据为空）
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-          const medsUI: MedicationUI[] = rawMeds.map(med => {
-            const lastLog = initialLogs.find(log => log.medication_id === med.id);
-            // 注意：如果 limit=20 导致今天的记录未被加载（极罕见），状态会短暂显示 pending，直到 3s 后全量加载修正
-            const taken = lastLog && new Date(lastLog.taken_at) >= today;
-            return {
-              ...med,
-              status: taken ? 'completed' : 'pending',
-              lastTakenAt: lastLog?.taken_at,
-              uploadedAt: lastLog?.created_at,
-              lastLog
-            };
-          });
+        const medsUI: MedicationUI[] = rawMeds.map(med => {
+          const lastLog = initialLogs.find(log => log.medication_id === med.id);
+          const taken = lastLog && new Date(lastLog.taken_at) >= today;
+          return {
+            ...med,
+            status: taken ? 'completed' : 'pending',
+            lastTakenAt: lastLog?.taken_at,
+            uploadedAt: lastLog?.created_at,
+            lastLog
+          };
+        });
 
-          safeSetMedications(medsUI, 'app-init-first-screen');
-          safeSetTimelineLogs(initialLogs, 'app-init-first-screen');
-          setLogsLoaded(true);
-          setLogsLastUpdatedAt(new Date());
-        }
+        safeSetMedications(medsUI, 'app-init-first-screen');
+        safeSetTimelineLogs(initialLogs, 'app-init-first-screen');
+        setLogsLoaded(true);
+        setLogsLastUpdatedAt(new Date());
+
+        logger.log(`✅ [初始化] 首屏数据加载完成: ${rawMeds.length} 个药品, ${initialLogs.length} 条记录`);
 
         // ============================================
         // 【延迟阶段】3s 以后执行非关键任务（不阻塞 UI）
@@ -849,10 +850,11 @@ export default function App() {
       } catch (error) {
         console.error('❌ [初始化] 应用启动失败:', error);
       } finally {
-        // ✅ 【P0修复】必须保证 loading 结束
+        // ✅ 修复2：finally 块无条件执行，确保 loading 必定结束
         setInitialLoading(false);
         setAppInitialized(true);
         isInitializingRef.current = false;
+        logger.log('✅ [初始化] loading 状态已结束');
       }
     };
 
