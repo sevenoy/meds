@@ -731,6 +731,24 @@ export default function App() {
     }
   }, []); // 空依赖数组，因为内部使用的都是稳定的 API 函数
 
+  // ============================================
+  // 【诊断工具】超时包装函数
+  // ============================================
+  /**
+   * 为 Promise 添加超时保护
+   * @param p 原始 Promise
+   * @param ms 超时时间（毫秒）
+   * @param label 标签（用于日志）
+   * @returns 带超时的 Promise
+   */
+  function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+    let timer: any;
+    const timeout = new Promise<T>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`[TIMEOUT] ${label} exceeded ${ms}ms`)), ms);
+    });
+    return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
+  }
+
   // 【已删除】loadDataFast 函数 - 不再需要，已改为三段式初始化
 
   // 检查登录状态
@@ -750,20 +768,57 @@ export default function App() {
     // forcePwaUpdateOncePerVersion('login').catch((e) => {
     //   logger.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
     // }); // ❌ 已移除：禁止在启动流程自动清缓存
-    // 【生产环境优化】首屏只加载今日数据，后台延迟加载历史
+    // 【生产环境优化】首屏加载 + 诊断系统
     const initializeApp = async () => {
-      logger.log('🚀 [初始化] 开始应用启动流程');
+      // ============================================
+      // A. 版本指纹 + Watchdog Timer
+      // ============================================
+      const BUILD_FINGERPRINT = 'V260109.01_diagnostic_watchdog';
+      console.log('[BOOT] version=', APP_VERSION, 'fingerprint=', BUILD_FINGERPRINT, 'timestamp=', new Date().toISOString());
+
+      // ✅ Watchdog: 10 秒必结束 loading（即使 Supabase 卡死）
+      const watchdog = setTimeout(() => {
+        console.error('[WATCHDOG] init exceeded 10s, force end loading');
+        setInitialLoading(false);
+        setAppInitialized(true);
+        isInitializingRef.current = false;
+      }, 10000);
+
+      // ============================================
+      // B. 阶段计时器
+      // ============================================
+      const t0 = performance.now();
+      const mark = (stage: string) => {
+        const elapsed = Math.round(performance.now() - t0);
+        console.log(`[INIT] ${stage} +${elapsed}ms`);
+      };
 
       try {
-        // ============================================
-        // 【首屏阶段】加载初始数据（并行，预计 < 1s）
-        // ============================================
-        const [rawMeds, initialLogs] = await Promise.all([
-          getMedicationsFromCloud(),
-          getRecentLogsFromCloud(100) // ✅ 修复3：从20增加到100，确保历史记录不丢失
-        ]);
+        mark('start');
 
-        // ✅ 修复1：移除致命的条件判断，无条件执行 setState（即使数据为空）
+        // ============================================
+        // C. 串行 + 超时加载数据（精确定位卡点）
+        // ============================================
+        mark('fetch medications - start');
+        const rawMeds = await withTimeout(
+          getMedicationsFromCloud(),
+          8000,
+          'getMedicationsFromCloud'
+        );
+        mark(`fetch medications - done: ${rawMeds?.length ?? 'null'} items`);
+
+        mark('fetch logs - start');
+        const initialLogs = await withTimeout(
+          getRecentLogsFromCloud(100),
+          8000,
+          'getRecentLogsFromCloud'
+        );
+        mark(`fetch logs - done: ${initialLogs?.length ?? 'null'} items`);
+
+        // ============================================
+        // D. 无条件构建 UI State
+        // ============================================
+        mark('build UI state - start');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -783,13 +838,13 @@ export default function App() {
         safeSetTimelineLogs(initialLogs, 'app-init-first-screen');
         setLogsLoaded(true);
         setLogsLastUpdatedAt(new Date());
+        mark('build UI state - done');
 
         logger.log(`✅ [初始化] 首屏数据加载完成: ${rawMeds.length} 个药品, ${initialLogs.length} 条记录`);
 
         // ============================================
-        // 【延迟阶段】3s 以后执行非关键任务（不阻塞 UI）
+        // E. 后台任务（不阻塞）
         // ============================================
-
         setTimeout(() => {
           // 1. 加载完整历史记录
           getLogsFromCloud(undefined, 300, 60).then(allLogs => {
@@ -840,24 +895,21 @@ export default function App() {
           getUserSettings().then(settings => {
             if (settings.avatar_url) setAvatarUrl(settings.avatar_url);
           }).catch(() => { });
-
-          // ❌ 已删除阻塞调用:
-          // cloudLoadV2().catch(() => { });
-          // fixLegacyDeviceIds().catch(() => { });
-          // enforceVersionSync() 已在 line 837 调用
         }, 3000);
 
       } catch (error) {
-        console.error('❌ [初始化] 应用启动失败:', error);
+        console.error('[INIT] failed', error);
+        mark('error');
       } finally {
-        // ✅ 修复2：finally 块无条件执行，确保 loading 必定结束
+        clearTimeout(watchdog);
+        console.log('[INIT] finally -> end loading');
         setInitialLoading(false);
         setAppInitialized(true);
         isInitializingRef.current = false;
         logger.log('✅ [初始化] loading 状态已结束');
+        mark('finally - done');
       }
     };
-
 
     initializeApp();
 
