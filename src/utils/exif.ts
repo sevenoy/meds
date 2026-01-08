@@ -1,3 +1,7 @@
+import { logger } from './logger';
+import { logger } from './logger';
+import { logger } from './logger';
+import { logger } from './logger';
 // EXIF 时间提取工具 - 核心功能
 
 import exifr from 'exifr';
@@ -10,7 +14,7 @@ import type { ExifResult, TimeSource } from '../types';
  */
 export async function extractTakenAt(file: File): Promise<ExifResult> {
   try {
-    console.log('开始提取 EXIF 数据:', file.name, file.type);
+    logger.log('开始提取 EXIF 数据:', file.name, file.type);
     
     // 使用 exifr 解析 EXIF 数据（支持 HEIC/HEIF）
     const exifData = await exifr.parse(file, {
@@ -24,7 +28,7 @@ export async function extractTakenAt(file: File): Promise<ExifResult> {
       ihdr: false
     });
 
-    console.log('EXIF 数据:', exifData);
+    logger.log('EXIF 数据:', exifData);
 
     // 获取拍摄时间（优先级顺序）
     const takenAt = exifData?.DateTimeOriginal || 
@@ -32,7 +36,7 @@ export async function extractTakenAt(file: File): Promise<ExifResult> {
                     exifData?.DateTimeDigitized ||
                     exifData?.DateTime;
 
-    console.log('提取的拍摄时间:', takenAt);
+    logger.log('提取的拍摄时间:', takenAt);
 
     if (takenAt && takenAt instanceof Date) {
       // 验证时间是否有效（不是未来时间，不早于2000年）
@@ -40,7 +44,7 @@ export async function extractTakenAt(file: File): Promise<ExifResult> {
       const minDate = new Date('2000-01-01');
       
       if (takenAt > now) {
-        console.warn('照片时间在未来，使用当前时间');
+        logger.warn('照片时间在未来，使用当前时间');
         return {
           takenAt: new Date(),
           source: 'system'
@@ -48,14 +52,14 @@ export async function extractTakenAt(file: File): Promise<ExifResult> {
       }
       
       if (takenAt < minDate) {
-        console.warn('照片时间过早，使用当前时间');
+        logger.warn('照片时间过早，使用当前时间');
         return {
           takenAt: new Date(),
           source: 'system'
         };
       }
 
-      console.log('使用 EXIF 时间:', takenAt);
+      logger.log('使用 EXIF 时间:', takenAt);
       return {
         takenAt: takenAt,
         source: 'exif'
@@ -63,7 +67,7 @@ export async function extractTakenAt(file: File): Promise<ExifResult> {
     }
 
     // 没有 EXIF 时间，使用当前时间
-    console.warn('未找到有效的 EXIF 时间，使用系统时间');
+    logger.warn('未找到有效的 EXIF 时间，使用系统时间');
     return {
       takenAt: new Date(),
       source: 'system'

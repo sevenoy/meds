@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 // 登录页面组件
 
 import React, { useState } from 'react';
@@ -34,22 +38,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         return;
       } else {
         // 登录模式：使用 Supabase 认证
-        console.log('🔐 尝试登录（Supabase 认证）:', email);
+        logger.log('🔐 尝试登录（Supabase 认证）:', email);
         
         // 【修复】将用户名转换为 Supabase 邮箱格式
-        const emailToUse = email.includes('@') ? email : `${email}@gmail.com`;
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:36',message:'调用 signIn 前',data:{email:email,emailToUse:emailToUse},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        
+        const emailToUse = email.includes('@') ? email : `${email}@gmail.com`;        
         // 调用 Supabase 登录
-        const result = await signIn(emailToUse, password);
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:41',message:'signIn 结果',data:{hasError:!!result.error,hasUser:!!result.data?.user,userId:result.data?.user?.id,email:result.data?.user?.email,errorMessage:result.error?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        
+        const result = await signIn(emailToUse, password);        
         if (result.error) {
           console.error('❌ Supabase 登录失败:', result.error);
           setError(`登录失败: ${result.error.message}`);
@@ -65,17 +59,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         }
         
         // Supabase 登录成功
-        console.log('✅ Supabase 登录成功:', result.data.user.email);
+        logger.log('✅ Supabase 登录成功:', result.data.user.email);
         
         // 设置登录状态（使用本地存储）
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('userEmail', result.data.user.email || emailToUse);
-        localStorage.setItem('userName', email);
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LoginPage.tsx:60',message:'localStorage 设置完成',data:{isLoggedIn:localStorage.getItem('isLoggedIn'),userEmail:localStorage.getItem('userEmail')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
-        
+        localStorage.setItem('userName', email);        
         // 登录成功，允许进入应用
         setLoading(false);
         onLoginSuccess();

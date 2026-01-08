@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 /**
  * 纯云端服务 - 完全移除 IndexedDB，所有数据从 Supabase 读取
  * 架构：所有设备必须版本一致，所有数据实时从云端读取
@@ -23,19 +27,10 @@ export function getDeviceId(): string {
  * 检查并强制版本同步
  * 如果云端 required_version 与当前版本不一致，强制清除缓存并刷新
  */
-export async function enforceVersionSync(): Promise<void> {
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:entry',message:'enforceVersionSync called',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
-  // #endregion
-  
-  const userId = await getCurrentUserId();
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:userId',message:'Got userId',data:{userId:userId||'null',hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C1'})}).catch(()=>{});
-  // #endregion
-  
+export async function enforceVersionSync(): Promise<void> {  
+  const userId = await getCurrentUserId();  
   if (!userId || !supabase) {
-    console.warn('⚠️ 用户未登录或 Supabase 未配置，跳过版本检查');
+    logger.warn('⚠️ 用户未登录或 Supabase 未配置，跳过版本检查');
     return;
   }
 
@@ -44,7 +39,7 @@ export async function enforceVersionSync(): Promise<void> {
   const isVersionCheckDisabled = localStorage.getItem(versionCheckDisabledKey) === 'true';
   
   if (isVersionCheckDisabled) {
-    console.log('ℹ️ 版本检查已禁用（列缺失/功能关闭）');
+    logger.log('ℹ️ 版本检查已禁用（列缺失/功能关闭）');
     return; // 直接返回，不发起网络请求
   }
 
@@ -61,70 +56,52 @@ export async function enforceVersionSync(): Promise<void> {
       if (error.code === '42703' || error.message?.includes('does not exist')) {
         // 设置缓存标记，后续启动时直接跳过
         localStorage.setItem(versionCheckDisabledKey, 'true');
-        console.log('ℹ️ 版本检查跳过：required_version 列不存在（数据库未迁移），已禁用后续查询');
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:columnMissing',message:'Version check skipped - column missing, cached',data:{errorCode:error.code,errorMessage:error.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        return; // 静默返回，不报错，不触发刷新
+        logger.log('ℹ️ 版本检查跳过：required_version 列不存在（数据库未迁移），已禁用后续查询');        return; // 静默返回，不报错，不触发刷新
       }
       
       // 其他错误仍然记录（但不阻塞）
-      console.warn('⚠️ 版本检查查询失败（非阻塞）:', error.code, error.message);
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:error',message:'Query error (non-blocking)',data:{error:error.message,code:error.code},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
-      // #endregion
-      return; // 静默返回，不阻塞应用启动
+      logger.warn('⚠️ 版本检查查询失败（非阻塞）:', error.code, error.message);      return; // 静默返回，不阻塞应用启动
     }
     
     // 【成功查询】如果查询成功，清除禁用标记（可能数据库已迁移）
     if (localStorage.getItem(versionCheckDisabledKey) === 'true') {
       localStorage.removeItem(versionCheckDisabledKey);
-      console.log('✅ 版本检查已重新启用（数据库可能已迁移）');
+      logger.log('✅ 版本检查已重新启用（数据库可能已迁移）');
     }
 
     const requiredVersion = data?.required_version;
-    console.log('🔍 版本检查:', { currentVersion: APP_VERSION, requiredVersion });
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:compare',message:'Version comparison',data:{currentVersion:APP_VERSION,requiredVersion:requiredVersion||'null',match:requiredVersion===APP_VERSION},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
-    // #endregion
-
+    logger.log('🔍 版本检查:', { currentVersion: APP_VERSION, requiredVersion });
     // 2. 如果云端有 required_version 且与当前版本不一致
     if (requiredVersion && requiredVersion !== APP_VERSION) {
-      console.warn('🚨 版本不一致，强制更新!', {
+      logger.warn('🚨 版本不一致，强制更新!', {
         currentVersion: APP_VERSION,
         requiredVersion
       });
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:mismatch',message:'VERSION MISMATCH - will reload',data:{currentVersion:APP_VERSION,requiredVersion:requiredVersion},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
-      // #endregion
-
       // 3. 清除所有缓存
       try {
         // 清除 Service Worker 缓存
         if ('caches' in window) {
           const cacheNames = await caches.keys();
           await Promise.all(cacheNames.map(name => caches.delete(name)));
-          console.log('✅ 已清除 Service Worker 缓存');
+          logger.log('✅ 已清除 Service Worker 缓存');
         }
 
         // 注销所有 Service Worker
         if ('serviceWorker' in navigator) {
           const registrations = await navigator.serviceWorker.getRegistrations();
           await Promise.all(registrations.map(reg => reg.unregister()));
-          console.log('✅ 已注销 Service Worker');
+          logger.log('✅ 已注销 Service Worker');
         }
 
         // 清除 localStorage（保留 device_id）
         const deviceId = localStorage.getItem('device_id');
         localStorage.clear();
         if (deviceId) localStorage.setItem('device_id', deviceId);
-        console.log('✅ 已清除 localStorage');
+        logger.log('✅ 已清除 localStorage');
 
         // 清除 sessionStorage
         sessionStorage.clear();
-        console.log('✅ 已清除 sessionStorage');
+        logger.log('✅ 已清除 sessionStorage');
 
         // 清除 IndexedDB（如果存在）
         if ('indexedDB' in window) {
@@ -132,13 +109,13 @@ export async function enforceVersionSync(): Promise<void> {
           for (const db of dbs) {
             if (db.name) {
               indexedDB.deleteDatabase(db.name);
-              console.log(`✅ 已删除 IndexedDB: ${db.name}`);
+              logger.log(`✅ 已删除 IndexedDB: ${db.name}`);
             }
           }
         }
 
       } catch (cleanupError) {
-        console.warn('⚠️ 清理缓存时出错:', cleanupError);
+        logger.warn('⚠️ 清理缓存时出错:', cleanupError);
       }
 
       // 4. 显示提示并强制刷新
@@ -151,12 +128,7 @@ export async function enforceVersionSync(): Promise<void> {
 
     // 5. 如果云端没有 required_version，设置为当前版本
     if (!requiredVersion) {
-      console.log('📝 云端未设置 required_version，设置为当前版本:', APP_VERSION);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:enforceVersionSync:setVersion',message:'Setting required_version',data:{version:APP_VERSION},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B1'})}).catch(()=>{});
-      // #endregion
-      
+      logger.log('📝 云端未设置 required_version，设置为当前版本:', APP_VERSION);      
       await supabase
         .from('app_state')
         .update({ required_version: APP_VERSION })
@@ -175,14 +147,9 @@ export async function enforceVersionSync(): Promise<void> {
  * 从云端读取所有药品（不使用本地缓存）
  */
 export async function getMedicationsFromCloud(): Promise<Medication[]> {
-  const userId = await getCurrentUserId();
-  
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:getMedicationsFromCloud:entry',message:'getMedicationsFromCloud called',data:{userId:userId||'null',hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C1'})}).catch(()=>{});
-  // #endregion
-  
+  const userId = await getCurrentUserId();  
   if (!userId || !supabase) {
-    console.warn('⚠️ 用户未登录或 Supabase 未配置');
+    logger.warn('⚠️ 用户未登录或 Supabase 未配置');
     return [];
   }
 
@@ -194,26 +161,13 @@ export async function getMedicationsFromCloud(): Promise<Medication[]> {
       .order('scheduled_time', { ascending: true });
 
     if (error) {
-      console.error('❌ 读取药品失败:', error);
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:getMedicationsFromCloud:error',message:'Supabase query error',data:{error:error.message,code:error.code,hint:error.hint},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C2'})}).catch(()=>{});
-      // #endregion
-      return [];
+      console.error('❌ 读取药品失败:', error);      return [];
     }
 
-    console.log(`📥 从云端读取到 ${data?.length || 0} 个药品`);
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:getMedicationsFromCloud:success',message:'Medications fetched',data:{count:data?.length||0,firstMedName:data?.[0]?.name||'none'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C2'})}).catch(()=>{});
-    // #endregion
-    
+    logger.log(`📥 从云端读取到 ${data?.length || 0} 个药品`);    
     return data || [];
   } catch (error: any) {
-    console.error('❌ 读取药品异常:', error);
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:getMedicationsFromCloud:exception',message:'Exception thrown',data:{error:error.message,stack:error.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C3'})}).catch(()=>{});
-    // #endregion
-    return [];
+    console.error('❌ 读取药品异常:', error);    return [];
   }
 }
 
@@ -223,7 +177,7 @@ export async function getMedicationsFromCloud(): Promise<Medication[]> {
 export async function getTodayLogsFromCloud(): Promise<MedicationLog[]> {
   const userId = await getCurrentUserId();
   if (!userId || !supabase) {
-    console.warn('⚠️ 用户未登录或 Supabase 未配置');
+    logger.warn('⚠️ 用户未登录或 Supabase 未配置');
     return [];
   }
 
@@ -246,7 +200,7 @@ export async function getTodayLogsFromCloud(): Promise<MedicationLog[]> {
       return [];
     }
 
-    console.log(`📥 [快速加载] 从云端读取到 ${data?.length || 0} 条今日服药记录`);
+    logger.log(`📥 [快速加载] 从云端读取到 ${data?.length || 0} 条今日服药记录`);
     return data || [];
   } catch (error) {
     console.error('❌ 读取今日服药记录异常:', error);
@@ -268,7 +222,7 @@ export async function getLogsFromCloud(
 ): Promise<MedicationLog[]> {
   const userId = await getCurrentUserId();
   if (!userId || !supabase) {
-    console.warn('⚠️ 用户未登录或 Supabase 未配置');
+    logger.warn('⚠️ 用户未登录或 Supabase 未配置');
     return [];
   }
 
@@ -300,7 +254,7 @@ export async function getLogsFromCloud(
       return [];
     }
 
-    console.log(`📥 [瘦身] 从云端读取到 ${data?.length || 0} 条服药记录（限制：最近${daysLimit}天，最多${limit}条）`);
+    logger.log(`📥 [瘦身] 从云端读取到 ${data?.length || 0} 条服药记录（限制：最近${daysLimit}天，最多${limit}条）`);
     return data || [];
   } catch (error) {
     console.error('❌ 读取服药记录异常:', error);
@@ -378,12 +332,7 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
       const now = new Date().toISOString();
       medicationData.updated_at = now;
       
-      console.log(`📝 [修复A] 更新药品: id=${medication.id}, accent=${medicationData.accent}, updated_at=${now}`);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:beforeUpsert',message:'Before upsert',data:{medicationId:medication.id,name:medication.name,accent:medicationData.accent},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
-      // #endregion
-      
+      logger.log(`📝 [修复A] 更新药品: id=${medication.id}, accent=${medicationData.accent}, updated_at=${now}`);      
       // 【强制修复】禁止使用 .single()，必须手动验证行数
       const { data, error } = await supabase
         .from('medications')
@@ -391,11 +340,6 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
         .eq('id', medication.id)
         .eq('user_id', userId)
         .select();
-
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cloudOnly.ts:upsertMedicationToCloud:afterUpdate',message:'After update',data:{hasData:!!data,dataLength:data?.length||0,hasError:!!error,errorMsg:error?.message||'none',errorCode:error?.code||'none',accent:medicationData.accent},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D1'})}).catch(()=>{});
-      // #endregion
-
       if (error) {
         const errorMsg = error.message || `错误代码: ${error.code || 'unknown'}`;
         console.error('❌ 更新药品失败:', errorMsg, error);
@@ -429,7 +373,7 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
         throw new Error(`accent字段写入不一致: 期望${medicationData.accent}，实际${updatedMed.accent}`);
       }
 
-      console.log(`✅ [修复A] 药品已更新到云端: id=${updatedMed.id}, name=${updatedMed.name}, accent=${updatedMed.accent}, updated_at=${updatedMed.updated_at}`);
+      logger.log(`✅ [修复A] 药品已更新到云端: id=${updatedMed.id}, name=${updatedMed.name}, accent=${updatedMed.accent}, updated_at=${updatedMed.updated_at}`);
       return updatedMed;
     } else {
       // 新增药品，让数据库自动生成 UUID
@@ -446,7 +390,7 @@ export async function upsertMedicationToCloud(medication: Medication): Promise<M
         throw new Error(`添加药品失败: ${errorMsg}`);
       }
 
-      console.log('✅ 药品已添加到云端:', data.name);
+      logger.log('✅ 药品已添加到云端:', data.name);
       return data;
     }
   } catch (error: any) {
@@ -479,7 +423,7 @@ export async function deleteMedicationFromCloud(medicationId: string): Promise<b
       return false;
     }
 
-    console.log('✅ 药品已从云端删除');
+    logger.log('✅ 药品已从云端删除');
     return true;
   } catch (error) {
     console.error('❌ 删除药品异常:', error);
@@ -562,7 +506,7 @@ export async function addLogToCloud(log: Omit<MedicationLog, 'id'> | MedicationL
       
       // 【修复】处理 unique_hash 冲突（23505）- 复合唯一约束 (user_id, image_hash)
       if (error.code === '23505' && logData.image_hash) {
-        console.log('⚠️ 检测到 unique_hash 冲突（重复提交），查询已存在的记录:', {
+        logger.log('⚠️ 检测到 unique_hash 冲突（重复提交），查询已存在的记录:', {
           user_id: userId,
           image_hash: logData.image_hash?.substring(0, 20) + '...'
         });
@@ -584,10 +528,10 @@ export async function addLogToCloud(log: Omit<MedicationLog, 'id'> | MedicationL
         }
         
         if (existingLog) {
-          console.log('✅ 记录已存在（重复提交），返回已存在的记录:', existingLog.id);
+          logger.log('✅ 记录已存在（重复提交），返回已存在的记录:', existingLog.id);
           return existingLog;
         } else {
-          console.warn('⚠️ unique_hash 冲突但查询不到已存在记录，可能是数据库状态不一致');
+          logger.warn('⚠️ unique_hash 冲突但查询不到已存在记录，可能是数据库状态不一致');
         }
       }
       
@@ -599,7 +543,7 @@ export async function addLogToCloud(log: Omit<MedicationLog, 'id'> | MedicationL
       return null;
     }
 
-    console.log('✅ 服药记录已添加到云端:', data.id);
+    logger.log('✅ 服药记录已添加到云端:', data.id);
     return data;
   } catch (error: any) {
     // 【强制修复】输出完整的异常信息
@@ -646,7 +590,7 @@ export async function updateLogToCloud(
       }
     });
 
-    console.log(`📝 [修复C] 更新服药记录: id=${logId}, updates=`, updateData);
+    logger.log(`📝 [修复C] 更新服药记录: id=${logId}, updates=`, updateData);
 
     // 【强制修复】禁止使用 .single()，必须手动验证行数
     const { data, error } = await supabase
@@ -682,7 +626,7 @@ export async function updateLogToCloud(
     }
 
     const updatedLog = data[0];
-    console.log(`✅ [修复C] 服药记录已更新到云端: id=${updatedLog.id}, taken_at=${updatedLog.taken_at}, medication_id=${updatedLog.medication_id}`);
+    logger.log(`✅ [修复C] 服药记录已更新到云端: id=${updatedLog.id}, taken_at=${updatedLog.taken_at}, medication_id=${updatedLog.medication_id}`);
     return updatedLog;
   } catch (error: any) {
     console.error('❌ 更新服药记录异常:', {
@@ -730,7 +674,7 @@ export async function initCloudOnlyRealtime(callbacks: {
 }): Promise<() => void> {
   // 【彻底单例】同步检查启动门闩，避免异步竞态条件
   if (realtimeStartupLatch.isStarting) {
-    console.log('⏭️ Realtime 正在启动中，等待现有启动完成...', { 
+    logger.log('⏭️ Realtime 正在启动中，等待现有启动完成...', { 
       currentUserId: realtimeStartupLatch.userId 
     });
     // 等待现有启动完成
@@ -741,20 +685,20 @@ export async function initCloudOnlyRealtime(callbacks: {
   }
 
   if (!supabase) {
-    console.warn('⚠️ Supabase 未配置，无法启动 Realtime');
+    logger.warn('⚠️ Supabase 未配置，无法启动 Realtime');
     return () => {};
   }
 
   // 【彻底单例】获取 userId（同步检查）
   const userId = await getCurrentUserId();
   if (!userId) {
-    console.warn('⚠️ 用户未登录，无法启动 Realtime');
+    logger.warn('⚠️ 用户未登录，无法启动 Realtime');
     return () => {};
   }
 
   // 【彻底单例】检查已存在的实例（同步检查）
   if (realtimeInstance && realtimeInstance.userId === userId) {
-    console.log('⏭️ Realtime 已存在，跳过重复初始化', { userId });
+    logger.log('⏭️ Realtime 已存在，跳过重复初始化', { userId });
     return realtimeInstance.cleanup; // 返回现有的清理函数
   }
 
@@ -794,7 +738,7 @@ export async function initCloudOnlyRealtime(callbacks: {
         // 【去重】检查是否已处理过此 ID
         const medId = (payload.new as any)?.id || (payload.old as any)?.id;
         if (medId && processedMedIds.has(medId)) {
-          console.log('⏭️ 已处理过此药品变更，跳过', { medId, eventType: payload.eventType });
+          logger.log('⏭️ 已处理过此药品变更，跳过', { medId, eventType: payload.eventType });
           return;
         }
         
@@ -808,7 +752,7 @@ export async function initCloudOnlyRealtime(callbacks: {
           }
         }
         
-        console.log('🔔 检测到药品变更（Realtime）', { medId, eventType: payload.eventType });
+        logger.log('🔔 检测到药品变更（Realtime）', { medId, eventType: payload.eventType });
         // 【强制修复】直接传递 payload 给回调，不触发全量拉取
         callbacks.onMedicationChange({
           eventType: payload.eventType,
@@ -837,7 +781,7 @@ export async function initCloudOnlyRealtime(callbacks: {
         // 【去重】检查是否已处理过此 ID
         const logId = (payload.new as any)?.id || (payload.old as any)?.id;
         if (logId && processedLogIds.has(logId)) {
-          console.log('⏭️ 已处理过此记录变更，跳过', { logId, eventType: payload.eventType });
+          logger.log('⏭️ 已处理过此记录变更，跳过', { logId, eventType: payload.eventType });
           return;
         }
         
@@ -851,7 +795,7 @@ export async function initCloudOnlyRealtime(callbacks: {
           }
         }
         
-        console.log('🔔 检测到服药记录变更（Realtime）', { logId, eventType: payload.eventType });
+        logger.log('🔔 检测到服药记录变更（Realtime）', { logId, eventType: payload.eventType });
         // 【强制修复】直接传递 payload 给回调，不触发全量拉取
         callbacks.onLogChange({
           eventType: payload.eventType,
@@ -862,7 +806,7 @@ export async function initCloudOnlyRealtime(callbacks: {
     )
     .subscribe();
 
-  console.log('✅ 纯云端 Realtime 已启动');
+  logger.log('✅ 纯云端 Realtime 已启动');
 
   // 清理函数
   const cleanup = () => {
@@ -870,12 +814,12 @@ export async function initCloudOnlyRealtime(callbacks: {
     supabase.removeChannel(logsChannel);
     processedMedIds.clear();
     processedLogIds.clear();
-    console.log('🔌 纯云端 Realtime 已停止');
+    logger.log('🔌 纯云端 Realtime 已停止');
   };
 
       // 保存单例实例
       realtimeInstance = { userId, cleanup };
-      console.log('✅ Realtime 单例已创建', { userId });
+      logger.log('✅ Realtime 单例已创建', { userId });
 
       // 返回清理函数
       return cleanup;

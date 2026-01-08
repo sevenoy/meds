@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 /**
  * 云端快照管理服务
  * 基于云端同步技术文档完整实现
@@ -286,7 +290,7 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
     const dedupedCount = payload.medications.length;
     
     if (originalCount !== dedupedCount) {
-      console.warn(`⚠️ cloudSaveV2 检测到重复药品，已去重: ${originalCount} → ${dedupedCount}`);
+      logger.warn(`⚠️ cloudSaveV2 检测到重复药品，已去重: ${originalCount} → ${dedupedCount}`);
     }
 
     // 1. 检查 Supabase 是否配置
@@ -300,7 +304,7 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
       return { success: false, message: '用户未登录' };
     }
 
-    console.log('💾 cloudSaveV2() 开始保存，userId:', userId);
+    logger.log('💾 cloudSaveV2() 开始保存，userId:', userId);
 
     // 3. 调用 cloudLoadV2() 获取当前云端 version（作为"本地 version"）
     const loadResult = await cloudLoadV2();
@@ -310,7 +314,7 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
     }
 
     let currentVersion = loadResult.version || 1;
-    console.log('📌 当前云端 version:', currentVersion);
+    logger.log('📌 当前云端 version:', currentVersion);
 
     // 4. 执行 UPDATE（乐观锁）- 支持冲突重试
     const deviceId = getDeviceId();
@@ -337,7 +341,7 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
         // 但为了容错，仍然检查
         if (updateError.code === 'PGRST116') {
           // 这是 0 rows 的情况，进入冲突处理
-          console.log('🔍 检测到乐观锁冲突（0 rows），进入冲突处理分支');
+          logger.log('🔍 检测到乐观锁冲突（0 rows），进入冲突处理分支');
         } else {
           console.error('❌ UPDATE 操作失败:', updateError);
           return { success: false, message: `更新失败: ${updateError.message}` };
@@ -349,11 +353,11 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
       
       if (!updatedState) {
         // 冲突：version 不匹配，需要重新加载最新数据
-        console.warn(`⚠️ cloudSaveV2() 检测到冲突（尝试 ${retryCount + 1}/${maxRetries + 1}）：version 不匹配，更新失败`);
+        logger.warn(`⚠️ cloudSaveV2() 检测到冲突（尝试 ${retryCount + 1}/${maxRetries + 1}）：version 不匹配，更新失败`);
         
         if (retryCount < maxRetries) {
           // 冲突处理：重新加载最新数据
-          console.log('🔄 重新加载最新云端数据以解决冲突...');
+          logger.log('🔄 重新加载最新云端数据以解决冲突...');
           const reloadResult = await cloudLoadV2();
           
           if (!reloadResult.success) {
@@ -367,7 +371,7 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
           
           // 更新 currentVersion 为最新值
           const newVersion = reloadResult.version || currentVersion;
-          console.log(`📌 冲突解决：重新加载后 version ${currentVersion} → ${newVersion}`);
+          logger.log(`📌 冲突解决：重新加载后 version ${currentVersion} → ${newVersion}`);
           
           // 【策略：以当前编辑为准】直接使用当前 payload，但更新 version
           // 注意：这里采用"以当前编辑为准"的覆盖策略
@@ -389,7 +393,7 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
       }
 
       // 4.4 更新成功
-      console.log('✅ cloudSaveV2() 保存成功:', {
+      logger.log('✅ cloudSaveV2() 保存成功:', {
         version: updatedState.version,
         updated_at: updatedState.updated_at,
         updated_by: updatedState.updated_by,
@@ -414,7 +418,7 @@ export async function cloudSaveV2(payload: SnapshotPayload): Promise<{
     };
 
     // 7. 成功时返回新 version 和 updated_at
-    console.log('✅ cloudSaveV2() 保存成功:', {
+    logger.log('✅ cloudSaveV2() 保存成功:', {
       version: updatedState.version,
       updated_at: updatedState.updated_at,
       updated_by: updatedState.updated_by
@@ -448,7 +452,7 @@ export async function cloudLoadV2(): Promise<{
   try {
     // 1. 检查 Supabase 是否配置
     if (!supabase) {
-      console.warn('⚠️ Supabase 未配置，初始化本地 payload');
+      logger.warn('⚠️ Supabase 未配置，初始化本地 payload');
       if (!currentSnapshotPayload) {
         currentSnapshotPayload = {
           ver: 1,
@@ -463,16 +467,9 @@ export async function cloudLoadV2(): Promise<{
     }
 
     // 2. 获取当前登录用户
-    const userId = await getCurrentUserId();
-    
-    // #region agent log
-    if (shouldSendDebugIngest()) {
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'snapshot.ts:cloudLoadV2:userId',message:'cloudLoadV2 获取 userId',data:{userId:userId||null,hasUserId:!!userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    }
-    // #endregion
-    
+    const userId = await getCurrentUserId();    
     if (!userId) {
-      console.warn('⚠️ 用户未登录，初始化本地 payload');
+      logger.warn('⚠️ 用户未登录，初始化本地 payload');
       if (!currentSnapshotPayload) {
         currentSnapshotPayload = {
           ver: 1,
@@ -482,18 +479,11 @@ export async function cloudLoadV2(): Promise<{
           snapshot_label: 'local_init',
           __initialized: true
         };
-      }
-      
-      // #region agent log
-      if (shouldSendDebugIngest()) {
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'snapshot.ts:cloudLoadV2:noUser',message:'userId 为 null,返回失败',data:{payloadInitialized:!!currentSnapshotPayload},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-      }
-      // #endregion
-      
+      }      
       return { success: false, message: '用户未登录' };
     }
 
-    console.log('🔄 cloudLoadV2() 开始读取，userId:', userId);
+    logger.log('🔄 cloudLoadV2() 开始读取，userId:', userId);
 
     // 3. 查询 app_state 表
     const { data: existingState, error: queryError } = await supabase
@@ -508,7 +498,7 @@ export async function cloudLoadV2(): Promise<{
       console.error('❌ 查询 app_state 失败:', queryError);
       // 【修复】即使查询失败,也要初始化 payload
       if (!currentSnapshotPayload) {
-        console.log('⚠️ 查询失败，初始化本地空 payload');
+        logger.log('⚠️ 查询失败，初始化本地空 payload');
         currentSnapshotPayload = {
           ver: 1,
           medications: [],
@@ -523,7 +513,7 @@ export async function cloudLoadV2(): Promise<{
 
     // 4. 如果查询结果为空，插入新记录
     if (!existingState) {
-      console.log('📝 app_state 不存在，创建新记录...');
+      logger.log('📝 app_state 不存在，创建新记录...');
       
       const deviceId = getDeviceId();
       const { data: newState, error: insertError } = await supabase
@@ -541,7 +531,7 @@ export async function cloudLoadV2(): Promise<{
         console.error('❌ 插入 app_state 失败:', insertError);
         // 【修复】即使插入失败,也要初始化 payload
         if (!currentSnapshotPayload) {
-          console.log('⚠️ 插入失败，初始化本地空 payload');
+          logger.log('⚠️ 插入失败，初始化本地空 payload');
           currentSnapshotPayload = {
             ver: 1,
             medications: [],
@@ -554,7 +544,7 @@ export async function cloudLoadV2(): Promise<{
         return { success: false, message: `插入失败: ${insertError.message}` };
       }
 
-      console.log('✅ 新记录已创建，返回空 payload');
+      logger.log('✅ 新记录已创建，返回空 payload');
       const payload = newState.payload || {};
       
       // 【2】在 cloudLoadV2 成功后，正确赋值 currentSnapshotPayload（deep clone，使用去重后的数据）
@@ -576,7 +566,7 @@ export async function cloudLoadV2(): Promise<{
     }
 
     // 5. 返回查询到的数据
-    console.log('✅ cloudLoadV2() 读取成功:', {
+    logger.log('✅ cloudLoadV2() 读取成功:', {
       version: existingState.version,
       updated_at: existingState.updated_at,
       updated_by: existingState.updated_by
@@ -606,7 +596,7 @@ export async function cloudLoadV2(): Promise<{
     
     // 【紧急修复】即使失败,也要初始化一个空的 payload,防止"系统未初始化"错误
     if (!currentSnapshotPayload) {
-      console.log('⚠️ 云端加载失败,初始化本地空 payload');
+      logger.log('⚠️ 云端加载失败,初始化本地空 payload');
       currentSnapshotPayload = {
         ver: 1,
         medications: [],
@@ -626,7 +616,7 @@ export async function cloudLoadV2(): Promise<{
  * Phase 4.5: 防止重复添加药品
  */
 export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
-  console.log('🔄 应用云端快照（全量替换 + 幂等去重）');
+  logger.log('🔄 应用云端快照（全量替换 + 幂等去重）');
 
   // 【2】进入云端应用保护区
   isApplyingRemoteSnapshot = true;
@@ -652,7 +642,7 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
       return remappedMedId ? { ...log, medication_id: remappedMedId } : log;
     });
 
-    console.log(`🔄 去重前: ${payload.medications?.length || 0} 条，去重后: ${cleanMeds.length} 条`);
+    logger.log(`🔄 去重前: ${payload.medications?.length || 0} 条，去重后: ${cleanMeds.length} 条`);
 
     // 【修复】仅在云端有数据时才清空+覆盖，否则保留本地数据（避免新设备首次登录被清空）
     if (cleanMeds.length > 0 || cleanLogs.length > 0) {
@@ -660,12 +650,12 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
       await db.transaction('rw', db.medications, db.medicationLogs, async () => {
         await db.medications.clear();
         await db.medicationLogs.clear();
-        console.log('✅ 已清空所有本地数据');
+        logger.log('✅ 已清空所有本地数据');
 
         // 使用 bulkPut（幂等），避免 bulkAdd 因 key 冲突报错
         if (cleanMeds.length > 0) {
           await db.medications.bulkPut(cleanMeds as any);
-          console.log(`✅ 已批量写入 ${cleanMeds.length} 条药品记录（已去重）`);
+          logger.log(`✅ 已批量写入 ${cleanMeds.length} 条药品记录（已去重）`);
         }
 
         if (cleanLogs.length > 0) {
@@ -678,11 +668,11 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
             };
           });
           await db.medicationLogs.bulkPut(logsToPut);
-          console.log(`✅ 已批量写入 ${logsToPut.length} 条服药记录`);
+          logger.log(`✅ 已批量写入 ${logsToPut.length} 条服药记录`);
         }
       });
     } else {
-      console.log('⏭ 云端快照为空，保留本地数据（避免误清空）');
+      logger.log('⏭ 云端快照为空，保留本地数据（避免误清空）');
     }
 
     // 4. 更新用户设置
@@ -697,7 +687,7 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
       medication_logs: cleanLogs
     });
 
-    console.log('✅ applySnapshot：全量覆盖 + 幂等去重完成');
+    logger.log('✅ applySnapshot：全量覆盖 + 幂等去重完成');
   } catch (error: any) {
     console.error('❌ 应用云端快照失败:', error);
     throw error;
@@ -705,7 +695,7 @@ export async function applySnapshot(payload: SnapshotPayload): Promise<void> {
     // 【2】延迟解除，确保所有 state 更新完成
     setTimeout(() => {
       isApplyingRemoteSnapshot = false;
-      console.log('🛡 云端快照应用完成，解除保护');
+      logger.log('🛡 云端快照应用完成，解除保护');
     }, 0);
   }
 }
@@ -755,7 +745,7 @@ let realtimeV2StartupLatch: {
 export async function initRealtimeV2(): Promise<() => void> {
   // 【彻底单例】同步检查启动门闩
   if (realtimeV2StartupLatch.isStarting) {
-    console.log('⏭️ Realtime V2 正在启动中，等待现有启动完成...', { 
+    logger.log('⏭️ Realtime V2 正在启动中，等待现有启动完成...', { 
       currentUserId: realtimeV2StartupLatch.userId 
     });
     if (realtimeV2StartupLatch.promise) {
@@ -765,20 +755,20 @@ export async function initRealtimeV2(): Promise<() => void> {
 
   // 1. 检查 Supabase 是否配置
   if (!supabase) {
-    console.warn('⚠️ Supabase 未配置，无法启动 Realtime V2');
+    logger.warn('⚠️ Supabase 未配置，无法启动 Realtime V2');
     return () => {}; // 返回空函数
   }
 
   // 2. 获取当前登录用户
   const userId = await getCurrentUserId();
   if (!userId) {
-    console.warn('⚠️ 用户未登录，无法启动 Realtime V2');
+    logger.warn('⚠️ 用户未登录，无法启动 Realtime V2');
     return () => {}; // 返回空函数
   }
 
   // 【彻底单例】检查已存在的实例
   if (realtimeV2Instance && realtimeV2Instance.userId === userId) {
-    console.log('⏭️ Realtime V2 已存在，跳过重复初始化', { userId });
+    logger.log('⏭️ Realtime V2 已存在，跳过重复初始化', { userId });
     return realtimeV2Instance.cleanup;
   }
 
@@ -797,7 +787,7 @@ export async function initRealtimeV2(): Promise<() => void> {
 
       // 3. 获取当前 deviceId（用于过滤自身更新）
       const currentDeviceId = getDeviceId();
-      console.log('🔄 initRealtimeV2() 开始订阅，userId:', userId, 'deviceId:', currentDeviceId);
+      logger.log('🔄 initRealtimeV2() 开始订阅，userId:', userId, 'deviceId:', currentDeviceId);
 
   // 4. 创建 Realtime 订阅
   const channel = supabase
@@ -813,7 +803,7 @@ export async function initRealtimeV2(): Promise<() => void> {
       async (payload) => {
         // 【E】所有监听必须加"云端回放锁"
         if (isApplyingRemote()) {
-          console.log('⏭ 忽略云端回放期间的本地变化（Realtime V2）');
+          logger.log('⏭ 忽略云端回放期间的本地变化（Realtime V2）');
           return;
         }
 
@@ -821,12 +811,12 @@ export async function initRealtimeV2(): Promise<() => void> {
         const newRow = payload.new as any;
         
         if (!newRow) {
-          console.warn('⚠️ Realtime V2: 收到事件但 new 为空');
+          logger.warn('⚠️ Realtime V2: 收到事件但 new 为空');
           return;
         }
 
         // 6. 打印日志（打印 new.version）
-        console.log('📥 Realtime V2: 收到 app_state 更新事件', {
+        logger.log('📥 Realtime V2: 收到 app_state 更新事件', {
           eventType: payload.eventType,
           version: newRow.version,
           updated_at: newRow.updated_at,
@@ -835,17 +825,17 @@ export async function initRealtimeV2(): Promise<() => void> {
 
         // 7. Phase 4.5: 过滤自身更新
         if (newRow.updated_by === currentDeviceId) {
-          console.log('⏭ Realtime V2: 忽略自身更新（updated_by === 当前 deviceId）');
+          logger.log('⏭ Realtime V2: 忽略自身更新（updated_by === 当前 deviceId）');
           return;
         }
 
         // 8. 只有非自身更新，才调用 cloudLoadV2() 拉取最新数据
         try {
-          console.log('🔄 Realtime V2: 开始拉取最新数据...');
+          logger.log('🔄 Realtime V2: 开始拉取最新数据...');
           const loadResult = await cloudLoadV2();
           
           if (loadResult.success && loadResult.payload) {
-            console.log('✅ Realtime V2: 拉取完成', {
+            logger.log('✅ Realtime V2: 拉取完成', {
               version: loadResult.version,
               updated_at: loadResult.updated_at
             });
@@ -863,11 +853,11 @@ export async function initRealtimeV2(): Promise<() => void> {
     )
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        console.log('✅ Realtime V2: 订阅成功，开始监听 app_state 变化');
+        logger.log('✅ Realtime V2: 订阅成功，开始监听 app_state 变化');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.error('❌ Realtime V2: 订阅失败', status);
       } else {
-        console.log('🔄 Realtime V2: 订阅状态', status);
+        logger.log('🔄 Realtime V2: 订阅状态', status);
       }
     });
 
@@ -876,7 +866,7 @@ export async function initRealtimeV2(): Promise<() => void> {
 
       // 8. 创建清理函数
       const cleanup = () => {
-        console.log('🔌 initRealtimeV2() 断开订阅');
+        logger.log('🔌 initRealtimeV2() 断开订阅');
         if (channel) {
           supabase.removeChannel(channel);
         }
@@ -916,7 +906,7 @@ export async function saveSnapshotLegacy(): Promise<{ success: boolean; message:
       return { success: false, message: '用户未登录' };
     }
 
-    console.log('📊 开始保存快照...');
+    logger.log('📊 开始保存快照...');
 
     // 1. 获取当前用户设置中的用户名
     const settings = await getUserSettings();
@@ -927,7 +917,7 @@ export async function saveSnapshotLegacy(): Promise<{ success: boolean; message:
     const medicationLogs = await getMedicationLogs();
     const userSettings = settings;
 
-    console.log('📊 本地数据:', {
+    logger.log('📊 本地数据:', {
       medications: medications.length,
       logs: medicationLogs.length
     });
@@ -968,14 +958,14 @@ export async function saveSnapshotLegacy(): Promise<{ success: boolean; message:
             generateSnapshotName(cloudData.updated_by_name || userName, cloudData.updated_at);
           saveLastSnapshotName(cloudSnapshotName);
           
-          console.log('✅ 数据未改动，已更新时间戳');
+          logger.log('✅ 数据未改动，已更新时间戳');
           return { success: false, message: '数据未改动，无需保存' };
         } else {
           // 数据内容不同，发生冲突（LWW策略：自动加载最新数据）
           const cloudUpdater = cloudData.updated_by_name || '其他设备';
           const cloudUpdateTime = new Date(cloudData.updated_at).toLocaleString('zh-CN');
           
-          console.warn('⚠️ 检测到冲突，云端数据更新');
+          logger.warn('⚠️ 检测到冲突，云端数据更新');
           
           // 自动加载云端最新数据
           await loadSnapshotLegacy(true); // 静默加载
@@ -1027,7 +1017,7 @@ export async function saveSnapshotLegacy(): Promise<{ success: boolean; message:
     saveLastSnapshotName(snapshotName);
     clearDirty(); // 标记为已保存
 
-    console.log('✅ 快照保存成功:', snapshotName);
+    logger.log('✅ 快照保存成功:', snapshotName);
 
     return {
       success: true,
@@ -1063,7 +1053,7 @@ export async function loadSnapshotLegacy(silent: boolean = false): Promise<{ suc
       }
     }
 
-    console.log('🔍 正在读取云端快照...');
+    logger.log('🔍 正在读取云端快照...');
 
     // 2. 更新 lastSyncTimestamp（从 localStorage 重新读取，确保多标签页同步）
     const savedTime = localStorage.getItem(LAST_SYNC_TIME_KEY);
@@ -1095,7 +1085,7 @@ export async function loadSnapshotLegacy(silent: boolean = false): Promise<{ suc
 
     // 4. 时间戳检查（静默加载时）
     if (silent && serverTime <= currentLastSync) {
-      console.log('ℹ️ 云端数据不比本地新，跳过加载');
+      logger.log('ℹ️ 云端数据不比本地新，跳过加载');
       return { success: false, message: '' };
     }
 
@@ -1143,12 +1133,12 @@ export async function loadSnapshotLegacy(silent: boolean = false): Promise<{ suc
         await saveUserSettings(payload.user_settings);
       }
       
-      console.log('✅ 数据已写入本地数据库');
+      logger.log('✅ 数据已写入本地数据库');
     } catch (writeError: any) {
       console.error('❌ 数据写入失败:', writeError);
       // iOS Safari 兼容性：重试一次
       if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        console.log('🔄 iOS设备，重试写入...');
+        logger.log('🔄 iOS设备，重试写入...');
         await new Promise(resolve => setTimeout(resolve, 500));
         // 简化重试：只写入关键数据
         if (payload.medications) {
@@ -1171,7 +1161,7 @@ export async function loadSnapshotLegacy(silent: boolean = false): Promise<{ suc
     const updateTime = new Date(cloudData.updated_at).toLocaleString('zh-CN');
     const updater = cloudData.updated_by_name || '未知用户';
 
-    console.log('✅ 快照读取成功:', snapshotName);
+    logger.log('✅ 快照读取成功:', snapshotName);
 
     return {
       success: true,
@@ -1241,19 +1231,19 @@ export async function getSnapshotInfo(): Promise<{
 export async function initAutoSyncLegacy(onSnapshotUpdate?: () => void): Promise<() => void> {
   // 1. 检查是否已启动
   if (isAutoSyncStarted) {
-    console.log('自动同步已启动，跳过重复初始化');
+    logger.log('自动同步已启动，跳过重复初始化');
     return () => {};
   }
 
   // 2. 检查 Supabase 和用户登录状态
   if (!supabase) {
-    console.warn('Supabase 未配置，无法启动自动同步');
+    logger.warn('Supabase 未配置，无法启动自动同步');
     return () => {};
   }
 
   const userId = await getCurrentUserId();
   if (!userId) {
-    console.warn('用户未登录，无法启动自动同步');
+    logger.warn('用户未登录，无法启动自动同步');
     return () => {};
   }
 
@@ -1285,7 +1275,7 @@ export async function initAutoSyncLegacy(onSnapshotUpdate?: () => void): Promise
         saveLastSnapshotName(snapshotName);
       }
     } catch (err) {
-      console.warn('初始化时获取快照名称失败:', err);
+      logger.warn('初始化时获取快照名称失败:', err);
     }
   }
 
@@ -1303,7 +1293,7 @@ export async function initAutoSyncLegacy(onSnapshotUpdate?: () => void): Promise
       async (evt) => {
         // 【E】所有监听必须加"云端回放锁"
         if (isApplyingRemote()) {
-          console.log('⏭ 忽略云端回放期间的本地变化（initAutoSyncLegacy）');
+          logger.log('⏭ 忽略云端回放期间的本地变化（initAutoSyncLegacy）');
           return;
         }
 
@@ -1329,7 +1319,7 @@ export async function initAutoSyncLegacy(onSnapshotUpdate?: () => void): Promise
 
         // 11. 如果快照名称改变，说明有新快照，需要更新
         if (!snapshotNameChanged && serverTime <= currentLastSync) {
-          console.log('快照名称未改变且时间戳不比本地新，跳过自动同步');
+          logger.log('快照名称未改变且时间戳不比本地新，跳过自动同步');
           return;
         }
 
@@ -1380,9 +1370,9 @@ export async function initAutoSyncLegacy(onSnapshotUpdate?: () => void): Promise
       }
     )
     .subscribe((status) => {
-      console.log('Realtime 订阅状态:', status);
+      logger.log('Realtime 订阅状态:', status);
       if (status === 'SUBSCRIBED') {
-        console.log('✅ Realtime 订阅成功，开始监听快照变化');
+        logger.log('✅ Realtime 订阅成功，开始监听快照变化');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.error('❌ Realtime 订阅失败');
       }
@@ -1393,7 +1383,7 @@ export async function initAutoSyncLegacy(onSnapshotUpdate?: () => void): Promise
 
   // 返回清理函数
   return () => {
-    console.log('🔌 断开快照自动同步');
+    logger.log('🔌 断开快照自动同步');
     supabase.removeChannel(channel);
     isAutoSyncStarted = false;
   };

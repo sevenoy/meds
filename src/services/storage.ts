@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 // 存储服务 - 照片上传到 Supabase Storage
 
 import { supabase } from '../lib/supabase';
@@ -36,7 +40,7 @@ export async function uploadImage(
     .from('medication-images')
     .getPublicUrl(fileName);
   
-  console.log('✅ 图片已上传到 Supabase Storage:', publicUrl);
+  logger.log('✅ 图片已上传到 Supabase Storage:', publicUrl);
   return publicUrl;
 }
 
@@ -58,7 +62,7 @@ export async function checkStorageBucket(): Promise<boolean> {
       throw error;
     }
     
-    console.log('✅ Storage bucket "medication-images" 可用');
+    logger.log('✅ Storage bucket "medication-images" 可用');
     return true;
   } catch (error: any) {
     console.error('❌ 检查 Storage bucket 失败:', error);

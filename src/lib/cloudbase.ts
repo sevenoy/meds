@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 /**
  * 腾讯云 CloudBase 配置（Web 版本）
  */
@@ -9,7 +13,7 @@ const CLOUDBASE_ENV_ID = import.meta.env.VITE_CLOUDBASE_ENV_ID ||
   localStorage.getItem('CLOUDBASE_ENV_ID') || 
   'cloud1-8gi1awiz3bd99542'; // 你的环境 ID
 
-console.log('🌐 CloudBase 环境 ID:', CLOUDBASE_ENV_ID);
+logger.log('🌐 CloudBase 环境 ID:', CLOUDBASE_ENV_ID);
 
 // 初始化 CloudBase
 const app = cloudbase.init({
@@ -62,12 +66,12 @@ export async function getCurrentUserId(): Promise<string | null> {
  */
 export async function signIn(username: string, password: string) {
   try {
-    console.log('🔐 CloudBase 登录:', username);
+    logger.log('🔐 CloudBase 登录:', username);
     
     // CloudBase Web SDK 使用 signInWithUsernameAndPassword
     const result = await auth.signInWithUsernameAndPassword(username, password);
     
-    console.log('✅ CloudBase 登录成功:', result);
+    logger.log('✅ CloudBase 登录成功:', result);
     return { data: result, error: null };
   } catch (error: any) {
     console.error('❌ CloudBase 登录失败:', error);
@@ -86,11 +90,11 @@ export async function signIn(username: string, password: string) {
  */
 export async function signUp(username: string, password: string) {
   try {
-    console.log('📝 CloudBase 注册:', username);
+    logger.log('📝 CloudBase 注册:', username);
     
     const result = await auth.signUpWithUsernameAndPassword(username, password);
     
-    console.log('✅ CloudBase 注册成功:', result);
+    logger.log('✅ CloudBase 注册成功:', result);
     return { data: result, error: null };
   } catch (error: any) {
     console.error('❌ CloudBase 注册失败:', error);
@@ -110,7 +114,7 @@ export async function signUp(username: string, password: string) {
 export async function signOut() {
   try {
     await auth.signOut();
-    console.log('✅ CloudBase 登出成功');
+    logger.log('✅ CloudBase 登出成功');
     return { error: null };
   } catch (error: any) {
     console.error('❌ CloudBase 登出失败:', error);

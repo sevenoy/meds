@@ -1,3 +1,7 @@
+import { logger } from './utils/logger';
+import { logger } from './utils/logger';
+import { logger } from './utils/logger';
+import { logger } from './utils/logger';
 /**
  * Service Worker 注册
  * 使用 import.meta.env.BASE_URL 确保正确的部署路径
@@ -51,11 +55,6 @@ async function postMessageAll(reg: ServiceWorkerRegistration, msg: any): Promise
  */
 export async function forcePwaUpdateOncePerVersion(reason: 'login' | 'manual' = 'login'): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
-
-  // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sw-register.ts:forcePwaUpdate:entry',message:'forcePwaUpdateOncePerVersion called',data:{version:APP_VERSION,alreadyDone:localStorage.getItem(FORCE_UPDATE_KEY)||'null',inFlight:sessionStorage.getItem(FORCE_UPDATE_IN_FLIGHT_KEY)||'null',reason:reason},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B3'})}).catch(()=>{});
-  // #endregion
-
   // 已完成则跳过
   if (localStorage.getItem(FORCE_UPDATE_KEY) === 'true') return;
 
@@ -70,7 +69,7 @@ export async function forcePwaUpdateOncePerVersion(reason: 'login' | 'manual' = 
     return;
   }
 
-  console.warn('🧨 [PWA] 首次登录触发强制更新', { version: APP_VERSION, reason });
+  logger.warn('🧨 [PWA] 首次登录触发强制更新', { version: APP_VERSION, reason });
 
   // 等待 controller 切换后刷新
   const controllerChangePromise = new Promise<void>((resolve) => {
@@ -85,21 +84,21 @@ export async function forcePwaUpdateOncePerVersion(reason: 'login' | 'manual' = 
   try {
     await reg.update();
   } catch (e) {
-    console.warn('⚠️ [PWA] registration.update() 失败:', e);
+    logger.warn('⚠️ [PWA] registration.update() 失败:', e);
   }
 
   // 【修复清缓存策略】只在用户主动操作时清缓存，禁止在启动流程自动触发
   // 如果 reason === 'manual'，说明是用户主动点击更新按钮，才清缓存
   if (reason === 'manual') {
     await postMessageAll(reg, { type: 'CLEAR_CACHE' });
-    console.log('🧹 [PWA] 用户主动更新，已清除缓存');
+    logger.log('🧹 [PWA] 用户主动更新，已清除缓存');
   }
   
   // SKIP_WAITING：只在检测到新 SW 且用户确认时触发
   // 如果 reason === 'manual' 或存在 waiting SW，才跳过等待
   if (reason === 'manual' || reg.waiting) {
     await postMessageAll(reg, { type: 'SKIP_WAITING' });
-    console.log('⏭️ [PWA] 跳过等待，立即激活新 SW');
+    logger.log('⏭️ [PWA] 跳过等待，立即激活新 SW');
   }
 
   // 兜底：如果没有 controllerchange，也在短时间后刷新一次
@@ -132,7 +131,7 @@ if ('serviceWorker' in navigator) {
         updateViaCache: 'none'
       })
       .then(async (registration) => {
-        console.log('✅ Service Worker 注册成功:', swUrl);
+        logger.log('✅ Service Worker 注册成功:', swUrl);
 
         // 暴露给其他模块（比如登录后强制更新）
         (window as any).__swRegistration = registration;
@@ -141,7 +140,7 @@ if ('serviceWorker' in navigator) {
         try {
           await registration.update();
         } catch (e) {
-          console.warn('⚠️ Service Worker update() 失败:', e);
+          logger.warn('⚠️ Service Worker update() 失败:', e);
         }
 
         // 运行时证据：检查当前控制中的 SW 版本，如果和 APP_VERSION 不一致，自动清理
@@ -159,10 +158,10 @@ if ('serviceWorker' in navigator) {
           });
 
           const swVersion = versionInfo?.version;
-          console.log('🔎 SW 版本检查', { appVersion: APP_VERSION, swVersion, swScriptURL: controller.scriptURL });
+          logger.log('🔎 SW 版本检查', { appVersion: APP_VERSION, swVersion, swScriptURL: controller.scriptURL });
 
           if (swVersion && swVersion !== APP_VERSION) {
-            console.warn('🧨 检测到 SW 版本与 App 不一致，执行自动清理并重载', {
+            logger.warn('🧨 检测到 SW 版本与 App 不一致，执行自动清理并重载', {
               appVersion: APP_VERSION,
               swVersion
             });
@@ -172,7 +171,7 @@ if ('serviceWorker' in navigator) {
               const regs = await navigator.serviceWorker.getRegistrations();
               await Promise.all(regs.map((r) => r.unregister()));
             } catch (e) {
-              console.warn('⚠️ 注销 Service Worker 失败:', e);
+              logger.warn('⚠️ 注销 Service Worker 失败:', e);
             }
 
             try {
@@ -181,7 +180,7 @@ if ('serviceWorker' in navigator) {
                 await Promise.all(names.map((n) => caches.delete(n)));
               }
             } catch (e) {
-              console.warn('⚠️ 清除 caches 失败:', e);
+              logger.warn('⚠️ 清除 caches 失败:', e);
             }
 
             // 避免死循环：只自动重载一次

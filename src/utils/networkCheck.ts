@@ -1,3 +1,7 @@
+import { logger } from './logger';
+import { logger } from './logger';
+import { logger } from './logger';
+import { logger } from './logger';
 /**
  * 网络连接检测工具
  */
@@ -72,12 +76,12 @@ export function showNetworkErrorNotification(error: string) {
  * 在应用启动时检测网络
  */
 export async function performNetworkCheck(supabaseUrl: string): Promise<boolean> {
-  console.log('🔍 检测 Supabase 连接...');
+  logger.log('🔍 检测 Supabase 连接...');
   
   const result = await checkSupabaseConnection(supabaseUrl);
   
   if (result.accessible) {
-    console.log(`✅ Supabase 可访问 (延迟: ${result.latency}ms)`);
+    logger.log(`✅ Supabase 可访问 (延迟: ${result.latency}ms)`);
     return true;
   } else {
     console.error('❌ Supabase 不可访问:', result.error);

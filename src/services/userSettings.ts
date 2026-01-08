@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 /**
  * 用户设置云端同步服务
  */
@@ -68,11 +72,11 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
-      console.warn('⚠️ 未登录，无法同步设置到云端');
+      logger.warn('⚠️ 未登录，无法同步设置到云端');
       return;
     }
 
-    console.log('☁️ 同步用户设置到云端...');
+    logger.log('☁️ 同步用户设置到云端...');
 
     // Step 1: 获取云端最新数据（LWW冲突检测）
     const { data: cloudData } = await supabase
@@ -94,17 +98,17 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
       // 如果内容相同，只更新时间戳
       if (cloudSettings === localSettings) {
         if (cloudTimestamp > lastSyncTimestamp) {
-          console.log('📊 设置内容相同，更新本地时间戳');
+          logger.log('📊 设置内容相同，更新本地时间戳');
           localStorage.setItem(LAST_SYNC_KEY, cloudTimestamp.toString());
         } else {
-          console.log('✅ 设置已同步，无需操作');
+          logger.log('✅ 设置已同步，无需操作');
         }
         return;
       }
       
       // Step 3: 检测冲突（云端数据更新）
       if (cloudTimestamp > lastSyncTimestamp) {
-        console.warn('⚠️ 检测到云端设置更新，本地修改被覆盖');
+        logger.warn('⚠️ 检测到云端设置更新，本地修改被覆盖');
         // 应用云端设置（LWW策略）
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(cloudData.settings));
         localStorage.setItem(LAST_SYNC_KEY, cloudTimestamp.toString());
@@ -114,14 +118,14 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
           detail: { settings: cloudData.settings, source: 'cloud' }
         }));
         
-        console.log('✅ 已应用云端最新设置（Last Write Wins）');
+        logger.log('✅ 已应用云端最新设置（Last Write Wins）');
         return;
       }
     }
 
     // Step 4: 本地数据更新，保存到云端
     const newTimestamp = new Date().toISOString();
-    console.log('📤 正在推送用户设置到云端...', { userId, settings });
+    logger.log('📤 正在推送用户设置到云端...', { userId, settings });
     
     const { error, data } = await supabase!
       .from('user_settings')
@@ -139,12 +143,12 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
       throw error;
     }
 
-    console.log('✅ 推送成功，云端数据已更新:', data);
-    console.log('📡 Realtime将自动推送到其他设备...');
+    logger.log('✅ 推送成功，云端数据已更新:', data);
+    logger.log('📡 Realtime将自动推送到其他设备...');
 
     // 更新本地时间戳
     localStorage.setItem(LAST_SYNC_KEY, new Date(newTimestamp).getTime().toString());
-    console.log('✅ 用户设置已同步到云端（LWW策略）');
+    logger.log('✅ 用户设置已同步到云端（LWW策略）');
   } catch (error) {
     console.error('❌ 同步用户设置失败:', error);
     // 不抛出错误，确保本地保存成功
@@ -188,11 +192,11 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
 
   getCurrentUserId().then(userId => {
     if (!userId) {
-      console.warn('⚠️ 未登录，无法启动设置同步');
+      logger.warn('⚠️ 未登录，无法启动设置同步');
       return;
     }
 
-    console.log('🔄 启动增强版用户设置实时监听... (user_id:', userId, ')');
+    logger.log('🔄 启动增强版用户设置实时监听... (user_id:', userId, ')');
 
     const channel = supabase
       .channel('user-settings-sync-' + userId) // 使用唯一的channel名称
@@ -205,7 +209,7 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
           filter: `user_id=eq.${userId}`
         },
         async (payload) => {
-          console.log('📥 收到用户设置更新:', payload.eventType, payload);
+          logger.log('📥 收到用户设置更新:', payload.eventType, payload);
           
           if (payload.new && typeof payload.new === 'object' && 'settings' in payload.new) {
             const newSettings = (payload.new as any).settings;
@@ -216,7 +220,7 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
             
             // 只要云端时间戳更新，就自动应用（即使是相同设备，也可能是从其他浏览器）
             if (updateTime > lastSync) {
-              console.log('🔔 检测到设置更新，自动应用...', {
+              logger.log('🔔 检测到设置更新，自动应用...', {
                 lastSync: new Date(lastSync).toLocaleString(),
                 updateTime: new Date(updateTime).toLocaleString()
               });
@@ -226,26 +230,26 @@ export function initSettingsRealtimeSync(onSettingsUpdate: (settings: UserSettin
               
               // 立即触发回调
               onSettingsUpdate(newSettings);
-              console.log('✅ 设置已自动更新');
+              logger.log('✅ 设置已自动更新');
             } else {
-              console.log('ℹ️ 设置时间戳未变化，跳过');
+              logger.log('ℹ️ 设置时间戳未变化，跳过');
             }
           }
         }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('✅ 用户设置 Realtime 订阅成功');
+          logger.log('✅ 用户设置 Realtime 订阅成功');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.error('❌ 用户设置 Realtime 订阅失败:', status);
         } else {
-        console.log('🔄 设置同步状态:', status);
+        logger.log('🔄 设置同步状态:', status);
         }
       });
 
     // 返回清理函数
     cleanup = () => {
-      console.log('🔌 断开设置同步');
+      logger.log('🔌 断开设置同步');
       supabase!.removeChannel(channel);
     };
   }).catch(err => {

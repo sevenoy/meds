@@ -1,3 +1,4 @@
+import { logger } from './src/utils/logger';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Camera, Check, Clock, AlertCircle, Plus, User, X, Save, Bell, RefreshCw, Info, Edit2, Pill, Trash2, ChevronLeft, ChevronRight, ChevronDown, Database } from 'lucide-react';
 import { CameraModal } from './src/components/CameraModal';
@@ -212,7 +213,7 @@ const TimelineItem: React.FC<{
                 .getPublicUrl(log.image_path);
               setImageUrl(publicUrl);
             } catch (e) {
-              console.warn('⚠️ 生成 publicUrl 失败，使用原始路径:', e);
+              logger.warn('⚠️ 生成 publicUrl 失败，使用原始路径:', e);
               setImageUrl(log.image_path);
             }
           } else {
@@ -469,13 +470,13 @@ export default function App() {
     // 【修复 D】硬核日志：如果从 >0 变成 0，打印警告和调用栈
     if (prevCount > 0 && newCount === 0 && source !== 'logout' && source !== 'clear-data') {
       const stack = new Error().stack;
-      console.warn('⚠️ [状态丢失警告] medications 从', prevCount, '变成 0，来源:', source);
-      console.warn('调用栈:', stack);
+      logger.warn('⚠️ [状态丢失警告] medications 从', prevCount, '变成 0，来源:', source);
+      logger.warn('调用栈:', stack);
     }
     
     setMedications(newMeds);
     const duration = performance.now() - startTime;
-    console.log(`📊 [setMedications] 来源: ${source}, 数量: ${prevCount} → ${newCount}, 耗时: ${duration.toFixed(2)}ms`);
+    logger.log(`📊 [setMedications] 来源: ${source}, 数量: ${prevCount} → ${newCount}, 耗时: ${duration.toFixed(2)}ms`);
   }, []);
   
   // 【修复 D】安全的 setTimelineLogs：带硬核日志和防护
@@ -487,26 +488,26 @@ export default function App() {
     // 【修复 D】硬核日志：如果从 >0 变成 0，打印警告和调用栈
     if (prevCount > 0 && newCount === 0 && source !== 'logout' && source !== 'clear-data') {
       const stack = new Error().stack;
-      console.warn('⚠️ [状态丢失警告] timelineLogs 从', prevCount, '变成 0，来源:', source);
-      console.warn('调用栈:', stack);
+      logger.warn('⚠️ [状态丢失警告] timelineLogs 从', prevCount, '变成 0，来源:', source);
+      logger.warn('调用栈:', stack);
     }
     
     setTimelineLogs(newLogs);
     const duration = performance.now() - startTime;
-    console.log(`📊 [setTimelineLogs] 来源: ${source}, 数量: ${prevCount} → ${newCount}, 耗时: ${duration.toFixed(2)}ms`);
+    logger.log(`📊 [setTimelineLogs] 来源: ${source}, 数量: ${prevCount} → ${newCount}, 耗时: ${duration.toFixed(2)}ms`);
   }, []);
 
   // 加载数据（用 useCallback 缓存，避免每次渲染都创建新函数）
   const loadData = useCallback(async (syncFromCloud: boolean = false, triggerSource: string = 'unknown') => {
     // 【防重入锁】如果正在同步，拒绝再次进入
     if (syncInProgressRef.current) {
-      console.log('⏭️ loadData 正在执行中，跳过重复调用', {
+      logger.log('⏭️ loadData 正在执行中，跳过重复调用', {
         currentTrigger: loadDataTriggerSourceRef.current,
         newTrigger: triggerSource,
         syncFromCloud
       });
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:rejected',message:'loadData rejected - already in progress',data:{currentTrigger:loadDataTriggerSourceRef.current,newTrigger:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // debug-fetch-removed
       // #endregion
       return;
     }
@@ -526,38 +527,38 @@ export default function App() {
 
     try {
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:entry',message:'loadData called',data:{syncFromCloud:syncFromCloud,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      // debug-fetch-removed
       // #endregion
       
       // 【Realtime 统一模型】不再设置 loading，数据由 Realtime 驱动
       
-      console.log('🔄 开始加载数据...', { triggerSource, syncFromCloud, prevMedCount: prevMeds.length, prevLogCount: prevLogs.length });
+      logger.log('🔄 开始加载数据...', { triggerSource, syncFromCloud, prevMedCount: prevMeds.length, prevLogCount: prevLogs.length });
       
       // 【修复 A】如果 triggerSource 不是 app-init/app-init-background 或 syncFromCloud=false，必须直接使用 prevMeds/prevLogs
       if ((triggerSource !== 'app-init' && triggerSource !== 'app-init-background') || !syncFromCloud) {
-        console.log('⏭️ [非初始化/跳过云端] 使用 prevMeds/prevLogs，仅更新 derived 结果', { triggerSource, syncFromCloud });
+        logger.log('⏭️ [非初始化/跳过云端] 使用 prevMeds/prevLogs，仅更新 derived 结果', { triggerSource, syncFromCloud });
         // 使用 prevMeds/prevLogs，仅更新 derived（status/map/sorted）结果
         newMeds = prevMeds;
         newLogs = prevLogs;
       } else {
         // 【唯一拉取点】只在应用初始化时拉取 medications
-        console.log('☁️ [初始化] 从云端拉取 medications（唯一拉取点）');
+        logger.log('☁️ [初始化] 从云端拉取 medications（唯一拉取点）');
         const medsStartTime = performance.now();
         const rawMeds = await getMedicationsFromCloud();
         const medsDuration = performance.now() - medsStartTime;
-        console.log(`⏱️ medications 请求耗时: ${medsDuration.toFixed(2)}ms`);
-        console.log(`📋 [初始化] 从云端加载 ${rawMeds.length} 个药物:`, rawMeds.map(m => m.name));
+        logger.log(`⏱️ medications 请求耗时: ${medsDuration.toFixed(2)}ms`);
+        logger.log(`📋 [初始化] 从云端加载 ${rawMeds.length} 个药物:`, rawMeds.map(m => m.name));
         
         // 转换为 MedicationUI（稍后添加 status）
         const meds: Medication[] = rawMeds;
         
         // 【唯一拉取点】只在应用初始化时拉取 logs（瘦身版本）
-        console.log('☁️ [初始化] 从云端拉取 logs（唯一拉取点，瘦身版本）');
+        logger.log('☁️ [初始化] 从云端拉取 logs（唯一拉取点，瘦身版本）');
         const logsStartTime = performance.now();
         const allLogs = await getLogsFromCloud(undefined, 300, 60); // 最近60天，最多300条
         const logsDuration = performance.now() - logsStartTime;
-        console.log(`⏱️ logs 请求耗时: ${logsDuration.toFixed(2)}ms`);
-        console.log(`📝 [初始化] 从云端加载 ${allLogs.length} 条服药记录（渲染前 logs 条数: ${allLogs.length}）`);
+        logger.log(`⏱️ logs 请求耗时: ${logsDuration.toFixed(2)}ms`);
+        logger.log(`📝 [初始化] 从云端加载 ${allLogs.length} 条服药记录（渲染前 logs 条数: ${allLogs.length}）`);
         
         // 【性能优化】一次建索引：构建 lastLogByMedicationId Map
         const lastLogMap = new Map<string, MedicationLog>();
@@ -570,13 +571,13 @@ export default function App() {
         }
         newLastLogMap = lastLogMap;
         lastLogByMedicationIdRef.current = lastLogMap;
-        console.log(`✅ [性能优化] 已构建 lastLogByMedicationId Map，共 ${lastLogMap.size} 个药品的最新记录`);
+        logger.log(`✅ [性能优化] 已构建 lastLogByMedicationId Map，共 ${lastLogMap.size} 个药品的最新记录`);
         
         // 按日期降序排序
         const sortedLogs = [...allLogs].sort((a, b) => 
           new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
         );
-        console.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
+        logger.log('✅ 记录已排序，最新记录:', sortedLogs[0]?.taken_at);
         newLogs = sortedLogs;
         
         // 【修复 B】Merge 策略：合并现有 state 和云端数据
@@ -670,7 +671,7 @@ export default function App() {
           new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
         );
         
-        console.log('✅ [Merge] 数据合并完成', { 
+        logger.log('✅ [Merge] 数据合并完成', { 
           medCount: newMeds.length, 
           logCount: newLogs.length,
           addedMeds: newMeds.length - meds.length,
@@ -694,25 +695,25 @@ export default function App() {
       // 【性能监控 E】打印耗时和统计
       if (triggerSource === 'app-init') {
         console.timeEnd('loadData_app_init');
-        console.log(`✅ loadData 完成（medCount: ${medCount}, logCount: ${logCount}）`);
+        logger.log(`✅ loadData 完成（medCount: ${medCount}, logCount: ${logCount}）`);
       } else {
-        console.log('✅ 数据加载完成', { triggerSource, medCount, logCount });
+        logger.log('✅ 数据加载完成', { triggerSource, medCount, logCount });
       }
       
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:success',message:'loadData completed',data:{medicationsCount:medCount,logsCount:logCount,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      // debug-fetch-removed
       // #endregion
     } catch (error: any) {
       console.error('❌ 加载数据失败:', error, { triggerSource });
       // 【修复 A】loadData 失败时必须保持原 state 不被清空
       // 不调用 setMedications([]) 或 setTimelineLogs([])，保持现有数据
       // newMeds 和 newLogs 仍然是 prevMeds 和 prevLogs，不会清空
-      console.log('🛡️ [状态保护] loadData 失败，保持原 state 不变', { 
+      logger.log('🛡️ [状态保护] loadData 失败，保持原 state 不变', { 
         prevMedCount: prevMeds.length, 
         prevLogCount: prevLogs.length 
       });
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadData:error',message:'loadData failed',data:{error:error.message,triggerSource:triggerSource},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B4'})}).catch(()=>{});
+      // debug-fetch-removed
       // #endregion
     } finally {
       // 【释放锁】
@@ -739,13 +740,13 @@ export default function App() {
     // 【修复清缓存策略】禁止在启动流程自动触发清缓存，只在用户主动操作时触发
     // 移除自动调用 forcePwaUpdateOncePerVersion，避免每次启动都清缓存导致启动慢
     // forcePwaUpdateOncePerVersion('login').catch((e) => {
-    //   console.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
+    //   logger.warn('⚠️ PWA 强制更新失败（忽略继续运行）:', e);
     // }); // ❌ 已移除：禁止在启动流程自动清缓存
     
     // 【强制修复】三段式初始化流程
     const initializeApp = async () => {
       try {
-        console.log('🚀 [三段式初始化] 开始首屏阶段...');
+        logger.log('🚀 [三段式初始化] 开始首屏阶段...');
         
         // ============================================
         // 【首屏阶段】只做这两件事，并行执行
@@ -756,7 +757,7 @@ export default function App() {
             getLogsFromCloud(undefined, 300, 60)
           ]);
           
-          console.log(`📥 [首屏] 并行加载完成: ${rawMeds.length} 个药品, ${allLogs.length} 条记录`);
+          logger.log(`📥 [首屏] 并行加载完成: ${rawMeds.length} 个药品, ${allLogs.length} 条记录`);
           
           // 转换为 MedicationUI
           const today = new Date();
@@ -802,7 +803,7 @@ export default function App() {
           setAppInitialized(true);
           isInitializingRef.current = false;
           
-          console.log(`✅ [首屏] 数据已显示: ${medsUI.length} 个药品, ${sortedLogs.length} 条记录`);
+          logger.log(`✅ [首屏] 数据已显示: ${medsUI.length} 个药品, ${sortedLogs.length} 条记录`);
         } catch (error) {
           console.error('❌ [首屏] 加载失败:', error);
           // 即使失败也要取消loading，避免卡在loading界面
@@ -819,33 +820,33 @@ export default function App() {
           if (error.message === 'VERSION_MISMATCH') {
             return; // 版本不匹配会触发刷新，不需要处理
           }
-          console.warn('⚠️ [后台] 版本检查失败（非阻塞）:', error);
+          logger.warn('⚠️ [后台] 版本检查失败（非阻塞）:', error);
         });
         
         // 加载云端快照（后台执行）
         cloudLoadV2().then(loadResult => {
           if (loadResult.success && loadResult.payload) {
-            console.log('✅ [后台] 云端快照已加载');
+            logger.log('✅ [后台] 云端快照已加载');
           } else {
-            console.log('📝 [后台] 首次使用，创建初始 payload');
+            logger.log('📝 [后台] 首次使用，创建初始 payload');
             const payload = getCurrentSnapshotPayload();
             if (!payload) {
-              console.warn('⚠️ [后台] payload 仍为 null');
+              logger.warn('⚠️ [后台] payload 仍为 null');
             }
           }
         }).catch(console.error);
         
         // 修复旧药品的 device_id（后台执行）
         fixLegacyDeviceIds().then(() => {
-          console.log('🔧 [后台] device_id 修复完成');
+          logger.log('🔧 [后台] device_id 修复完成');
         }).catch(console.error);
         
         // 加载用户设置（后台执行）
         getUserSettings().then(settings => {
-          console.log('📋 [后台] 用户设置已加载:', settings);
+          logger.log('📋 [后台] 用户设置已加载:', settings);
           if (settings.avatar_url) {
             setAvatarUrl(settings.avatar_url);
-            console.log('👤 [后台] 用户头像已加载');
+            logger.log('👤 [后台] 用户头像已加载');
           }
         }).catch(console.error);
         
@@ -872,12 +873,12 @@ export default function App() {
         const medId = newData?.id || oldData?.id;
         const commitTimestamp = newData?.updated_at || oldData?.updated_at;
         
-        console.log(`🔔 [Realtime] 药品变更: eventType=${eventType}, id=${medId}, commit_timestamp=${commitTimestamp}`);
+        logger.log(`🔔 [Realtime] 药品变更: eventType=${eventType}, id=${medId}, commit_timestamp=${commitTimestamp}`);
         
         // 【修复A】禁止局部更新，必须全量替换
         try {
           const allMeds = await getMedicationsFromCloud();
-          console.log(`📥 [Realtime] 全量拉取 medications: ${allMeds.length} 条`);
+          logger.log(`📥 [Realtime] 全量拉取 medications: ${allMeds.length} 条`);
           
           // 转换为 MedicationUI（计算 status）
           const today = new Date();
@@ -902,7 +903,7 @@ export default function App() {
           const maxUpdatedAt = allMeds.length > 0 
             ? Math.max(...allMeds.map(m => new Date(m.updated_at || m.created_at || 0).getTime()))
             : 0;
-          console.log(`✅ [Realtime] medications 全量替换完成: count=${allMeds.length}, max(updated_at)=${maxUpdatedAt ? new Date(maxUpdatedAt).toISOString() : 'N/A'}`);
+          logger.log(`✅ [Realtime] medications 全量替换完成: count=${allMeds.length}, max(updated_at)=${maxUpdatedAt ? new Date(maxUpdatedAt).toISOString() : 'N/A'}`);
         } catch (error) {
           console.error('❌ [Realtime] 全量拉取 medications 失败:', error);
         }
@@ -913,7 +914,7 @@ export default function App() {
         const logId = newData?.id || oldData?.id;
         const commitTimestamp = newData?.updated_at || newData?.created_at || oldData?.updated_at || oldData?.created_at;
         
-        console.log(`🔔 [Realtime] 服药记录变更: eventType=${eventType}, id=${logId}, commit_timestamp=${commitTimestamp}`);
+        logger.log(`🔔 [Realtime] 服药记录变更: eventType=${eventType}, id=${logId}, commit_timestamp=${commitTimestamp}`);
         
         // 【修复B】去抖：300-800ms 内多事件只 reload 一次
         if (logDebounceTimerRef.current) {
@@ -922,7 +923,7 @@ export default function App() {
         
         logDebounceTimerRef.current = window.setTimeout(async () => {
           try {
-            console.log(`📥 [Realtime] 开始全量拉取 logs（去抖后）`);
+            logger.log(`📥 [Realtime] 开始全量拉取 logs（去抖后）`);
             const allLogs = await getLogsFromCloud(undefined, 300, 60);
             const sortedLogs = [...allLogs].sort((a, b) => 
               new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
@@ -971,7 +972,7 @@ export default function App() {
             const maxUploadedAt = sortedLogs.length > 0 
               ? Math.max(...sortedLogs.map(l => new Date(l.uploaded_at || l.created_at || 0).getTime()))
               : 0;
-            console.log(`✅ [Realtime] logs 全量替换完成: count=${sortedLogs.length}, min(taken_at)=${minTakenAt ? new Date(minTakenAt).toISOString() : 'N/A'}, max(taken_at)=${maxTakenAt ? new Date(maxTakenAt).toISOString() : 'N/A'}, max(uploaded_at)=${maxUploadedAt ? new Date(maxUploadedAt).toISOString() : 'N/A'}`);
+            logger.log(`✅ [Realtime] logs 全量替换完成: count=${sortedLogs.length}, min(taken_at)=${minTakenAt ? new Date(minTakenAt).toISOString() : 'N/A'}, max(taken_at)=${maxTakenAt ? new Date(maxTakenAt).toISOString() : 'N/A'}, max(uploaded_at)=${maxUploadedAt ? new Date(maxUploadedAt).toISOString() : 'N/A'}`);
           } catch (error) {
             console.error('❌ [Realtime] 全量拉取 logs 失败:', error);
           }
@@ -979,7 +980,7 @@ export default function App() {
       }
     }).then(cleanup => {
       cloudRealtimeCleanup = cleanup;
-      console.log('✅ 纯云端 Realtime 已启动');
+      logger.log('✅ 纯云端 Realtime 已启动');
     }).catch(error => {
       console.error('❌ Realtime 初始化失败:', error);
     });
@@ -992,14 +993,14 @@ export default function App() {
       (log) => {
         // 【B】在所有监听入口加 guard
         if (isApplyingRemote()) {
-          console.log('⏭ 忽略云端回放引起的本地变化（服药记录）');
+          logger.log('⏭ 忽略云端回放引起的本地变化（服药记录）');
           return;
         }
         
-        console.log('🔔 收到其他设备的服药记录更新');
+        logger.log('🔔 收到其他设备的服药记录更新');
         // 自动合并远程记录
         mergeRemoteLog(log).then(() => {
-          console.log('✅ 服药记录已自动同步');
+          logger.log('✅ 服药记录已自动同步');
           // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
         }).catch(console.error);
       },
@@ -1007,17 +1008,17 @@ export default function App() {
       async () => {
         // 【B】在所有监听入口加 guard
         if (isApplyingRemote()) {
-          console.log('⏭ 忽略云端回放引起的本地变化（药品列表）');
+          logger.log('⏭ 忽略云端回放引起的本地变化（药品列表）');
           return;
         }
         
-        console.log('🔔 收到药品列表更新，自动同步...');
+        logger.log('🔔 收到药品列表更新，自动同步...');
         
         try {
           // 先同步medications
           await syncMedications();
           // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
-          console.log('✅ 药品列表已自动同步');
+          logger.log('✅ 药品列表已自动同步');
           
           // 显示友好提示
           const notification = document.createElement('div');
@@ -1043,7 +1044,7 @@ export default function App() {
     initAutoSyncLegacy(() => {
       // 【B】在所有监听入口加 guard
       if (isApplyingRemote()) {
-        console.log('⏭ 忽略云端回放引起的本地变化（快照更新）');
+        logger.log('⏭ 忽略云端回放引起的本地变化（快照更新）');
         return;
       }
       
@@ -1055,17 +1056,17 @@ export default function App() {
     
     // 【时间戳权威模型】启用用户设置实时同步
     const cleanupSettings = initSettingsRealtimeSync((settings) => {
-      console.log('⚙️ 用户设置已更新:', settings);
+      logger.log('⚙️ 用户设置已更新:', settings);
       
       // 【时间戳权威模型】自动应用用户名更新（无需用户确认）
       if (settings.userName && settings.userName !== userName) {
-        console.log('👤 检测到用户名更新，自动同步...');
+        logger.log('👤 检测到用户名更新，自动同步...');
         setUserName(settings.userName);
       }
       
       // 自动应用头像更新（无需用户确认）
       if (settings.avatar_url !== avatarUrl) {
-        console.log('👤 检测到头像更新，自动同步...');
+        logger.log('👤 检测到头像更新，自动同步...');
         setAvatarUrl(settings.avatar_url || null);
         
         // 显示友好提示
@@ -1082,7 +1083,7 @@ export default function App() {
       
       // 对于其他设置变更，自动应用（时间戳新的覆盖旧的）
       // 不再询问用户，直接应用（基于时间戳权威模型）
-      console.log('✅ 用户设置已自动同步');
+      logger.log('✅ 用户设置已自动同步');
     });
     
     // 【本地认证模式】定时同步已禁用（见上方注释）
@@ -1090,17 +1091,17 @@ export default function App() {
     // 【本地认证模式】禁用定时同步，避免无效的 Supabase 调用
     // const syncInterval = setInterval(async () => {
     //   // #region agent log
-    //   fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:syncInterval',message:'Sync interval triggered',data:{isApplyingRemote:isApplyingRemote()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    //   // debug-fetch-removed
     //   // #endregion
     //   // 【B】在所有监听入口加 guard
     //   if (isApplyingRemote()) {
-    //     console.log('⏭ 忽略云端回放引起的本地变化（定时同步）');
+    //     logger.log('⏭ 忽略云端回放引起的本地变化（定时同步）');
     //     return;
     //   }
     //   
-    //   console.log('⏰ 定时同步...');
+    //   logger.log('⏰ 定时同步...');
     //   // #region agent log
-    //   fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:syncInterval:executing',message:'Starting sync operations',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    //   // debug-fetch-removed
     //   // #endregion
     //   
     //   // 【B】定时同步只负责数据同步，不触发刷新/保存
@@ -1109,7 +1110,7 @@ export default function App() {
     //   await pushLocalChanges().catch(console.error);
     //   const logs = await pullRemoteChanges().catch(() => []);
     //   if (logs && logs.length > 0) {
-    //     console.log(`📥 拉取到 ${logs.length} 条新记录`);
+    //     logger.log(`📥 拉取到 ${logs.length} 条新记录`);
     //     for (const log of logs) {
     //       await mergeRemoteLog(log).catch(console.error);
     //     }
@@ -1118,7 +1119,7 @@ export default function App() {
     //   // 同步用户设置（包括头像）
     //   const settings = await getUserSettings().catch(() => ({} as any));
     //   if (settings && (settings as any).avatar_url && (settings as any).avatar_url !== avatarUrl) {
-    //     console.log('👤 检测到头像更新（定时同步）');
+    //     logger.log('👤 检测到头像更新（定时同步）');
     //     setAvatarUrl((settings as any).avatar_url);
     //   }
     //   
@@ -1130,22 +1131,22 @@ export default function App() {
     return () => {
       if (realtimeCleanup) {
         realtimeCleanup();
-        console.log('🔌 Realtime V2 已断开');
+        logger.log('🔌 Realtime V2 已断开');
       }
       if (cloudRealtimeCleanup) {
         cloudRealtimeCleanup();
-        console.log('🔌 纯云端 Realtime 已断开');
+        logger.log('🔌 纯云端 Realtime 已断开');
       }
       if (cleanupSettings) {
         cleanupSettings();
-        console.log('🔌 用户设置 Realtime 已断开');
+        logger.log('🔌 用户设置 Realtime 已断开');
       }
     };
   }, [isLoggedIn]);
 
   // 【强制修复】处理拍照成功：等待 Realtime 全量拉取，禁止 append
   const handleRecordSuccess = async (newLog: MedicationLog) => {
-    console.log('✅ [新增记录] 云端写入成功，等待 Realtime 全量拉取:', newLog.id);
+    logger.log('✅ [新增记录] 云端写入成功，等待 Realtime 全量拉取:', newLog.id);
     
     // 【强制修复】禁止 append，等待 Realtime 回调全量拉取
     // Realtime 回调会调用 getLogsFromCloud() 并全量替换 state
@@ -1170,7 +1171,7 @@ export default function App() {
       return m;
     }), 'add-log-optimistic-med-status');
     
-    console.log('✅ [新增记录] 已触发 Realtime，等待全量拉取更新');
+    logger.log('✅ [新增记录] 已触发 Realtime，等待全量拉取更新');
   };
 
   // 【强制修复】处理同步提示接受：全量拉取，禁止 merge
@@ -1747,58 +1748,58 @@ export default function App() {
                   if (confirm('⚠️ 警告：确定要清除所有药品数据吗？\n\n这将删除：\n- 所有药品记录\n- 所有服药记录\n- 本地数据库数据\n- 云端数据\n\n此操作不可恢复！')) {
                     if (confirm('⚠️ 最后确认：真的要删除所有数据吗？')) {
                       try {
-                        console.log('🗑️ 开始清除所有药品数据...');
+                        logger.log('🗑️ 开始清除所有药品数据...');
                         // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1301',message:'开始清除所有药品数据',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                        // debug-fetch-removed
                         // #endregion
                         
                         // 方法1: 清除本地 IndexedDB
-                        console.log('📦 清除本地 IndexedDB...');
+                        logger.log('📦 清除本地 IndexedDB...');
                         // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1305',message:'清除本地IndexedDB',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                        // debug-fetch-removed
                         // #endregion
                         await db.medications.clear();
                         await db.medicationLogs.clear();
-                        console.log('✅ 本地数据库已清空');
+                        logger.log('✅ 本地数据库已清空');
                         // #region agent log
-                        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1307',message:'本地数据库已清空',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                        // debug-fetch-removed
                         // #endregion
                         
                         // 方法2: 清除 payload
                         const payload = getCurrentSnapshotPayload();
                         if (payload) {
-                          console.log('📦 清除 payload...');
+                          logger.log('📦 清除 payload...');
                           payload.medications = [];
                           payload.medication_logs = [];
                           
                           // 保存到云端
                           const result = await cloudSaveV2(payload);
                           if (result.success) {
-                            console.log('✅ 云端数据已清空');
+                            logger.log('✅ 云端数据已清空');
                           } else {
-                            console.warn('⚠️ 云端清空失败:', result.message);
+                            logger.warn('⚠️ 云端清空失败:', result.message);
                           }
                         }
                         
                         // 方法3: 直接清除 Supabase 数据库
                         try {
                           // #region agent log
-                          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1327',message:'开始清除Supabase',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                          // debug-fetch-removed
                           // #endregion
                           const { getCurrentUserId } = await import('./src/lib/supabase');
                           const { supabase } = await import('./src/lib/supabase');
                           const userId = await getCurrentUserId();
                           
                           // #region agent log
-                          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1332',message:'获取userId和supabase',data:{hasUserId:!!userId,hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                          // debug-fetch-removed
                           // #endregion
                           
                           if (userId && supabase) {
-                            console.log('📦 清除 Supabase 数据...', { userId });
+                            logger.log('📦 清除 Supabase 数据...', { userId });
                             
                             // 删除所有药品
                             // #region agent log
-                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1338',message:'删除Supabase药品',data:{userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // debug-fetch-removed
                             // #endregion
                             const { error: medError, count: medCount } = await supabase
                               .from('medications')
@@ -1807,18 +1808,18 @@ export default function App() {
                               .select('*', { count: 'exact', head: false });
                             
                             // #region agent log
-                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1345',message:'删除药品结果',data:{hasError:!!medError,errorMsg:medError?.message,count:medCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // debug-fetch-removed
                             // #endregion
                             
                             if (medError) {
                               console.error('❌ 清除 Supabase 药品失败:', medError);
                             } else {
-                              console.log(`✅ Supabase 药品数据已清空 (${medCount || 0} 条)`);
+                              logger.log(`✅ Supabase 药品数据已清空 (${medCount || 0} 条)`);
                             }
                             
                             // 删除所有记录
                             // #region agent log
-                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1353',message:'删除Supabase记录',data:{userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // debug-fetch-removed
                             // #endregion
                             const { error: logError, count: logCount } = await supabase
                               .from('medication_logs')
@@ -1827,31 +1828,31 @@ export default function App() {
                               .select('*', { count: 'exact', head: false });
                             
                             // #region agent log
-                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1360',message:'删除记录结果',data:{hasError:!!logError,errorMsg:logError?.message,count:logCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // debug-fetch-removed
                             // #endregion
                             
                             if (logError) {
                               console.error('❌ 清除 Supabase 记录失败:', logError);
                             } else {
-                              console.log(`✅ Supabase 记录数据已清空 (${logCount || 0} 条)`);
+                              logger.log(`✅ Supabase 记录数据已清空 (${logCount || 0} 条)`);
                             }
                           } else {
-                            console.warn('⚠️ 无法获取 userId 或 supabase 客户端');
+                            logger.warn('⚠️ 无法获取 userId 或 supabase 客户端');
                             // #region agent log
-                            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1369',message:'无法获取userId或supabase',data:{hasUserId:!!userId,hasSupabase:!!supabase},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                            // debug-fetch-removed
                             // #endregion
                           }
                         } catch (e) {
                           console.error('❌ Supabase 清除失败:', e);
                           // #region agent log
-                          fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:1374',message:'Supabase清除异常',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'K'})}).catch(()=>{});
+                          // debug-fetch-removed
                           // #endregion
                         }
                         
                         // 【Realtime 统一模型】不再调用 loadData，Realtime 会自动更新 UI
-                        console.log('🔄 数据已清除，等待 Realtime 同步...');
+                        logger.log('🔄 数据已清除，等待 Realtime 同步...');
                         alert('✅ 所有药品数据已清除！\n\n已清除:\n- 本地数据库\n- 云端快照\n- Supabase数据库');
-                        console.log('🎉 清除完成！');
+                        logger.log('🎉 清除完成！');
                       } catch (error) {
                         console.error('❌ 清除数据失败:', error);
                         alert(`❌ 清除数据失败: ${error.message}\n\n请查看控制台了解详情`);
@@ -1949,19 +1950,19 @@ export default function App() {
               <div 
                 onClick={async () => {
                   try {
-                    console.log('🔍 开始诊断数据来源...');
+                    logger.log('🔍 开始诊断数据来源...');
                     
                     // 1. 检查本地 IndexedDB
                     const localMeds = await db.medications.toArray();
                     const localLogs = await db.medicationLogs.toArray();
-                    console.log('📦 本地 IndexedDB:', {
+                    logger.log('📦 本地 IndexedDB:', {
                       medications: localMeds.length,
                       logs: localLogs.length
                     });
                     
                     // 2. 检查 payload
                     const payload = getCurrentSnapshotPayload();
-                    console.log('📦 Payload:', {
+                    logger.log('📦 Payload:', {
                       medications: payload?.medications?.length || 0,
                       logs: payload?.medication_logs?.length || 0
                     });
@@ -1981,14 +1982,14 @@ export default function App() {
                         .select('*')
                         .contains('scene_tags', [userTag]);
                       
-                      console.log('📦 Supabase:', {
+                      logger.log('📦 Supabase:', {
                         medications: supaMeds?.length || 0,
                         logs: supaLogs?.length || 0
                       });
                     }
                     
                     // 4. 检查当前显示的数据
-                    console.log('📦 当前显示:', {
+                    logger.log('📦 当前显示:', {
                       medications: medications.length,
                       logs: timelineLogs.length
                     });
@@ -2155,7 +2156,7 @@ export default function App() {
                           alert('添加药品失败，请重试');
                           return;
                         }
-                        console.log('✅ 新药品已直接写入云端:', savedMed.name);
+                        logger.log('✅ 新药品已直接写入云端:', savedMed.name);
                         
                         // 成功：用云端返回的数据更新本地 state（确保 ID 等字段一致）
                         if (savedMed.id !== newMedication.id) {
@@ -2264,7 +2265,7 @@ export default function App() {
                                       alert('删除药品失败，请重试');
                                       return;
                                     }
-                                    console.log('✅ 药品已从云端删除:', med.name);
+                                    logger.log('✅ 药品已从云端删除:', med.name);
                                   } catch (error: any) {
                                     // 失败时回滚
                                     safeSetMedications(prev => [...prev, med], 'delete-medication-error-rollback');
@@ -2341,9 +2342,9 @@ export default function App() {
                 <AvatarUpload 
                   currentAvatarUrl={avatarUrl || undefined}
                   onAvatarUpdated={(url) => {
-                    console.log('📸 App: 收到头像更新回调', url);
+                    logger.log('📸 App: 收到头像更新回调', url);
                     setAvatarUrl(url);
-                    console.log('✅ App: 头像状态已更新');
+                    logger.log('✅ App: 头像状态已更新');
                     
                     // 强制重新渲染（通过更新一个临时状态）
                     // React会自动优化，这只是确保状态传播
@@ -2369,7 +2370,7 @@ export default function App() {
                   // 【时间戳权威模型】保存用户名到user_settings表
                   try {
                     await updateUserSettings({ userName });
-                    console.log('✅ 用户名已保存到云端:', userName);
+                    logger.log('✅ 用户名已保存到云端:', userName);
                     setShowProfileEdit(false);
                   } catch (error) {
                     console.error('❌ 保存用户名失败:', error);
@@ -2677,7 +2678,7 @@ export default function App() {
                             .getPublicUrl(editLogImagePath);
                           imageSrc = publicUrl;
                         } catch (e) {
-                          console.warn('⚠️ 生成图片预览 URL 失败:', e);
+                          logger.warn('⚠️ 生成图片预览 URL 失败:', e);
                         }
                       }
                       return (
@@ -2753,7 +2754,7 @@ export default function App() {
                     let finalImagePath = editLogImagePath;
                     if (editLogImageFile && editingLog) {
                       try {
-                        console.log('📸 [修复4] 开始上传新照片...');
+                        logger.log('📸 [修复4] 开始上传新照片...');
                         const { uploadImage } = await import('./src/services/storage');
                         const userId = await getCurrentUserId();
                         if (!userId) {
@@ -2762,7 +2763,7 @@ export default function App() {
                         }
                         // 上传新照片（使用medication_id作为路径的一部分）
                         finalImagePath = await uploadImage(editLogImageFile, userId, editLogMedicationId);
-                        console.log('✅ [修复4] 照片上传成功:', finalImagePath);
+                        logger.log('✅ [修复4] 照片上传成功:', finalImagePath);
                       } catch (error: any) {
                         console.error('❌ [修复4] 照片上传失败:', error);
                         alert(`照片上传失败: ${error.message || '未知错误'}`);
@@ -2772,7 +2773,7 @@ export default function App() {
                     
                     // 【修复C】禁止本地假更新，必须等待云端确认
                     try {
-                      console.log(`📝 [修复C] 开始更新服药记录: id=${editingLog.id}`);
+                      logger.log(`📝 [修复C] 开始更新服药记录: id=${editingLog.id}`);
                       
                       const updatedLog = await updateLogToCloud(editingLog.id, {
                         taken_at: new Date(editLogTakenAt).toISOString(),
@@ -2785,7 +2786,7 @@ export default function App() {
                         return;
                       }
 
-                      console.log(`✅ [修复C] 服药记录已更新到云端: id=${updatedLog.id}`);
+                      logger.log(`✅ [修复C] 服药记录已更新到云端: id=${updatedLog.id}`);
                       
                       // 【修复C】等待 Realtime 回调全量替换，不直接 patch state
                       // 关闭编辑模态框
@@ -2944,7 +2945,7 @@ export default function App() {
                           alert('更新药品失败，请重试');
                           return;
                         }
-                        console.log('✅ 药品已直接更新到云端:', savedMed.name, { accent: savedMed.accent });
+                        logger.log('✅ 药品已直接更新到云端:', savedMed.name, { accent: savedMed.accent });
                         
                         // 【修复A】立即用云端返回的数据更新本地 state（包括 accent 颜色）
                         // 这确保本机立即生效，不等待 Realtime
@@ -2952,7 +2953,7 @@ export default function App() {
                           ...m,
                           ...savedMed
                         } : m), 'edit-medication-confirmed');
-                        console.log('✅ [修复A] 本机 state 已立即更新（包括颜色）:', savedMed.accent);
+                        logger.log('✅ [修复A] 本机 state 已立即更新（包括颜色）:', savedMed.accent);
                       } catch (error: any) {
                         // 失败时回滚
                         safeSetMedications(prev => prev.map(m => m.id === editingMed.id ? {

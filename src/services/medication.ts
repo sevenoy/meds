@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 // 药物服务 - 业务逻辑层
 
 import { extractTakenAt, calculateStatus } from '../utils/exif';
@@ -43,11 +47,11 @@ export async function recordMedicationIntake(
   const imageHash = await calculateImageHash(imageFile);
   
   // 4. 上传图片
-  console.log('📸 开始上传图片...', { userId, medicationId, fileName: imageFile.name });
+  logger.log('📸 开始上传图片...', { userId, medicationId, fileName: imageFile.name });
   let imagePath: string;
   try {
     imagePath = await uploadImage(imageFile, userId!, medicationId);
-    console.log('✅ 图片上传成功，路径:', imagePath?.substring(0, 100) + '...');
+    logger.log('✅ 图片上传成功，路径:', imagePath?.substring(0, 100) + '...');
   } catch (error: any) {
     // 【修复 B】bucket 不存在时直接抛出错误，不允许继续创建记录
     if (error?.message?.includes('Storage bucket medication-images 不存在')) {
@@ -74,7 +78,7 @@ export async function recordMedicationIntake(
     sync_state: 'dirty'
   };
   
-  console.log('📝 创建记录:', {
+  logger.log('📝 创建记录:', {
     id: log.id,
     medication_id: log.medication_id,
     image_path: log.image_path ? log.image_path.substring(0, 50) + '...' : 'null',
@@ -108,11 +112,11 @@ export async function recordMedicationIntake(
     throw new Error('云端写入失败，请查看控制台获取详细错误信息');
   }
   
-  console.log('✅ [新增记录] 云端写入成功，等待 Realtime 广播:', cloudLog.id);
+  logger.log('✅ [新增记录] 云端写入成功，等待 Realtime 广播:', cloudLog.id);
   
   // 8. 【一致性修复】保存到本地数据库（仅用于离线缓存，Realtime 会统一刷新）
   await addMedicationLog(cloudLog);
-  console.log('💾 记录已保存到本地数据库（缓存），ID:', cloudLog.id);
+  logger.log('💾 记录已保存到本地数据库（缓存），ID:', cloudLog.id);
   
   // 返回云端记录（Realtime 会统一刷新所有设备）
   return cloudLog;

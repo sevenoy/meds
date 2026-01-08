@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 // 同步控制器 - 多设备同步核心逻辑
 
 import { supabase, getCurrentUserId } from '../lib/supabase';
@@ -39,9 +40,9 @@ function generateUUID(): string {
 export async function fixLegacyDeviceIds(): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    console.log('❌ [fixLegacyDeviceIds] 无 userId，跳过修复');
+    logger.log('❌ [fixLegacyDeviceIds] 无 userId，跳过修复');
     // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:15',message:'No userId, skipping fix',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+    // debug-fetch-removed
     // #endregion
     return;
   }
@@ -52,7 +53,7 @@ export async function fixLegacyDeviceIds(): Promise<void> {
   const fixFlag = `device_id_fixed_v3_${userId}`;
   const flagValue = localStorage.getItem(fixFlag);
   
-  console.log('🔍 [fixLegacyDeviceIds] 检查修复标志', { 
+  logger.log('🔍 [fixLegacyDeviceIds] 检查修复标志', { 
     userId: userId.substring(0, 8) + '...', 
     deviceId: deviceId.substring(0, 20) + '...', 
     fixFlag: fixFlag, 
@@ -61,27 +62,27 @@ export async function fixLegacyDeviceIds(): Promise<void> {
   });
   
   // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:25',message:'Checking fix flag',data:{fixFlag:fixFlag,flagValue:flagValue,allDeviceIdKeys:Object.keys(localStorage).filter(k=>k.includes('device_id'))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F,G'})}).catch(()=>{});
+  // debug-fetch-removed
   // #endregion
   
   // 检查是否已经执行过修复
   if (flagValue) {
-    console.log('⏭️ device_id 已修复,跳过', { fixFlag });
+    logger.log('⏭️ device_id 已修复,跳过', { fixFlag });
     // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:35',message:'Skipping fixLegacyDeviceIds',data:{userId:userId,deviceId:deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+    // debug-fetch-removed
     // #endregion
     return;
   }
   
-  console.log('🔧 开始修复所有药品的 device_id...', { deviceId, fixFlag });
+  logger.log('🔧 开始修复所有药品的 device_id...', { deviceId, fixFlag });
   // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:36',message:'Starting fixLegacyDeviceIds',data:{userId:userId,deviceId:deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+  // debug-fetch-removed
   // #endregion
   
   // 使用 runWithRemoteFlag 包裹，防止触发 Realtime 回调
   await runWithRemoteFlag(async () => {
     // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:40',message:'Inside runWithRemoteFlag',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // debug-fetch-removed
     // #endregion
     try {
       // 【重要修复】只修复 device_id 为 NULL 的记录,不修改其他设备的记录
@@ -94,39 +95,39 @@ export async function fixLegacyDeviceIds(): Promise<void> {
         .select();
       
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:50',message:'Update completed',data:{count:data?.length||0,hasError:!!error,errorMsg:error?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+      // debug-fetch-removed
       // #endregion
       
       if (error) {
         console.error('❌ 修复药品 device_id 失败:', error);
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:73',message:'Update failed',data:{error:error?.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
+        // debug-fetch-removed
         // #endregion
       } else {
-        console.log('✅ 已修复所有药品的 device_id，共', data?.length || 0, '条');
-        console.log('🔖 [fixLegacyDeviceIds] 准备设置标志', { fixFlag, currentKeys: Object.keys(localStorage).filter(k => k.includes('device_id')) });
+        logger.log('✅ 已修复所有药品的 device_id，共', data?.length || 0, '条');
+        logger.log('🔖 [fixLegacyDeviceIds] 准备设置标志', { fixFlag, currentKeys: Object.keys(localStorage).filter(k => k.includes('device_id')) });
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:77',message:'Before setItem',data:{fixFlag:fixFlag,count:data?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
+        // debug-fetch-removed
         // #endregion
         
         // 标记已完成修复
         localStorage.setItem(fixFlag, 'true');
         
         const verifyValue = localStorage.getItem(fixFlag);
-        console.log('✅ [fixLegacyDeviceIds] 标志已设置', { fixFlag, savedValue: verifyValue, allKeys: Object.keys(localStorage).filter(k => k.includes('device_id')) });
+        logger.log('✅ [fixLegacyDeviceIds] 标志已设置', { fixFlag, savedValue: verifyValue, allKeys: Object.keys(localStorage).filter(k => k.includes('device_id')) });
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:85',message:'After setItem',data:{fixFlag:fixFlag,verifyValue:verifyValue,allDeviceIdKeys:Object.keys(localStorage).filter(k=>k.includes('device_id'))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'J'})}).catch(()=>{});
+        // debug-fetch-removed
         // #endregion
       }
     } catch (error) {
       console.error('❌ 修复药品 device_id 异常:', error);
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:60',message:'Exception in fixLegacyDeviceIds',data:{error:String(error)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // debug-fetch-removed
       // #endregion
     }
   });
   // #region agent log
-  fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:65',message:'fixLegacyDeviceIds completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+  // debug-fetch-removed
   // #endregion
 }
 
@@ -203,7 +204,7 @@ async function ensureLocalMedicationIdsAreUUID(): Promise<void> {
 export async function syncMedications(): Promise<void> {
   // 【B】在所有监听入口加 guard
   if (isApplyingRemote()) {
-    console.log('⏭ 忽略云端回放引起的本地变化（syncMedications）');
+    logger.log('⏭ 忽略云端回放引起的本地变化（syncMedications）');
     return;
   }
   
@@ -219,7 +220,7 @@ export async function syncMedications(): Promise<void> {
     
     // #region agent log
     if (shouldSendDebugIngest()) {
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:syncMedications:start',message:'syncMedications开始',data:{localMedsCount:localMeds.length,deviceId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+      // debug-fetch-removed
     }
     // #endregion
     
@@ -244,7 +245,7 @@ export async function syncMedications(): Promise<void> {
         if (medsToSync.length > 0) {
           // #region agent log
           if (shouldSendDebugIngest()) {
-            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:syncMedications:upsert:start',message:'批量upsert开始',data:{count:medsToSync.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+            // debug-fetch-removed
           }
           // #endregion
           // 批量upsert（Supabase会自动处理insert/update）
@@ -255,14 +256,14 @@ export async function syncMedications(): Promise<void> {
           
           // #region agent log
           if (shouldSendDebugIngest()) {
-            fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:syncMedications:upsert:result',message:'批量upsert结果',data:{hasError:!!syncError,errorMsg:syncError?.message,syncedCount:syncedMeds?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+            // debug-fetch-removed
           }
           // #endregion
           
           if (syncError) {
             console.error('❌ 批量同步 medications 失败:', syncError);
           } else {
-            console.log(`✅ 批量同步 ${syncedMeds?.length || 0} 条药品到云端`);
+            logger.log(`✅ 批量同步 ${syncedMeds?.length || 0} 条药品到云端`);
           // 旧逻辑在这里做 local_xxx → UUID 的映射更新；
           // 现在统一由 ensureLocalMedicationIdsAreUUID 负责，避免产生双份记录和 id=null。
         }
@@ -271,7 +272,7 @@ export async function syncMedications(): Promise<void> {
     
     // 拉取云端medications（批量）
     // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:205',message:'拉取云端medications',data:{userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+    // debug-fetch-removed
     // #endregion
     const { data: cloudMeds } = await supabase!
       .from('medications')
@@ -279,13 +280,13 @@ export async function syncMedications(): Promise<void> {
       .eq('user_id', userId);
     
     // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:212',message:'拉取云端medications结果',data:{cloudMedsCount:cloudMeds?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+    // debug-fetch-removed
     // #endregion
     
     if (cloudMeds && cloudMeds.length > 0) {
-      console.log(`📥 从Supabase拉取到 ${cloudMeds.length} 条药品:`, cloudMeds.map(m => ({ id: m.id, name: m.name })));
+      logger.log(`📥 从Supabase拉取到 ${cloudMeds.length} 条药品:`, cloudMeds.map(m => ({ id: m.id, name: m.name })));
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:245',message:'从Supabase拉取到药品',data:{cloudMedsCount:cloudMeds.length,cloudMedIds:cloudMeds.map(m=>m.id),localMedIds:localMeds.map(m=>m.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+      // debug-fetch-removed
       // #endregion
       
       // 【性能优化】批量添加云端有但本地没有的药品
@@ -293,9 +294,9 @@ export async function syncMedications(): Promise<void> {
         !localMeds.find(m => m.id === cloudMed.id)
       );
       
-      console.log(`🔍 匹配结果: 云端${cloudMeds.length}条, 本地${localMeds.length}条, 新药品${newMeds.length}条`);
+      logger.log(`🔍 匹配结果: 云端${cloudMeds.length}条, 本地${localMeds.length}条, 新药品${newMeds.length}条`);
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:252',message:'匹配结果',data:{cloudCount:cloudMeds.length,localCount:localMeds.length,newCount:newMeds.length,newMedIds:newMeds.map(m=>m.id)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+      // debug-fetch-removed
       // #endregion
       
       if (newMeds.length > 0) {
@@ -308,31 +309,31 @@ export async function syncMedications(): Promise<void> {
           accent: cloudMed.accent || '#E8F5E9' // 默认浅绿色
         }));
         
-        console.log(`📦 准备批量添加 ${medsToAdd.length} 条药品到本地:`, medsToAdd.map(m => ({ id: m.id, name: m.name })));
+        logger.log(`📦 准备批量添加 ${medsToAdd.length} 条药品到本地:`, medsToAdd.map(m => ({ id: m.id, name: m.name })));
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:262',message:'批量添加到本地',data:{count:medsToAdd.length,meds:medsToAdd.map(m=>({id:m.id,name:m.name}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+        // debug-fetch-removed
         // #endregion
         await db.medications.bulkPut(medsToAdd);
-        console.log(`✅ 批量添加 ${medsToAdd.length} 条云端药品到本地`);
+        logger.log(`✅ 批量添加 ${medsToAdd.length} 条云端药品到本地`);
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:266',message:'批量添加完成',data:{count:medsToAdd.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+        // debug-fetch-removed
         // #endregion
       } else {
-        console.log('ℹ️ 所有云端药品都已存在于本地，无需添加');
+        logger.log('ℹ️ 所有云端药品都已存在于本地，无需添加');
         // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:270',message:'无需添加新药品',data:{cloudCount:cloudMeds.length,localCount:localMeds.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+        // debug-fetch-removed
         // #endregion
       }
     } else {
-      console.log('⚠️ 从Supabase拉取的medications为空或null');
+      logger.log('⚠️ 从Supabase拉取的medications为空或null');
       // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:274',message:'Supabase返回空数据',data:{cloudMedsIsNull:!cloudMeds,cloudMedsLength:cloudMeds?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'N'})}).catch(()=>{});
+      // debug-fetch-removed
       // #endregion
     }
     
-    console.log('✅ Medications同步完成');
+    logger.log('✅ Medications同步完成');
     // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/6c2f9245-7e42-4252-9b86-fbe37b1bc17e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.ts:238',message:'syncMedications完成',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'L'})}).catch(()=>{});
+        // debug-fetch-removed
     // #endregion
   } catch (error) {
     console.error('❌ Medications同步失败:', error);
@@ -401,14 +402,14 @@ export async function pushLocalChanges(): Promise<void> {
         
           // 406 错误通常表示查询格式问题，跳过检查继续插入
           if (queryError && queryError.code !== 'PGRST116') {
-            console.warn('⚠️ 查询 image_hash 失败，继续插入:', queryError);
+            logger.warn('⚠️ 查询 image_hash 失败，继续插入:', queryError);
           } else if (existing) {
           // 已存在，更新本地记录
           await markLogSynced(log.id, { ...log, id: existing.id });
             continue;
           }
         } catch (err) {
-          console.warn('⚠️ 检查重复记录失败，继续插入:', err);
+          logger.warn('⚠️ 检查重复记录失败，继续插入:', err);
         }
       }
       
@@ -424,13 +425,13 @@ export async function pushLocalChanges(): Promise<void> {
         
         if (!localMed) {
           // 找不到对应的 medication，跳过本次同步
-          console.warn('⚠️ medication_id 不是 UUID 且未找到本地记录，跳过同步:', log.medication_id);
+          logger.warn('⚠️ medication_id 不是 UUID 且未找到本地记录，跳过同步:', log.medication_id);
           continue;
         }
         
         if (!isValidUUID(localMed.id)) {
           // 本地 medication 还没有云端 ID（仍然是 local_xxx 或 med_xxx），跳过本次同步
-          console.warn('⚠️ medication_id 不是 UUID，且本地 medication 也没有云端 ID，跳过同步:', log.medication_id);
+          logger.warn('⚠️ medication_id 不是 UUID，且本地 medication 也没有云端 ID，跳过同步:', log.medication_id);
           continue;
         }
         
@@ -460,7 +461,7 @@ export async function pushLocalChanges(): Promise<void> {
       
       // 最终检查：确保 medication_id 是合法的 UUID
       if (!sanitized.medication_id || !isValidUUID(sanitized.medication_id)) {
-        console.warn('⚠️ medication_id 不是合法 UUID，跳过同步:', sanitized.medication_id);
+        logger.warn('⚠️ medication_id 不是合法 UUID，跳过同步:', sanitized.medication_id);
         continue;
       }
       
@@ -493,7 +494,7 @@ export async function pushLocalChanges(): Promise<void> {
 export async function pullRemoteChanges(lastSyncTime?: string): Promise<MedicationLog[]> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    console.warn('⚠️ pullRemoteChanges: 用户未登录');
+    logger.warn('⚠️ pullRemoteChanges: 用户未登录');
     return [];
   }
   
@@ -514,13 +515,13 @@ export async function pullRemoteChanges(lastSyncTime?: string): Promise<Medicati
       console.error('❌ pullRemoteChanges 拉取失败:', error);
       // 如果是字段不存在的错误，返回空数组（表结构可能未更新）
       if (error.message?.includes('column') || error.code === 'PGRST204') {
-        console.warn('⚠️ 数据库表结构可能未更新，请执行 supabase-schema-fix.sql');
+        logger.warn('⚠️ 数据库表结构可能未更新，请执行 supabase-schema-fix.sql');
         return [];
       }
       return [];
     }
     
-    console.log(`📥 pullRemoteChanges: 拉取到 ${data?.length || 0} 条记录`);
+    logger.log(`📥 pullRemoteChanges: 拉取到 ${data?.length || 0} 条记录`);
     
     // 转换数据，添加本地字段
     return (data || []).map(log => ({
@@ -601,7 +602,7 @@ export function initRealtimeSync(
   onMedicationSync: () => void
 ): () => void {
   const currentDeviceId = getDeviceId();
-  console.log('🔄 启动增强版 Realtime 同步... (device_id:', currentDeviceId, ')');
+  logger.log('🔄 启动增强版 Realtime 同步... (device_id:', currentDeviceId, ')');
   
   // 创建一个channel监听所有变化
   const channel = supabase!
@@ -615,14 +616,14 @@ export function initRealtimeSync(
         table: 'medication_logs'
       },
       async (payload) => {
-        console.log('📥 Realtime: medication_logs变化', payload.eventType, payload);
+        logger.log('📥 Realtime: medication_logs变化', payload.eventType, payload);
         
         if (payload.new) {
           const log = payload.new as MedicationLog;
           
           // 只处理其他设备的记录
           if (log.source_device !== currentDeviceId) {
-            console.log('📱 检测到其他设备的服药记录:', {
+            logger.log('📱 检测到其他设备的服药记录:', {
               device: log.source_device,
               medication: log.medication_name,
               time: log.taken_at
@@ -631,7 +632,7 @@ export function initRealtimeSync(
             // 直接同步，不需要用户确认
             onMedicationLogSync(log);
           } else {
-            console.log('ℹ️ 本设备的记录，跳过');
+            logger.log('ℹ️ 本设备的记录，跳过');
           }
         }
       }
@@ -645,7 +646,7 @@ export function initRealtimeSync(
         table: 'medications'
       },
       async (payload) => {
-        console.log('📥 Realtime: medications变化', payload.eventType, payload);
+        logger.log('📥 Realtime: medications变化', payload.eventType, payload);
         
         if (payload.new) {
           const med = payload.new as any;
@@ -653,7 +654,7 @@ export function initRealtimeSync(
           
           // 只处理同一用户的数据
           if (med.user_id === userId) {
-            console.log('💊 检测到药品列表更新');
+            logger.log('💊 检测到药品列表更新');
             
             // 直接同步，不需要用户确认
         onMedicationSync();
@@ -663,17 +664,17 @@ export function initRealtimeSync(
     )
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        console.log('✅ 药品数据 Realtime 订阅成功');
+        logger.log('✅ 药品数据 Realtime 订阅成功');
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.error('❌ 药品数据 Realtime 订阅失败:', status);
       } else {
-      console.log('🔄 Realtime订阅状态:', status);
+      logger.log('🔄 Realtime订阅状态:', status);
       }
     });
   
   // 返回清理函数
   return () => {
-    console.log('🔌 断开Realtime连接');
+    logger.log('🔌 断开Realtime连接');
     supabase!.removeChannel(channel);
   };
 }

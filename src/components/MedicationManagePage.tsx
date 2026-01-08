@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 import React, { useState } from 'react';
 import { Plus, Pill, Trash2, X, ChevronLeft, Edit2 } from 'lucide-react';
 import type { Medication } from '../types';
@@ -81,7 +85,7 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
           alert('添加药品失败，请重试');
           return;
         }
-        console.log('✅ 新药品已直接写入云端:', savedMed.name);
+        logger.log('✅ 新药品已直接写入云端:', savedMed.name);
         
         // 成功：用云端返回的数据更新本地 state（确保 ID 等字段一致）
         if (onMedicationUpdated && savedMed.id !== newMedication.id) {
@@ -153,13 +157,13 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
           alert('更新药品失败，请重试');
           return;
         }
-        console.log('✅ 药品已直接更新到云端:', savedMed.name, { accent: savedMed.accent });
+        logger.log('✅ 药品已直接更新到云端:', savedMed.name, { accent: savedMed.accent });
         
         // 【修复A】立即用云端返回的数据更新本地 state（包括 accent 颜色）
         // 这确保本机立即生效，不等待 Realtime
         if (onMedicationUpdated) {
           onMedicationUpdated(savedMed);
-          console.log('✅ [修复A] 本机 state 已立即更新（包括颜色）:', savedMed.accent);
+          logger.log('✅ [修复A] 本机 state 已立即更新（包括颜色）:', savedMed.accent);
         }
       } catch (error: any) {
         // 失败时回滚
@@ -198,7 +202,7 @@ export const MedicationManagePage: React.FC<MedicationManagePageProps> = ({
             return;
           }
 
-          console.log('✅ 药品已从云端删除:', med.name);
+          logger.log('✅ 药品已从云端删除:', med.name);
         } catch (error: any) {
           // 失败时回滚
           if (onMedicationAdded) {

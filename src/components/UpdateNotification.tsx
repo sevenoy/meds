@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 /**
  * 版本更新提示组件
  */
@@ -31,7 +35,7 @@ export const UpdateNotification: React.FC = () => {
     if (lastShownVersion && lastShownVersion !== currentVersion) {
       // 版本已升级，清除旧标记
       localStorage.removeItem('update_notification_shown');
-      console.log('🔄 检测到版本升级，清除旧版本标记', { lastShownVersion, currentVersion });
+      logger.log('🔄 检测到版本升级，清除旧版本标记', { lastShownVersion, currentVersion });
     }
     if (lastShownVersion === currentVersion) {
       return;
@@ -39,7 +43,7 @@ export const UpdateNotification: React.FC = () => {
 
     // 监听 Service Worker 更新事件
     const handleUpdateAvailable = async (event: any) => {
-      console.log('🎉 收到更新通知', event.detail);
+      logger.log('🎉 收到更新通知', event.detail);
       
       setRegistration(event.detail.registration);
       
@@ -84,7 +88,7 @@ export const UpdateNotification: React.FC = () => {
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration) {
-          console.log('🔍 检查应用更新...');
+          logger.log('🔍 检查应用更新...');
           registration.update();
         }
       }

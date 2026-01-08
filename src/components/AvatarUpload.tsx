@@ -1,3 +1,7 @@
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
+import { logger } from '../utils/logger';
 /**
  * 用户头像上传组件
  * 支持头像上传、预览、删除，自动同步到云端
@@ -29,7 +33,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
 
   // 监听 props 变化，同步更新内部 state
   useEffect(() => {
-    console.log('👤 AvatarUpload: props更新，同步头像URL', currentAvatarUrl);
+    logger.log('👤 AvatarUpload: props更新，同步头像URL', currentAvatarUrl);
     setAvatarUrl(currentAvatarUrl || null);
   }, [currentAvatarUrl]);
 
@@ -76,7 +80,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
           await supabase!.storage
             .from('user-avatars')
             .remove([oldPath]);
-          console.log('🗑️ 已删除旧头像');
+          logger.log('🗑️ 已删除旧头像');
         }
       }
 
@@ -85,7 +89,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
-      console.log('☁️ 上传头像到:', filePath);
+      logger.log('☁️ 上传头像到:', filePath);
 
       // 上传文件
       const { data, error: uploadError } = await supabase!.storage
@@ -97,7 +101,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
 
       if (uploadError) throw uploadError;
 
-      console.log('✅ 头像上传成功:', data.path);
+      logger.log('✅ 头像上传成功:', data.path);
 
       // 获取公开URL
       const { data: urlData } = supabase!.storage
@@ -108,11 +112,11 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       
       // 立即更新本地显示
       setAvatarUrl(publicUrl);
-      console.log('✅ 头像URL:', publicUrl);
+      logger.log('✅ 头像URL:', publicUrl);
 
       // 保存到用户设置（会自动触发云端同步）
       await updateUserSettings({ avatar_url: publicUrl });
-      console.log('☁️ 头像已保存到云端，正在推送到其他设备...');
+      logger.log('☁️ 头像已保存到云端，正在推送到其他设备...');
       
       // 通知父组件更新
       onAvatarUpdated?.(publicUrl);
@@ -128,7 +132,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         setTimeout(() => notification.remove(), 300);
       }, 3000);
 
-      console.log('✅ 头像上传和同步完成');
+      logger.log('✅ 头像上传和同步完成');
     } catch (err: any) {
       console.error('❌ 头像上传失败:', err);
       setError(err.message || '上传失败，请重试');
@@ -159,7 +163,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
             .remove([filePath]);
 
           if (deleteError) throw deleteError;
-          console.log('🗑️ 头像文件已删除');
+          logger.log('🗑️ 头像文件已删除');
         }
       }
 
@@ -183,7 +187,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         setTimeout(() => notification.remove(), 300);
       }, 3000);
 
-      console.log('✅ 头像删除和同步完成');
+      logger.log('✅ 头像删除和同步完成');
     } catch (err: any) {
       console.error('❌ 删除头像失败:', err);
       setError(err.message || '删除失败，请重试');
