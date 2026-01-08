@@ -785,11 +785,6 @@ export default function App() {
           setLogsLastUpdatedAt(new Date());
         }
 
-        // 立即关闭 Loading，进入交互状态
-        setInitialLoading(false);
-        setAppInitialized(true);
-        isInitializingRef.current = false;
-
         // ============================================
         // 【延迟阶段】3s 以后执行非关键任务（不阻塞 UI）
         // ============================================
@@ -853,6 +848,8 @@ export default function App() {
 
       } catch (error) {
         console.error('❌ [初始化] 应用启动失败:', error);
+      } finally {
+        // ✅ 【P0修复】必须保证 loading 结束
         setInitialLoading(false);
         setAppInitialized(true);
         isInitializingRef.current = false;
