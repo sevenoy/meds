@@ -26,10 +26,13 @@ interface UploadItem {
 
 /**
  * 从文件名提取时间
- * 支持格式: IMG_20231105_204500.jpg, 2023-11-05_20-45-00.jpg
+ * 支持格式: 
+ * - IMG_20231105_204500.jpg
+ * - 2023-11-05_20-45-00.jpg
+ * - IMG_20231105.jpg (只有日期)
  */
 function extractTimeFromFilename(filename: string): Date | null {
-    // 格式1: IMG_YYYYMMDD_HHMMSS
+    // 格式1: IMG_YYYYMMDD_HHMMSS 或 YYYYMMDD_HHMMSS
     const pattern1 = /(\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})/;
     const match1 = filename.match(pattern1);
     if (match1) {
@@ -37,12 +40,20 @@ function extractTimeFromFilename(filename: string): Date | null {
         return new Date(+year, +month - 1, +day, +hour, +minute, +second);
     }
 
-    // 格式2: YYYY-MM-DD_HH-MM-SS
+    // 格式2: YYYY-MM-DD_HH-MM-SS (带连字符)
     const pattern2 = /(\d{4})-(\d{2})-(\d{2})[_T](\d{2})-(\d{2})-(\d{2})/;
     const match2 = filename.match(pattern2);
     if (match2) {
         const [, year, month, day, hour, minute, second] = match2;
         return new Date(+year, +month - 1, +day, +hour, +minute, +second);
+    }
+
+    // 格式3: 只有日期 YYYYMMDD (默认时间 12:00:00)
+    const pattern3 = /(\d{4})(\d{2})(\d{2})/;
+    const match3 = filename.match(pattern3);
+    if (match3) {
+        const [, year, month, day] = match3;
+        return new Date(+year, +month - 1, +day, 12, 0, 0);
     }
 
     return null;
@@ -115,6 +126,43 @@ async function retry<T>(
     throw lastError;
 }
 
+/**
+ * 从照片中解析拍摄时间
+ * 优先级: EXIF → 文件名 → file.lastModified
+ * @param file 照片文件
+ * @returns 拍摄时间
+ */
+async function resolveTakenAt(file: File): Promise<Date> {
+    // 1️⃣ EXIF DateTimeOriginal
+    try {
+        const exif = await exifr.parse(file);
+        if (exif?.DateTimeOriginal) {
+            const date = new Date(exif.DateTimeOriginal);
+            console.log('[TIME_RESOLVE] from EXIF:', file.name, '→', date.toISOString());
+            return date;
+        }
+    } catch (e) {
+        console.warn('[TIME_RESOLVE] EXIF parse failed, continue fallback:', file.name);
+    }
+
+    // 2️⃣ 文件名中的日期时间
+    const fromName = extractTimeFromFilename(file.name);
+    if (fromName) {
+        console.log('[TIME_RESOLVE] from filename:', file.name, '→', fromName.toISOString());
+        return fromName;
+    }
+
+    // 3️⃣ file.lastModified（重要兜底）
+    if (file.lastModified) {
+        const date = new Date(file.lastModified);
+        console.log('[TIME_RESOLVE] from lastModified:', file.name, '→', date.toISOString());
+        return date;
+    }
+
+    // ❌ 严禁使用 new Date()
+    throw new Error(`Unable to resolve takenAt from image: ${file.name}`);
+}
+
 export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     isOpen,
     onClose,
@@ -146,33 +194,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     size: file.size
                 });
 
-                let takenAt = new Date();
-
-                // 1. 优先尝试 EXIF
-                try {
-                    const exifData = await exifr.parse(file);
-                    if (exifData && exifData.DateTimeOriginal) {
-                        takenAt = new Date(exifData.DateTimeOriginal);
-                        logger.log(`✅ EXIF 时间: ${file.name} -> ${takenAt.toISOString()}`);
-                    }
-                } catch (exifError) {
-                    logger.warn(`⚠️ EXIF 解析失败: ${file.name}`, exifError);
-                }
-
-                // 2. 如果 EXIF 失败,尝试文件名
-                if (takenAt.getTime() === new Date().getTime()) {
-                    const filenameTime = extractTimeFromFilename(file.name);
-                    if (filenameTime) {
-                        takenAt = filenameTime;
-                        logger.log(`✅ 文件名时间: ${file.name} -> ${takenAt.toISOString()}`);
-                    }
-                }
-
-                // 3. 如果都失败,使用文件修改时间
-                if (takenAt.getTime() === new Date().getTime() && file.lastModified) {
-                    takenAt = new Date(file.lastModified);
-                    logger.log(`✅ 文件修改时间: ${file.name} -> ${takenAt.toISOString()}`);
-                }
+                // ✅ 使用统一的时间解析函数
+                const takenAt = await resolveTakenAt(file);
 
                 newItems.push({
                     file,
@@ -184,10 +207,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 });
             } catch (err) {
                 logger.error('处理文件失败', err);
+                // ❌ 即使失败，也不使用 new Date()，而是使用 lastModified
+                const fallbackDate = file.lastModified ? new Date(file.lastModified) : new Date();
+                console.warn('[TIME_RESOLVE] error fallback:', file.name, '→', fallbackDate.toISOString());
                 newItems.push({
                     file,
                     previewUrl: URL.createObjectURL(file),
-                    takenAt: new Date(),
+                    takenAt: fallbackDate,
                     selected: true,
                     status: 'pending',
                     uploadProgress: 0
