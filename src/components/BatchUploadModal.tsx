@@ -88,6 +88,33 @@ async function normalizeImageFile(file: File): Promise<File> {
     return file;
 }
 
+/**
+ * 重试包装函数
+ * @param fn 要执行的异步函数
+ * @param times 重试次数（默认 2 次）
+ * @param delay 重试间隔（毫秒，默认 1000ms）
+ * @returns Promise
+ */
+async function retry<T>(
+    fn: () => Promise<T>,
+    times: number = 2,
+    delay: number = 1000
+): Promise<T> {
+    let lastError: any;
+    for (let i = 0; i < times; i++) {
+        try {
+            return await fn();
+        } catch (e) {
+            lastError = e;
+            console.warn(`[RETRY] attempt ${i + 1}/${times} failed:`, e);
+            if (i < times - 1) {
+                await new Promise(r => setTimeout(r, delay));
+            }
+        }
+    }
+    throw lastError;
+}
+
 export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
     isOpen,
     onClose,
@@ -228,27 +255,36 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
             ));
 
             try {
-                // 1. 上传图片到 Supabase Storage
+                // 1. 生成文件路径
                 const timestamp = Date.now();
                 const fileExt = item.file.name.split('.').pop();
                 const filePath = `${userId}/${selectedMedId}/${timestamp}_${Math.random().toString(36).slice(2)}.${fileExt}`;
 
-                logger.log(`📤 上传图片: ${filePath}`);
+                logger.log(`📤 上传图片 (${i + 1}/${itemsToUpload.length}): ${filePath}`);
 
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                    .from('medication-images')
-                    .upload(filePath, item.file, {
-                        cacheControl: '3600',
-                        upsert: false,
-                        contentType: item.file.type || 'image/jpeg'  // ✅ 修复2：显式指定 MIME
-                    });
+                // 2. 上传图片（带重试）
+                const uploadData = await retry(async () => {
+                    const { data, error } = await supabase.storage
+                        .from('medication-images')
+                        .upload(filePath, item.file, {
+                            cacheControl: '3600',
+                            upsert: false,
+                            contentType: item.file.type || 'image/jpeg'
+                        });
 
-                if (uploadError) {
-                    throw new Error(`图片上传失败: ${uploadError.message}`);
-                }
+                    if (error) {
+                        throw new Error(`图片上传失败: ${error.message}`);
+                    }
+
+                    if (!data?.path) {
+                        throw new Error('图片上传失败: 未返回路径');
+                    }
+
+                    return data;
+                }, 2, 1000);  // 重试 2 次，间隔 1 秒
 
                 console.log('[UPLOAD_SUCCESS]', {
-                    path: filePath,
+                    path: uploadData.path,
                     type: item.file.type,
                     size: item.file.size
                 });
@@ -258,13 +294,13 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     idx === itemIndex ? { ...p, uploadProgress: 50 } : p
                 ));
 
-                // 2. 创建服药记录
+                // 3. 创建服药记录（只有 upload 成功才执行）
                 const newLog: Partial<MedicationLog> = {
                     medication_id: selectedMedId,
                     taken_at: item.takenAt.toISOString(),
                     status: 'taken',
                     time_source: 'batch_upload',
-                    image_path: filePath
+                    image_path: uploadData.path  // ✅ 使用返回的 path
                 };
 
                 const result = await addLogToCloud(newLog);
@@ -279,10 +315,15 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 ));
                 successCount++;
 
-                logger.log(`✅ 上传成功: ${item.file.name}`);
+                logger.log(`✅ 上传成功 (${successCount}/${itemsToUpload.length}): ${item.file.name}`);
+
+                // ✅ 每张图之间延迟 250ms，防止内存/CPU 过载
+                if (i < itemsToUpload.length - 1) {
+                    await new Promise(r => setTimeout(r, 250));
+                }
 
             } catch (error: any) {
-                console.error('上传失败:', error);
+                console.error(`❌ 上传失败 (${i + 1}/${itemsToUpload.length}):`, error);
                 setUploadItems(prev => prev.map((p, idx) =>
                     idx === itemIndex ? { ...p, status: 'error', errorMessage: error.message || '上传失败' } : p
                 ));
