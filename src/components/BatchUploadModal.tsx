@@ -130,9 +130,9 @@ async function retry<T>(
  * 从照片中解析拍摄时间
  * 优先级: EXIF → 文件名 → file.lastModified
  * @param file 照片文件
- * @returns 拍摄时间
+ * @returns 拍摄时间，失败返回 null
  */
-async function resolveTakenAt(file: File): Promise<Date> {
+async function resolveTakenAt(file: File): Promise<Date | null> {
     // 1️⃣ EXIF DateTimeOriginal
     try {
         const exif = await exifr.parse(file);
@@ -152,15 +152,16 @@ async function resolveTakenAt(file: File): Promise<Date> {
         return fromName;
     }
 
-    // 3️⃣ file.lastModified（重要兜底）
-    if (file.lastModified) {
+    // 3️⃣ file.lastModified（允许兜底）
+    if (file.lastModified && file.lastModified > 0) {
         const date = new Date(file.lastModified);
         console.log('[TIME_RESOLVE] from lastModified:', file.name, '→', date.toISOString());
         return date;
     }
 
-    // ❌ 严禁使用 new Date()
-    throw new Error(`Unable to resolve takenAt from image: ${file.name}`);
+    // ❌ 不允许 new Date()，返回 null
+    console.warn('[TIME_RESOLVE] failed:', file.name, '→ null');
+    return null;
 }
 
 export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
@@ -197,6 +198,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 // ✅ 使用统一的时间解析函数
                 const takenAt = await resolveTakenAt(file);
 
+                // ✅ 验证时间是否有效
+                if (!takenAt || isNaN(takenAt.getTime())) {
+                    throw new Error(`无法解析照片拍摄时间: ${file.name}`);
+                }
+
                 newItems.push({
                     file,
                     previewUrl: URL.createObjectURL(file),
@@ -207,17 +213,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 });
             } catch (err) {
                 logger.error('处理文件失败', err);
-                // ❌ 即使失败，也不使用 new Date()，而是使用 lastModified
-                const fallbackDate = file.lastModified ? new Date(file.lastModified) : new Date();
-                console.warn('[TIME_RESOLVE] error fallback:', file.name, '→', fallbackDate.toISOString());
-                newItems.push({
-                    file,
-                    previewUrl: URL.createObjectURL(file),
-                    takenAt: fallbackDate,
-                    selected: true,
-                    status: 'pending',
-                    uploadProgress: 0
-                });
+                // ❌ 不创建 newItem，直接跳过该文件
+                console.error('[BATCH_UPLOAD] 跳过文件:', file.name, err);
             }
         }
 
@@ -321,6 +318,11 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 ));
 
                 // 3. 创建服药记录（只有 upload 成功才执行）
+                // ✅ 上传前再次验证时间
+                if (!item.takenAt || isNaN(item.takenAt.getTime())) {
+                    throw new Error('时间解析失败，禁止创建补录记录');
+                }
+
                 const newLog: Partial<MedicationLog> = {
                     medication_id: selectedMedId,
                     taken_at: item.takenAt.toISOString(),
@@ -328,6 +330,8 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     time_source: 'batch_upload',
                     image_path: uploadData.path  // ✅ 使用返回的 path
                 };
+
+                console.log('[CREATE_LOG] taken_at:', item.takenAt.toISOString(), 'file:', item.file.name);
 
                 const result = await addLogToCloud(newLog);
 
