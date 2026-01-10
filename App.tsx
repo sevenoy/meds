@@ -818,7 +818,7 @@ export default function App() {
         try {
           initialLogs = await withTimeout(
             getRecentLogsFromCloud(20),  // ✅ 修复：减少到 20 条，防止超时
-            8000,
+            15000,  // ✅ 增加超时时间从 8s 到 15s，确保初始加载成功
             'getRecentLogsFromCloud'
           );
           mark(`fetch logs - done: ${initialLogs?.length ?? 'null'} items`);
