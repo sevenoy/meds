@@ -927,83 +927,38 @@ export default function App() {
               };
             }
             return m;
-            status: taken ? 'completed' : 'pending',
-              lastTakenAt: lastLog.taken_at,
-                uploadedAt: lastLog.created_at,
-                  lastLog
-          };
+          }), 'background-update-history-status');
+
+          console.log('[LOGS] medications status updated based on full history');
         }
-        return med;
-      }), 'background-update-status');
 
-  console.log('[LOGS] medications status updated based on recent logs');
-}
+        // 其他后台任务
+        enforceVersionSync().catch(err => {
+          if (err.message !== 'VERSION_MISMATCH') {
+            logger.warn('⚠️ [后台] 版本检查失败:', err);
+          }
+        });
 
-// 🔴 无条件设置状态标记
-setLogsLoaded(true);
-setLogsLastUpdatedAt(new Date());
-
-// 2️⃣ 延迟加载完整历史记录（3秒后）
-setTimeout(() => {
-  getLogsFromCloud(undefined, 300).then(allLogs => {  // 默认365天
-    console.log('[INIT] full history fetched:', allLogs.length);  // 🔴 诊断日志 1
-
-    // 🔴 关键修复：只有当新数据有效时才更新，防止失败查询覆盖已有数据
-    if (allLogs.length === 0) {
-      console.warn('[LOGS] full history returned 0, keeping existing data');
-      return;  // 保持现有的 6 条记录，不覆盖
-    }
-
-    const sortedLogs = [...allLogs].sort((a, b) =>
-      new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
-    );
-
-    const lastLogMap = new Map<string, MedicationLog>();
-    for (const log of sortedLogs) {
-      const medId = log.medication_id;
-      const existing = lastLogMap.get(medId);
-      if (!existing || new Date(log.taken_at) > new Date(existing.taken_at)) {
-        lastLogMap.set(medId, log);
-      }
-    }
-    lastLogByMedicationIdRef.current = lastLogMap;
-
-    // 只在有有效数据时才写入 state
-    safeSetTimelineLogs(sortedLogs, 'background-load-history');
-    console.log('[SET_LOGS] background-load-history, count=', sortedLogs.length);  // 🔴 诊断日志 2
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    safeSetMedications(prev => prev.map(m => {
-      const lastLog = lastLogMap.get(m.id);
-      if (lastLog) {
-        const taken = new Date(lastLog.taken_at) >= today;
-        return {
-          ...m,
-          status: taken ? 'completed' : 'pending',
-          lastTakenAt: lastLog.taken_at,
-          uploadedAt: lastLog.created_at,
-          lastLog
-        };
-      }
-      return m;
-    }), 'background-update-history-status');
-  }).catch(err => console.error('❌ [后台] 历史记录加载失败:', err));
-
-  // 3️⃣ 版本检查
-  enforceVersionSync().catch(err => {
-    if (err.message !== 'VERSION_MISMATCH') {
-      logger.warn('⚠️ [后台] 版本检查失败:', err);
-    }
-  });
-
-  // 4️⃣ 用户设置和其他次要初始化
-  getUserSettings().then(settings => {
-    if (settings.avatar_url) setAvatarUrl(settings.avatar_url);
-  }).catch(() => { });
-}, 3000);
+        getUserSettings().then(settings => {
+          if (settings?.display_name) setUserName(settings.display_name);
+          if (settings?.avatar_url) setAvatarUrl(settings.avatar_url);
+        }).catch(() => { });
 
       } catch (error) {
+        console.warn('[LOGS] background supplement load failed (non-blocking):', error);
+      }
+    };
+
+    // ============================================
+    // 【Realtime 回调】
+    // ============================================
+    const onStatusChange = (status) =>
+      getUserSettings().then(settings => {
+        if (settings.avatar_url) setAvatarUrl(settings.avatar_url);
+      }).catch(() => { });
+  }, 3000);
+
+} catch (error) {
   console.warn('[LOGS] background load failed (non-blocking):', error);
   // 失败不影响 UI，用户仍然可以看到药物列表
 }
