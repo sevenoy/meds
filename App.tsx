@@ -465,6 +465,8 @@ export default function App() {
 
   React.useEffect(() => {
     logsRef.current = timelineLogs;
+    // 🔴 诊断日志 3: 渲染时 logs 数量
+    console.log('[RENDER] timelineLogs count=', timelineLogs.length);
   }, [timelineLogs]);
 
   // 【修复 D】安全的 setMedications：带硬核日志和防护
@@ -863,11 +865,13 @@ export default function App() {
       try {
         // 1️⃣ 快速加载最近 20 条 logs
         const recentLogs = await getRecentLogsFromCloud(20);
-        console.log('[LOGS] recent logs loaded:', recentLogs.length);
+        console.log('[INIT] logs fetched:', recentLogs.length);  // 🔴 诊断日志 1
+
+        // 🔴 修复：无条件写入 logs，不管是否为空
+        safeSetTimelineLogs(recentLogs ?? [], 'background-recent');
+        console.log('[SET_LOGS] background-recent, count=', recentLogs.length);  // 🔴 诊断日志 2
 
         if (recentLogs.length > 0) {
-          // 更新 timeline logs
-          safeSetTimelineLogs(recentLogs, 'background-recent');
 
           // 更新 medications 的 status（基于最近 logs）
           const today = new Date();
@@ -888,19 +892,22 @@ export default function App() {
             return med;
           }), 'background-update-status');
 
-          setLogsLoaded(true);
-          setLogsLastUpdatedAt(new Date());
           console.log('[LOGS] medications status updated based on recent logs');
         }
+
+        // 🔴 无条件设置状态标记
+        setLogsLoaded(true);
+        setLogsLastUpdatedAt(new Date());
 
         // 2️⃣ 延迟加载完整历史记录（3秒后）
         setTimeout(() => {
           getLogsFromCloud(undefined, 300, 60).then(allLogs => {
-            if (allLogs.length === 0) return;
+            console.log('[INIT] full history fetched:', allLogs.length);  // 🔴 诊断日志 1
 
-            const sortedLogs = [...allLogs].sort((a, b) =>
-              new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
-            );
+            // 🔴 修复：无条件写入，即使为空数组
+            const sortedLogs = allLogs.length > 0
+              ? [...allLogs].sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime())
+              : [];
 
             const lastLogMap = new Map<string, MedicationLog>();
             for (const log of sortedLogs) {
@@ -912,8 +919,9 @@ export default function App() {
             }
             lastLogByMedicationIdRef.current = lastLogMap;
 
+            // 🔴 无条件写入 state
             safeSetTimelineLogs(sortedLogs, 'background-load-history');
-            console.log('[LOGS] full history loaded:', sortedLogs.length);
+            console.log('[SET_LOGS] background-load-history, count=', sortedLogs.length);  // 🔴 诊断日志 2
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
