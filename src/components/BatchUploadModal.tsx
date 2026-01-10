@@ -61,10 +61,9 @@ function extractTimeFromFilename(filename: string): Date | null {
 
 /**
  * 统一处理图片格式，将 HEIC 转换为 JPEG
- * @param file 原始文件
- * @returns 转换后的文件（JPEG）或原文件
+ * 并保留 EXIF 信息
  */
-async function normalizeImageFile(file: File): Promise<File> {
+async function normalizeImageFile(file: File): Promise<File & { _originalExif?: any }> {
     // 检测 HEIC 格式
     const isHEIC =
         file.type === 'image/heic' ||
@@ -73,6 +72,17 @@ async function normalizeImageFile(file: File): Promise<File> {
 
     if (isHEIC) {
         console.log('[HEIC_CONVERT] start:', file.name, 'type:', file.type, 'size:', file.size);
+
+        // ✅ 关键修复：转换前先提取 EXIF
+        let originalExif: any = null;
+        try {
+            originalExif = await exifr.parse(file);
+            if (originalExif?.DateTimeOriginal) {
+                console.log('[HEIC_CONVERT] extracted EXIF DateTimeOriginal:', originalExif.DateTimeOriginal);
+            }
+        } catch (e) {
+            console.warn('[HEIC_CONVERT] EXIF extraction failed:', e);
+        }
 
         try {
             const convertedBlob = await heic2any({
@@ -85,18 +95,23 @@ async function normalizeImageFile(file: File): Promise<File> {
                 [convertedBlob as Blob],
                 file.name.replace(/\.heic$/i, '.jpg'),
                 { type: 'image/jpeg' }
-            );
+            ) as File & { _originalExif?: any };
+
+            // ✅ 将原始 EXIF 附加到转换后的文件
+            if (originalExif) {
+                newFile._originalExif = originalExif;
+                console.log('[HEIC_CONVERT] attached EXIF to converted file');
+            }
 
             console.log('[HEIC_CONVERT] success:', newFile.name, 'type:', newFile.type, 'size:', newFile.size);
             return newFile;
         } catch (error) {
             console.error('[HEIC_CONVERT] failed:', error);
-            // 转换失败，返回原文件（可能导致无法显示，但至少不会中断流程）
-            return file;
+            return file as File & { _originalExif?: any };
         }
     }
 
-    return file;
+    return file as File & { _originalExif?: any };
 }
 
 /**
@@ -128,11 +143,18 @@ async function retry<T>(
 
 /**
  * 从照片中解析拍摄时间
- * 优先级: EXIF → 文件名 → file.lastModified
+ * 优先级: 附加的 EXIF → EXIF → 文件名 → file.lastModified
  * @param file 照片文件
  * @returns 拍摄时间和来源，失败返回 null
  */
-async function resolveTakenAt(file: File): Promise<{ date: Date; source: string } | null> {
+async function resolveTakenAt(file: File & { _originalExif?: any }): Promise<{ date: Date; source: string } | null> {
+    // 0️⃣ 优先检查附加的 EXIF（HEIC 转换前提取的）
+    if (file._originalExif?.DateTimeOriginal) {
+        const date = new Date(file._originalExif.DateTimeOriginal);
+        console.log('[TIME_RESOLVE] from attached EXIF:', file.name, '→', date.toISOString());
+        return { date, source: 'exif' };
+    }
+
     // 1️⃣ EXIF DateTimeOriginal
     try {
         const exif = await exifr.parse(file);
