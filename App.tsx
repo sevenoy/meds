@@ -817,7 +817,7 @@ export default function App() {
         let initialLogs: MedicationLog[] = [];
         try {
           initialLogs = await withTimeout(
-            getRecentLogsFromCloud(100),
+            getRecentLogsFromCloud(20),  // ✅ 修复：减少到 20 条，防止超时
             8000,
             'getRecentLogsFromCloud'
           );
