@@ -807,12 +807,14 @@ export default function App() {
         // ============================================
         // C. 只加载 medications（关键路径）
         // ============================================
+        console.log('[INIT][1] before fetch meds');  // 🔴 断点日志 1
         mark('fetch medications - start');
         const rawMeds = await withTimeout(
           getMedicationsFromCloud(),
           5000,  // 降低到 5 秒，快速失败
           'getMedicationsFromCloud'
         );
+        console.log('[INIT][2] meds fetched:', rawMeds.length, rawMeds);  // 🔴 断点日志 2
         mark(`fetch medications - done: ${rawMeds?.length ?? 'null'} items`);
 
         // ============================================
@@ -829,7 +831,9 @@ export default function App() {
           lastLog: undefined
         }));
 
+        console.log('[INIT][5] before setState meds:', medsUI.length);  // 🔴 断点日志 5
         safeSetMedications(medsUI, 'app-init-fast');
+        console.log('[INIT][6] after setState meds');  // 🔴 断点日志 6
         mark('build UI state - done');
 
         logger.log(`✅ [初始化] 首屏快速加载完成: ${rawMeds.length} 个药品（logs 后台加载中）`);
