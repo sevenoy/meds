@@ -868,8 +868,13 @@ export default function App() {
       console.log('[LOGS] background loading started');
 
       try {
-        // 1️⃣ 快速加载最近 20 条 logs
-        const recentLogs = await getRecentLogsFromCloud(20);
+        // 1️⃣ 快速加载最近 20 条 logs（添加超时保护）
+        console.log('[LOGS] calling getRecentLogsFromCloud...');
+        const recentLogs = await withTimeout(
+          getRecentLogsFromCloud(20),
+          10000,  // 10 秒超时
+          'getRecentLogsFromCloud-background'
+        );
         console.log('[INIT] logs fetched:', recentLogs.length);  // 🔴 诊断日志 1
 
         // 🔴 修复：无条件写入 logs，不管是否为空
