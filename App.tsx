@@ -570,7 +570,7 @@ export default function App() {
         // 【唯一拉取点】只在应用初始化时拉取 logs（瘦身版本）
         logger.log('☁️ [初始化] 从云端拉取 logs（唯一拉取点，瘦身版本）');
         const logsStartTime = performance.now();
-        const allLogs = await getLogsFromCloud(undefined, 300, 60); // 最近60天，最多300条
+        const allLogs = await getLogsFromCloud(undefined, 300); // 最多300条，默认365天
         const logsDuration = performance.now() - logsStartTime;
         logger.log(`⏱️ logs 请求耗时: ${logsDuration.toFixed(2)}ms`);
         logger.log(`📝 [初始化] 从云端加载 ${allLogs.length} 条服药记录（渲染前 logs 条数: ${allLogs.length}）`);
@@ -906,13 +906,18 @@ export default function App() {
 
         // 2️⃣ 延迟加载完整历史记录（3秒后）
         setTimeout(() => {
-          getLogsFromCloud(undefined, 300, 60).then(allLogs => {
+          getLogsFromCloud(undefined, 300).then(allLogs => {  // 默认365天
             console.log('[INIT] full history fetched:', allLogs.length);  // 🔴 诊断日志 1
 
-            // 🔴 修复：无条件写入，即使为空数组
-            const sortedLogs = allLogs.length > 0
-              ? [...allLogs].sort((a, b) => new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime())
-              : [];
+            // 🔴 关键修复：只有当新数据有效时才更新，防止失败查询覆盖已有数据
+            if (allLogs.length === 0) {
+              console.warn('[LOGS] full history returned 0, keeping existing data');
+              return;  // 保持现有的 6 条记录，不覆盖
+            }
+
+            const sortedLogs = [...allLogs].sort((a, b) =>
+              new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
+            );
 
             const lastLogMap = new Map<string, MedicationLog>();
             for (const log of sortedLogs) {
@@ -924,7 +929,7 @@ export default function App() {
             }
             lastLogByMedicationIdRef.current = lastLogMap;
 
-            // 🔴 无条件写入 state
+            // 只在有有效数据时才写入 state
             safeSetTimelineLogs(sortedLogs, 'background-load-history');
             console.log('[SET_LOGS] background-load-history, count=', sortedLogs.length);  // 🔴 诊断日志 2
 
@@ -1391,7 +1396,7 @@ export default function App() {
       setSyncPrompt(null);
       // 【强制修复】全量拉取 logs，禁止 merge
       try {
-        const allLogs = await getLogsFromCloud(undefined, 300, 60);
+        const allLogs = await getLogsFromCloud(undefined, 300);  // 默认365天
         const sortedLogs = [...allLogs].sort((a, b) =>
           new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
         );
@@ -2738,7 +2743,7 @@ export default function App() {
                     onClick={async () => {
                       try {
                         // 【强制修复】全量拉取 logs，禁止 merge
-                        const allLogs = await getLogsFromCloud(undefined, 300, 60);
+                        const allLogs = await getLogsFromCloud(undefined, 300);  // 默认365天
                         const sortedLogs = [...allLogs].sort((a, b) =>
                           new Date(b.taken_at).getTime() - new Date(a.taken_at).getTime()
                         );
