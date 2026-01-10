@@ -255,9 +255,14 @@ export async function addLogToCloud(log: Partial<MedicationLog>): Promise<Medica
   if (!userId || !supabase) return null;
 
   try {
+    const insertPayload = { ...log, user_id: userId };
+
+    // 🔴 诊断日志 3: addLogToCloud 内部打印"实际发送给 Supabase 的 insert 对象"
+    console.log('[CLOUD] insert log payload', insertPayload);
+
     const { data, error } = await supabase
       .from('medication_logs')
-      .insert({ ...log, user_id: userId })
+      .insert(insertPayload)
       .select()
       .maybeSingle();
 

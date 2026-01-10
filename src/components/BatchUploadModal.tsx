@@ -130,16 +130,16 @@ async function retry<T>(
  * 从照片中解析拍摄时间
  * 优先级: EXIF → 文件名 → file.lastModified
  * @param file 照片文件
- * @returns 拍摄时间，失败返回 null
+ * @returns 拍摄时间和来源，失败返回 null
  */
-async function resolveTakenAt(file: File): Promise<Date | null> {
+async function resolveTakenAt(file: File): Promise<{ date: Date; source: string } | null> {
     // 1️⃣ EXIF DateTimeOriginal
     try {
         const exif = await exifr.parse(file);
         if (exif?.DateTimeOriginal) {
             const date = new Date(exif.DateTimeOriginal);
             console.log('[TIME_RESOLVE] from EXIF:', file.name, '→', date.toISOString());
-            return date;
+            return { date, source: 'exif' };
         }
     } catch (e) {
         console.warn('[TIME_RESOLVE] EXIF parse failed, continue fallback:', file.name);
@@ -149,14 +149,14 @@ async function resolveTakenAt(file: File): Promise<Date | null> {
     const fromName = extractTimeFromFilename(file.name);
     if (fromName) {
         console.log('[TIME_RESOLVE] from filename:', file.name, '→', fromName.toISOString());
-        return fromName;
+        return { date: fromName, source: 'filename' };
     }
 
     // 3️⃣ file.lastModified（允许兜底）
     if (file.lastModified && file.lastModified > 0) {
         const date = new Date(file.lastModified);
         console.log('[TIME_RESOLVE] from lastModified:', file.name, '→', date.toISOString());
-        return date;
+        return { date, source: 'lastModified' };
     }
 
     // ❌ 不允许 new Date()，返回 null
@@ -196,17 +196,29 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                 });
 
                 // ✅ 使用统一的时间解析函数
-                const takenAt = await resolveTakenAt(file);
+                const resolved = await resolveTakenAt(file);
 
                 // ✅ 验证时间是否有效
-                if (!takenAt || isNaN(takenAt.getTime())) {
+                if (!resolved || !resolved.date || isNaN(resolved.date.getTime())) {
                     throw new Error(`无法解析照片拍摄时间: ${file.name}`);
                 }
+
+                const { date: takenAt, source: timeSource } = resolved;
+
+                // 🔴 诊断日志 1: 解析完成后立刻打印
+                console.log('[BATCH] resolvedTakenAt', {
+                    file: file.name,
+                    type: file.type,
+                    lastModified: file.lastModified,
+                    resolvedTakenAt: takenAt.toISOString(),
+                    source: timeSource
+                });
 
                 newItems.push({
                     file,
                     previewUrl: URL.createObjectURL(file),
                     takenAt,
+                    timeSource,
                     selected: true,
                     status: 'pending',
                     uploadProgress: 0
@@ -327,11 +339,19 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
                     medication_id: selectedMedId,
                     taken_at: item.takenAt.toISOString(),
                     status: 'taken',
-                    time_source: 'batch_upload',
+                    time_source: item.timeSource || 'batch_upload',
                     image_path: uploadData.path  // ✅ 使用返回的 path
                 };
 
                 console.log('[CREATE_LOG] taken_at:', item.takenAt.toISOString(), 'file:', item.file.name);
+
+                // 🔴 诊断日志 2: 调用 addLogToCloud 前打印“最终 payload”
+                console.log('[BATCH] addLog payload', {
+                    medication_id: selectedMedId,
+                    taken_at: item.takenAt.toISOString(),
+                    time_source: item.timeSource || 'batch_upload',
+                    image_path: uploadData.path
+                });
 
                 const result = await addLogToCloud(newLog);
 
