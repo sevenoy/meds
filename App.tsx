@@ -485,6 +485,7 @@ export default function App() {
       logger.warn('调用栈:', stack);
     }
 
+    console.log(`[SET_MEDS] 来源: ${source}, 数量: ${prevCount} → ${newCount}`);  // 🔴 强制诊断日志
     setMedications(newMeds);
     const duration = performance.now() - startTime;
     logger.log(`📊 [setMedications] 来源: ${source}, 数量: ${prevCount} → ${newCount}, 耗时: ${duration.toFixed(2)}ms`);
