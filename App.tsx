@@ -777,18 +777,18 @@ export default function App() {
       // ============================================
       // A. 版本指纹 + Watchdog Timer
       // ============================================
-      const BUILD_FINGERPRINT = 'V260109.02_mobile_logs_fix';
+      const BUILD_FINGERPRINT = 'V260110.01_fast_init';
       console.log('[BOOT] version=', APP_VERSION, 'fingerprint=', BUILD_FINGERPRINT, 'timestamp=', new Date().toISOString());
       console.log('[BOOT] platform=', navigator.userAgent);
       console.log('[BOOT] isMobile=', /Mobile|Android|iPhone/i.test(navigator.userAgent));
 
-      // ✅ Watchdog: 10 秒必结束 loading（即使 Supabase 卡死）
+      // ✅ Watchdog: 5 秒必结束 loading（降低超时，快速失败）
       const watchdog = setTimeout(() => {
-        console.error('[WATCHDOG] init exceeded 10s, force end loading');
+        console.error('[WATCHDOG] init exceeded 5s, force end loading');
         setInitialLoading(false);
         setAppInitialized(true);
         isInitializingRef.current = false;
-      }, 10000);
+      }, 5000);
 
       // ============================================
       // B. 阶段计时器
@@ -803,66 +803,98 @@ export default function App() {
         mark('start');
 
         // ============================================
-        // C. 串行 + 超时加载数据（精确定位卡点）
+        // C. 只加载 medications（关键路径）
         // ============================================
         mark('fetch medications - start');
         const rawMeds = await withTimeout(
           getMedicationsFromCloud(),
-          8000,
+          5000,  // 降低到 5 秒，快速失败
           'getMedicationsFromCloud'
         );
         mark(`fetch medications - done: ${rawMeds?.length ?? 'null'} items`);
 
-        mark('fetch logs - start');
-        let initialLogs: MedicationLog[] = [];
-        try {
-          initialLogs = await withTimeout(
-            getRecentLogsFromCloud(20),  // ✅ 修复：减少到 20 条，防止超时
-            15000,  // ✅ 增加超时时间从 8s 到 15s，确保初始加载成功
-            'getRecentLogsFromCloud'
-          );
-          mark(`fetch logs - done: ${initialLogs?.length ?? 'null'} items`);
-        } catch (logError) {
-          console.error('[INIT] fetch logs failed, using empty array:', logError);
-          mark('fetch logs - failed (using empty array)');
-        }
-
-        console.log('[INIT] platform=', navigator.userAgent.substring(0, 50));
-        console.log('[INIT] meds=', rawMeds.length, 'logs=', initialLogs.length);
-
         // ============================================
-        // D. 无条件构建 UI State
+        // D. 构建 UI State（不依赖 logs）
         // ============================================
         mark('build UI state - start');
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
 
-        const medsUI: MedicationUI[] = rawMeds.map(med => {
-          const lastLog = initialLogs.find(log => log.medication_id === med.id);
-          const taken = lastLog && new Date(lastLog.taken_at) >= today;
-          return {
-            ...med,
-            status: taken ? 'completed' : 'pending',
-            lastTakenAt: lastLog?.taken_at,
-            uploadedAt: lastLog?.created_at,
-            lastLog
-          };
-        });
+        // 🔴 关键修改：medications 默认 status = 'pending'，不等待 logs
+        const medsUI: MedicationUI[] = rawMeds.map(med => ({
+          ...med,
+          status: 'pending',  // 默认待服用，后台加载 logs 后更新
+          lastTakenAt: undefined,
+          uploadedAt: undefined,
+          lastLog: undefined
+        }));
 
-        safeSetMedications(medsUI, 'app-init-first-screen');
-        safeSetTimelineLogs(initialLogs, 'app-init-first-screen');
-        console.log('[SET_LOGS] app-init-first-screen, count=', initialLogs.length);
-        setLogsLoaded(true);
-        setLogsLastUpdatedAt(new Date());
+        safeSetMedications(medsUI, 'app-init-fast');
         mark('build UI state - done');
 
-        logger.log(`✅ [初始化] 首屏数据加载完成: ${rawMeds.length} 个药品, ${initialLogs.length} 条记录`);
+        logger.log(`✅ [初始化] 首屏快速加载完成: ${rawMeds.length} 个药品（logs 后台加载中）`);
 
         // ============================================
-        // E. 后台任务（不阻塞）
+        // E. 后台任务（不阻塞）- 立即触发
         // ============================================
+        // 🔴 关键：立即触发后台 logs 加载，不等待
         setTimeout(() => {
-          // 1. 加载完整历史记录
+          loadLogsInBackground();
+        }, 100);  // 100ms 后启动，确保首屏已渲染
+
+      } catch (error) {
+        console.error('[INIT] failed', error);
+        mark('error');
+      } finally {
+        clearTimeout(watchdog);
+        console.log('[INIT] finally -> end loading');
+        setInitialLoading(false);
+        setAppInitialized(true);
+        isInitializingRef.current = false;
+        logger.log('✅ [初始化] loading 状态已结束');
+        mark('finally - done');
+      }
+    };
+
+    // ============================================
+    // 【后台加载】独立的 logs 加载函数（不阻塞 UI）
+    // ============================================
+    const loadLogsInBackground = async () => {
+      console.log('[LOGS] background loading started');
+
+      try {
+        // 1️⃣ 快速加载最近 20 条 logs
+        const recentLogs = await getRecentLogsFromCloud(20);
+        console.log('[LOGS] recent logs loaded:', recentLogs.length);
+
+        if (recentLogs.length > 0) {
+          // 更新 timeline logs
+          safeSetTimelineLogs(recentLogs, 'background-recent');
+
+          // 更新 medications 的 status（基于最近 logs）
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          safeSetMedications(prev => prev.map(med => {
+            const lastLog = recentLogs.find(log => log.medication_id === med.id);
+            if (lastLog) {
+              const taken = new Date(lastLog.taken_at) >= today;
+              return {
+                ...med,
+                status: taken ? 'completed' : 'pending',
+                lastTakenAt: lastLog.taken_at,
+                uploadedAt: lastLog.created_at,
+                lastLog
+              };
+            }
+            return med;
+          }), 'background-update-status');
+
+          setLogsLoaded(true);
+          setLogsLastUpdatedAt(new Date());
+          console.log('[LOGS] medications status updated based on recent logs');
+        }
+
+        // 2️⃣ 延迟加载完整历史记录（3秒后）
+        setTimeout(() => {
           getLogsFromCloud(undefined, 300, 60).then(allLogs => {
             if (allLogs.length === 0) return;
 
@@ -881,7 +913,7 @@ export default function App() {
             lastLogByMedicationIdRef.current = lastLogMap;
 
             safeSetTimelineLogs(sortedLogs, 'background-load-history');
-            console.log('[SET_LOGS] background-load-history, count=', sortedLogs.length);
+            console.log('[LOGS] full history loaded:', sortedLogs.length);
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -901,30 +933,22 @@ export default function App() {
             }), 'background-update-history-status');
           }).catch(err => console.error('❌ [后台] 历史记录加载失败:', err));
 
-          // 2. 版本检查
+          // 3️⃣ 版本检查
           enforceVersionSync().catch(err => {
             if (err.message !== 'VERSION_MISMATCH') {
               logger.warn('⚠️ [后台] 版本检查失败:', err);
             }
           });
 
-          // 3. 用户设置和其他次要初始化
+          // 4️⃣ 用户设置和其他次要初始化
           getUserSettings().then(settings => {
             if (settings.avatar_url) setAvatarUrl(settings.avatar_url);
           }).catch(() => { });
         }, 3000);
 
       } catch (error) {
-        console.error('[INIT] failed', error);
-        mark('error');
-      } finally {
-        clearTimeout(watchdog);
-        console.log('[INIT] finally -> end loading');
-        setInitialLoading(false);
-        setAppInitialized(true);
-        isInitializingRef.current = false;
-        logger.log('✅ [初始化] loading 状态已结束');
-        mark('finally - done');
+        console.warn('[LOGS] background load failed (non-blocking):', error);
+        // 失败不影响 UI，用户仍然可以看到药物列表
       }
     };
 
