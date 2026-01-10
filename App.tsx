@@ -780,18 +780,12 @@ export default function App() {
       // ============================================
       // A. 版本指纹 + Watchdog Timer
       // ============================================
-      const BUILD_FINGERPRINT = 'V260110.01_fast_init';
+      const BUILD_FINGERPRINT = 'V260111.01_no_timeout';
       console.log('[BOOT] version=', APP_VERSION, 'fingerprint=', BUILD_FINGERPRINT, 'timestamp=', new Date().toISOString());
       console.log('[BOOT] platform=', navigator.userAgent);
       console.log('[BOOT] isMobile=', /Mobile|Android|iPhone/i.test(navigator.userAgent));
 
-      // ✅ Watchdog: 5 秒必结束 loading（降低超时，快速失败）
-      const watchdog = setTimeout(() => {
-        console.error('[WATCHDOG] init exceeded 5s, force end loading');
-        setInitialLoading(false);
-        setAppInitialized(true);
-        isInitializingRef.current = false;
-      }, 5000);
+      // 🔴 移除 Watchdog：让查询自然完成，不强制终止
 
       // ============================================
       // B. 阶段计时器
@@ -876,7 +870,7 @@ export default function App() {
         console.error('[INIT] failed', error);
         mark('error');
       } finally {
-        clearTimeout(watchdog);
+        // watchdog 已移除
         console.log('[INIT] finally -> end loading');
         setInitialLoading(false);
         setAppInitialized(true);
